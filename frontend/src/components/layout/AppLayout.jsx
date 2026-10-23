@@ -34,7 +34,6 @@ import {
 } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
 import MenuIcon from '@mui/icons-material/Menu';
 
 import { useAuth } from '../../context/authContext.js';
@@ -57,12 +56,8 @@ function ContenidoMenu({ alNavegar }) {
 
   return (
     <Box sx={{ width: ANCHO_MENU }}>
-      <Toolbar sx={{ gap: 1.5 }}>
-        <MenuBookIcon color="primary" />
-        <Typography variant="h6" noWrap>
-          Alejandría UPC
-        </Typography>
-      </Toolbar>
+      {/* Espacio que ocupa la barra superior fija */}
+      <Toolbar />
 
       <Divider />
 
