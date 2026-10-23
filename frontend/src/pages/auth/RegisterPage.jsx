@@ -46,6 +46,9 @@ const VALORES_INICIALES = {
   semestre: '',
 };
 
+/** Campos del formulario que se validan. */
+const CAMPOS = ['nombre', 'username', 'correo', 'password', 'confirmar', 'semestre'];
+
 /**
  * Valida el formulario en el cliente antes de llamar al servicio.
  * @param {typeof VALORES_INICIALES} valores
@@ -80,55 +83,77 @@ function validar(valores) {
   return errores;
 }
 
+/**
+ * Copia el objeto de errores sin un campo.
+ * @param {Record<string, string>} errores
+ * @param {string} campo
+ * @returns {Record<string, string>}
+ */
+function sinCampo(errores, campo) {
+  if (!errores[campo]) return errores;
+
+  const siguientes = { ...errores };
+  delete siguientes[campo];
+  return siguientes;
+}
+
 export default function RegisterPage() {
   const navegar = useNavigate();
   const { registro } = useAuth();
 
   const [valores, setValores] = useState(VALORES_INICIALES);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
-  const [erroresCampos, setErroresCampos] = useState(/** @type {Record<string, string>} */ ({}));
+  const [tocados, setTocados] = useState(/** @type {Record<string, boolean>} */ ({}));
+  const [erroresApi, setErroresApi] = useState(/** @type {Record<string, string>} */ ({}));
   const [errorGeneral, setErrorGeneral] = useState('');
   const [enviando, setEnviando] = useState(false);
 
+  const erroresValidacion = validar(valores);
+
   /**
-   * Actualiza un campo y borra su error mientras el usuario lo corrige.
-   * @param {'nombre'|'username'|'correo'|'password'|'confirmar'|'semestre'} campo
+   * El correo ya tiene forma de correo pero no es institucional: se avisa
+   * en el momento, sin esperar a que el usuario salga del campo.
+   */
+  const correoFueraDeDominio =
+    esCorreoValido(valores.correo) && !esCorreoInstitucional(valores.correo);
+
+  /**
+   * Error visible de un campo. El de la API manda; si no hay, se muestra el
+   * de validación cuando el campo ya fue tocado (o antes, para el dominio).
+   * @param {string} campo
+   * @returns {string|undefined}
+   */
+  const errorDe = (campo) => {
+    if (erroresApi[campo]) return erroresApi[campo];
+
+    const mostrar = tocados[campo] || (campo === 'correo' && correoFueraDeDominio);
+    return mostrar ? erroresValidacion[campo] : undefined;
+  };
+
+  /**
+   * Actualiza un campo y borra el error de la API mientras el usuario lo corrige.
+   * @param {string} campo
    */
   const cambiar = (campo) => (evento) => {
     const { value } = evento.target;
     setValores((previos) => ({ ...previos, [campo]: value }));
-
-    setErroresCampos((previos) => {
-      if (!previos[campo]) return previos;
-      const siguientes = { ...previos };
-      delete siguientes[campo];
-      return siguientes;
-    });
+    setErroresApi((previos) => sinCampo(previos, campo));
   };
 
-  const alternarTerminos = (evento) => {
-    setAceptaTerminos(evento.target.checked);
+  /** Marca el campo como tocado al salir de él, para mostrar sus errores. */
+  const marcarTocado = (campo) => () =>
+    setTocados((previos) => ({ ...previos, [campo]: true }));
 
-    setErroresCampos((previos) => {
-      if (!previos.terminos) return previos;
-      const siguientes = { ...previos };
-      delete siguientes.terminos;
-      return siguientes;
-    });
-  };
+  const alternarTerminos = (evento) => setAceptaTerminos(evento.target.checked);
 
   const enviar = async (evento) => {
     evento.preventDefault();
     setErrorGeneral('');
 
-    const errores = validar(valores);
+    // Al enviar ya se muestran los errores de todos los campos.
+    setTocados(Object.fromEntries(CAMPOS.map((campo) => [campo, true])));
 
-    if (!aceptaTerminos) {
-      errores.terminos = 'Debes aceptar las normas de uso.';
-    }
-
-    if (Object.keys(errores).length > 0) {
-      setErroresCampos(errores);
+    if (Object.keys(erroresValidacion).length > 0) {
       return;
     }
 
@@ -148,7 +173,7 @@ export default function RegisterPage() {
       navegar('/', { replace: true });
     } catch (error) {
       if (error?.campos) {
-        setErroresCampos((previos) => ({ ...previos, ...error.campos }));
+        setErroresApi((previos) => ({ ...previos, ...error.campos }));
       }
       setErrorGeneral(error?.message ?? 'No se pudo crear la cuenta. Intenta de nuevo.');
     } finally {
@@ -174,8 +199,9 @@ export default function RegisterPage() {
           label="Nombre completo"
           value={valores.nombre}
           onChange={cambiar('nombre')}
-          error={Boolean(erroresCampos.nombre)}
-          helperText={erroresCampos.nombre}
+          onBlur={marcarTocado('nombre')}
+          error={Boolean(errorDe('nombre'))}
+          helperText={errorDe('nombre')}
           autoComplete="name"
         />
 
@@ -183,8 +209,9 @@ export default function RegisterPage() {
           label="Nombre de usuario"
           value={valores.username}
           onChange={cambiar('username')}
-          error={Boolean(erroresCampos.username)}
-          helperText={erroresCampos.username ?? 'Así te verán los demás. Sin espacios.'}
+          onBlur={marcarTocado('username')}
+          error={Boolean(errorDe('username'))}
+          helperText={errorDe('username') ?? 'Así te verán los demás. Sin espacios.'}
           autoComplete="username"
         />
 
@@ -193,8 +220,9 @@ export default function RegisterPage() {
           type="email"
           value={valores.correo}
           onChange={cambiar('correo')}
-          error={Boolean(erroresCampos.correo)}
-          helperText={erroresCampos.correo ?? `Debe terminar en ${DOMINIO_INSTITUCIONAL}`}
+          onBlur={marcarTocado('correo')}
+          error={Boolean(errorDe('correo'))}
+          helperText={errorDe('correo') ?? `Debe terminar en ${DOMINIO_INSTITUCIONAL}`}
           autoComplete="email"
         />
 
@@ -204,8 +232,9 @@ export default function RegisterPage() {
             type="password"
             value={valores.password}
             onChange={cambiar('password')}
-            error={Boolean(erroresCampos.password)}
-            helperText={erroresCampos.password}
+            onBlur={marcarTocado('password')}
+            error={Boolean(errorDe('password'))}
+            helperText={errorDe('password')}
             autoComplete="new-password"
           />
           <ReglasPassword password={valores.password} />
@@ -216,8 +245,9 @@ export default function RegisterPage() {
           type="password"
           value={valores.confirmar}
           onChange={cambiar('confirmar')}
-          error={Boolean(erroresCampos.confirmar)}
-          helperText={erroresCampos.confirmar}
+          onBlur={marcarTocado('confirmar')}
+          error={Boolean(errorDe('confirmar'))}
+          helperText={errorDe('confirmar')}
           autoComplete="new-password"
         />
 
@@ -236,24 +266,17 @@ export default function RegisterPage() {
           ))}
         </TextField>
 
-        <Box>
-          <FormControlLabel
-            control={<Checkbox checked={aceptaTerminos} onChange={alternarTerminos} />}
-            label={
-              <Typography variant="body2">
-                Acepto las{' '}
-                <Link component={RouterLink} to="/normas">
-                  normas de uso
-                </Link>
-              </Typography>
-            }
-          />
-          {erroresCampos.terminos && (
-            <Typography variant="caption" sx={{ color: 'error.main', display: 'block' }}>
-              {erroresCampos.terminos}
+        <FormControlLabel
+          control={<Checkbox checked={aceptaTerminos} onChange={alternarTerminos} />}
+          label={
+            <Typography variant="body2">
+              Acepto las{' '}
+              <Link component={RouterLink} to="/normas">
+                normas de uso
+              </Link>
             </Typography>
-          )}
-        </Box>
+          }
+        />
 
         <Button type="submit" size="large" disabled={!aceptaTerminos || enviando}>
           {enviando ? 'Creando cuenta…' : 'Crear cuenta'}
