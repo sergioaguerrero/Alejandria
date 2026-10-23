@@ -44,7 +44,10 @@ export default function ErrorPage({ code = 404 }) {
         py: 6,
       }}
     >
-      <Stack spacing={2} alignItems="center" textAlign="center" maxWidth={520}>
+      <Stack
+        spacing={2}
+        sx={{ alignItems: 'center', textAlign: 'center', maxWidth: 520 }}
+      >
         <Typography variant="overline">Error {info.codigo}</Typography>
 
         <Typography
