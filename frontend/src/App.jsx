@@ -4,7 +4,7 @@
  *
  * Estructura:
  *   - Rutas privadas: pasan por <ProtectedRoute /> y luego por <AppLayout />.
- *   - Rutas públicas: login, registro y recuperación (se agregan en FE-04 y FE-05).
+ *   - Rutas públicas: pasan por <AuthLayout /> (login, registro, recuperación).
  *   - Cualquier otra ruta cae en la vista 26 (404).
  *
  * Las rutas de administrador se protegerán con roles={['admin']} cuando
@@ -14,7 +14,9 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import AppLayout from './components/layout/AppLayout.jsx';
+import AuthLayout from './components/layout/AuthLayout.jsx';
 import AuthProvider from './context/AuthProvider.jsx';
+import RegisterPage from './pages/auth/RegisterPage.jsx';
 import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
@@ -24,6 +26,11 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          {/* ── Rutas públicas ─────────────────────────────────────────── */}
+          <Route element={<AuthLayout />}>
+            <Route path="/registro" element={<RegisterPage />} />
+          </Route>
+
           {/* ── Rutas privadas ─────────────────────────────────────────── */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
