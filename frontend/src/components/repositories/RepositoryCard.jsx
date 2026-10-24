@@ -19,7 +19,6 @@ export default function RepositoryCard({ repository }) {
 
   return (
     <Card sx={{ height: '100%' }}>
-      {/* TODO(FE-12): the detail route (view 7) lands in the next story. */}
       <CardActionArea
         component={RouterLink}
         to={`/repositories/${repository.id}`}
