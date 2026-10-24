@@ -17,6 +17,7 @@ import { currentUser } from './authService.js';
 /**
  * @typedef {object} RepositoryFilters
  * @property {number|string|null} [subjectId]
+ * @property {number|string|null} [semester]
  * @property {string} [search]
  * @property {'recent'|'popular'|'name'} [order]
  * @property {number} [page]
@@ -90,6 +91,7 @@ function normalizePage(data, page, size) {
 export async function getRepositories(filters = {}) {
   const {
     subjectId = null,
+    semester = null,
     search = '',
     order = 'recent',
     page = 1,
@@ -98,7 +100,7 @@ export async function getRepositories(filters = {}) {
 
   if (!USE_MOCK) {
     const { data } = await http.get('/repositories', {
-      params: { subjectId, q: search, order, page, size },
+      params: { subjectId, semester, q: search, order, page, size },
     });
     return normalizePage(data, page, size);
   }
@@ -107,13 +109,20 @@ export async function getRepositories(filters = {}) {
 
   const term = normalize(search);
 
+  /** Finds the subject of a repository, to read its semester. */
+  const subjectOf = (repository) =>
+    store.subjects.find((item) => item.id === Number(repository.subjectId)) ?? null;
+
   let list = store.repositories.filter((repository) => {
     const subjectMatches = !subjectId || Number(repository.subjectId) === Number(subjectId);
     if (!subjectMatches) return false;
 
+    const semesterMatches = !semester || subjectOf(repository)?.semester === Number(semester);
+    if (!semesterMatches) return false;
+
     if (!term) return true;
 
-    const subject = store.subjects.find((item) => item.id === Number(repository.subjectId));
+    const subject = subjectOf(repository);
     const text = normalize(`${repository.name} ${repository.description} ${subject?.name ?? ''}`);
     return text.includes(term);
   });

@@ -2,10 +2,10 @@
  * @file HomePage.jsx
  * @description View 6 — Home / Explore repositories (FE-10, endpoints BE-12 and BE-20).
  *
- * A grid of repository cards with a subject filter and pagination. It shows
- * skeletons while loading and an empty state when there is nothing to show.
- * The "Create repository" button goes to view 8 and each card goes to the
- * repository detail (view 7).
+ * A grid of repository cards with a cascading filter (semester → subject) and
+ * pagination. It shows skeletons while loading and an empty state when there is
+ * nothing to show. The "Create repository" button goes to view 8 and each card
+ * goes to the repository detail (view 7).
  */
 
 import { useEffect, useState } from 'react';
@@ -17,6 +17,7 @@ import {
   Button,
   FormControl,
   InputLabel,
+  ListSubheader,
   MenuItem,
   Pagination,
   Select,
@@ -28,7 +29,7 @@ import AddIcon from '@mui/icons-material/Add';
 
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import { getRepositories } from '../../services/repositoryService.js';
-import { getSubjects } from '../../services/subjectService.js';
+import { getSubjects, groupBySemester } from '../../services/subjectService.js';
 
 const PAGE_SIZE = 9;
 
@@ -45,6 +46,7 @@ const GRID_SX = {
 
 export default function HomePage() {
   const [subjects, setSubjects] = useState([]);
+  const [semester, setSemester] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
@@ -76,6 +78,7 @@ export default function HomePage() {
 
     getRepositories({
       subjectId: subjectId === '' ? null : subjectId,
+      semester: semester === '' ? null : semester,
       page,
       size: PAGE_SIZE,
     })
@@ -94,12 +97,21 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, [subjectId, page]);
+  }, [semester, subjectId, page]);
 
   /** Shows the skeletons again while a new search is on its way. */
   const startLoading = () => {
     setIsLoading(true);
     setError('');
+  };
+
+  // Changing the semester clears the subject, because the subject list depends
+  // on the semester that is selected.
+  const handleSemesterChange = (event) => {
+    startLoading();
+    setSemester(event.target.value);
+    setSubjectId('');
+    setPage(1);
   };
 
   const handleSubjectChange = (event) => {
@@ -113,6 +125,13 @@ export default function HomePage() {
     setPage(value);
   };
 
+  const semesters = [...new Set(subjects.map((subject) => subject.semester))].sort(
+    (a, b) => a - b,
+  );
+
+  const visibleSubjects =
+    semester === '' ? subjects : subjects.filter((subject) => subject.semester === semester);
+
   const items = result?.items ?? [];
   const totalPages = result?.totalPages ?? 1;
 
@@ -123,7 +142,8 @@ export default function HomePage() {
           Explorar repositorios
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Encuentra material de estudio por materia y sigue las rutas que comparte la comunidad.
+          Encuentra material de estudio por semestre y materia, y sigue las rutas que comparte la
+          comunidad.
         </Typography>
       </Stack>
 
@@ -136,22 +156,49 @@ export default function HomePage() {
           justifyContent: 'space-between',
         }}
       >
-        <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel id="subject-filter-label">Materia</InputLabel>
-          <Select
-            labelId="subject-filter-label"
-            label="Materia"
-            value={subjectId}
-            onChange={handleSubjectChange}
-          >
-            <MenuItem value="">Todas las materias</MenuItem>
-            {subjects.map((subject) => (
-              <MenuItem key={subject.id} value={subject.id}>
-                {subject.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Stack
+          spacing={2}
+          sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' } }}
+        >
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel id="semester-filter-label">Semestre</InputLabel>
+            <Select
+              labelId="semester-filter-label"
+              label="Semestre"
+              value={semester}
+              onChange={handleSemesterChange}
+            >
+              <MenuItem value="">Todos los semestres</MenuItem>
+              {semesters.map((value) => (
+                <MenuItem key={value} value={value}>
+                  {`Semestre ${value}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel id="subject-filter-label">Materia</InputLabel>
+            <Select
+              labelId="subject-filter-label"
+              label="Materia"
+              value={subjectId}
+              onChange={handleSubjectChange}
+            >
+              <MenuItem value="">Todas las materias</MenuItem>
+              {groupBySemester(visibleSubjects).flatMap((group) => [
+                <ListSubheader key={`semester-${group.semester}`}>
+                  {`Semestre ${group.semester}`}
+                </ListSubheader>,
+                ...group.subjects.map((subject) => (
+                  <MenuItem key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </MenuItem>
+                )),
+              ])}
+            </Select>
+          </FormControl>
+        </Stack>
 
         {/* TODO(FE-11): view 8 (create repository) lands in Sprint 2. */}
         <Button
@@ -182,9 +229,9 @@ export default function HomePage() {
             No encontramos repositorios
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {subjectId === ''
+            {semester === '' && subjectId === ''
               ? 'Todavía no hay repositorios publicados.'
-              : 'Prueba con otra materia o quita el filtro.'}
+              : 'Prueba con otro semestre u otra materia, o quita los filtros.'}
           </Typography>
         </Box>
       ) : (
