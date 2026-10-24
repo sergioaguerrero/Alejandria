@@ -21,8 +21,12 @@ const RULES = [
 /**
  * @param {object} props
  * @param {string} props.password  Password being typed.
+ * @param {boolean} [props.focused]  Whether the password field is focused.
  */
-export default function PasswordRules({ password = '' }) {
+export default function PasswordRules({ password = '', focused = false }) {
+  // Only shown while the user is typing the password or once it has content.
+  if (!focused && String(password) === '') return null;
+
   return (
     <Stack component="ul" spacing={0.5} sx={{ m: 0, mt: 1, pl: 0, listStyle: 'none' }}>
       {RULES.map(({ key, text, isMet }) => {

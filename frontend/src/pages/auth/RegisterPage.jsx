@@ -103,6 +103,7 @@ export default function RegisterPage() {
 
   const [values, setValues] = useState(INITIAL_VALUES);
   const [acceptsTerms, setAcceptsTerms] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [touched, setTouched] = useState(/** @type {Record<string, boolean>} */ ({}));
   const [apiErrors, setApiErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [generalError, setGeneralError] = useState('');
@@ -143,6 +144,12 @@ export default function RegisterPage() {
   /** Marks the field as touched on blur, to show its errors. */
   const markTouched = (field) => () =>
     setTouched((previous) => ({ ...previous, [field]: true }));
+
+  /** On password blur: mark it touched and let PasswordRules hide itself. */
+  const handlePasswordBlur = () => {
+    markTouched('password')();
+    setPasswordFocused(false);
+  };
 
   const toggleTerms = (event) => setAcceptsTerms(event.target.checked);
 
@@ -232,12 +239,13 @@ export default function RegisterPage() {
             type="password"
             value={values.password}
             onChange={handleChange('password')}
-            onBlur={markTouched('password')}
+            onFocus={() => setPasswordFocused(true)}
+            onBlur={handlePasswordBlur}
             error={Boolean(errorFor('password'))}
             helperText={errorFor('password')}
             autoComplete="new-password"
           />
-          <PasswordRules password={values.password} />
+          <PasswordRules password={values.password} focused={passwordFocused} />
         </Box>
 
         <TextField
