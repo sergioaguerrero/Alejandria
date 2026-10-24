@@ -19,10 +19,10 @@ export default function AuthLayout() {
         display: 'grid',
         placeItems: 'center',
         px: 2,
-        py: 6,
+        py: { xs: 4, sm: 5 },
       }}
     >
-      <Stack spacing={3} sx={{ width: '100%', maxWidth: 480, alignItems: 'center' }}>
+      <Stack spacing={2.5} sx={{ width: '100%', maxWidth: 600, alignItems: 'center' }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <MenuBookIcon color="primary" />
           <Typography variant="h5">Alejandría UPC</Typography>
