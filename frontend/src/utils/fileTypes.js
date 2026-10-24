@@ -26,6 +26,15 @@ const FALLBACK = { label: 'Archivo', Icon: DescriptionIcon };
 export const PREVIEWABLE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
 
 /**
+ * Indicates if the browser can preview the file of this extension.
+ * @param {string} [extension]
+ * @returns {boolean}
+ */
+export function isPreviewable(extension) {
+  return PREVIEWABLE_EXTENSIONS.includes(String(extension ?? '').toLowerCase());
+}
+
+/**
  * Describes a file by its extension.
  * @param {string} [extension]
  * @returns {{ label: string, Icon: import('react').ElementType }}
