@@ -2,18 +2,18 @@
  * @file LighthouseMark.jsx
  * @description Brand mark of Alejandría UPC: a lighthouse inside a rounded square.
  *
- * The square uses the accent color and the lighthouse is drawn in a reddish
- * tone, so the mark reads on the dark palette. "Alejandría" alludes to the
- * Lighthouse of Alexandria, hence the symbol.
+ * The square uses the dark secondary blue and the lighthouse is drawn in a
+ * reddish tone, so the shape reads on the dark palette. "Alejandría" alludes
+ * to the Lighthouse of Alexandria, hence the symbol.
  */
 
 import { Box, useTheme } from '@mui/material';
 
-/** Reddish tone of the lighthouse over the accent square. */
+/** Reddish tone of the lighthouse over the dark square. */
 const LIGHTHOUSE_COLOR = '#F87171';
 
 /**
- * Brand mark: a lighthouse in a rounded accent square.
+ * Brand mark: a lighthouse in a rounded dark square.
  * @param {object} props
  * @param {number} [props.size] Size in pixels of the lighthouse drawing.
  * @param {object} [props.sx]   Extra styles for the rounded square.
@@ -24,7 +24,7 @@ export default function LighthouseMark({ size = 40, sx }) {
   const padding = Math.round(size * 0.25);
 
   // Same as the square background, so the tower stripes look like gaps.
-  const squareColor = theme.palette.primary.main;
+  const squareColor = theme.palette.secondary.main;
 
   return (
     <Box
@@ -34,7 +34,7 @@ export default function LighthouseMark({ size = 40, sx }) {
         width: 'fit-content',
         p: `${padding}px`,
         borderRadius: `${Math.round(size * 0.3)}px`,
-        bgcolor: 'primary.main',
+        bgcolor: 'secondary.main',
         color: LIGHTHOUSE_COLOR,
         lineHeight: 0,
         ...sx,
