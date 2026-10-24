@@ -3,8 +3,9 @@
  * @description View 1 — Login (FE-05, endpoint BE-06).
  *
  * Rules from the statement:
- *  - Email and password fields plus the sign-in button.
- *  - Validate the email format and that no field is empty.
+ *  - Username, institutional email and password fields plus the sign-in button.
+ *  - Validate the email format (only the @unicesar.edu.co domain) and that
+ *    no field is empty.
  *  - An Alert with "Credenciales incorrectas" on 401, and a different
  *    message if the account is suspended (both come from the service).
  *  - On success, save the session and redirect: student to Home,
@@ -26,15 +27,20 @@ import {
 } from '@mui/material';
 
 import { useAuth } from '../../context/authContext.js';
-import { isValidEmail } from '../../utils/validations.js';
+import {
+  INSTITUTIONAL_DOMAIN,
+  isInstitutionalEmail,
+  isValidEmail,
+} from '../../utils/validations.js';
 
 const INITIAL_VALUES = {
+  username: '',
   email: '',
   password: '',
 };
 
 /** Form fields that are validated. */
-const FIELDS = ['email', 'password'];
+const FIELDS = ['username', 'email', 'password'];
 
 /**
  * Validates the form on the client before calling the service.
@@ -45,10 +51,16 @@ function validate(values) {
   /** @type {Record<string, string>} */
   const errors = {};
 
+  if (String(values.username).trim() === '') {
+    errors.username = 'Escribe tu nombre de usuario.';
+  }
+
   if (String(values.email).trim() === '') {
     errors.email = 'Escribe tu correo.';
   } else if (!isValidEmail(values.email)) {
     errors.email = 'Escribe un correo válido.';
+  } else if (!isInstitutionalEmail(values.email)) {
+    errors.email = `Debes usar tu correo institucional ${INSTITUTIONAL_DOMAIN}.`;
   }
 
   if (String(values.password) === '') {
@@ -71,12 +83,22 @@ export default function LoginPage() {
   const validationErrors = validate(values);
 
   /**
-   * Visible error of a field, shown once the field was touched.
+   * The email already looks like an email but is not institutional: warn
+   * right away, without waiting for the user to leave the field.
+   */
+  const emailOutsideDomain =
+    isValidEmail(values.email) && !isInstitutionalEmail(values.email);
+
+  /**
+   * Visible error of a field. Shown once the field was touched, or earlier
+   * for the institutional domain.
    * @param {string} field
    * @returns {string|undefined}
    */
-  const errorFor = (field) =>
-    touched[field] ? validationErrors[field] : undefined;
+  const errorFor = (field) => {
+    const shouldShow = touched[field] || (field === 'email' && emailOutsideDomain);
+    return shouldShow ? validationErrors[field] : undefined;
+  };
 
   /** Updates a field while the user fixes it and clears the general error. */
   const handleChange = (field) => (event) => {
@@ -104,6 +126,7 @@ export default function LoginPage() {
       setIsSubmitting(true);
 
       await login({
+        username: values.username,
         email: values.email,
         password: values.password,
       });
@@ -127,11 +150,21 @@ export default function LoginPage() {
             Iniciar sesión
           </Typography>
           <Typography variant="body2">
-            Entra con tu correo institucional.
+            Entra con tu nombre de usuario y tu correo institucional.
           </Typography>
         </Box>
 
         {generalError && <Alert severity="error">{generalError}</Alert>}
+
+        <TextField
+          label="Nombre de usuario"
+          value={values.username}
+          onChange={handleChange('username')}
+          onBlur={markTouched('username')}
+          error={Boolean(errorFor('username'))}
+          helperText={errorFor('username')}
+          autoComplete="username"
+        />
 
         <TextField
           label="Correo institucional"
@@ -140,7 +173,7 @@ export default function LoginPage() {
           onChange={handleChange('email')}
           onBlur={markTouched('email')}
           error={Boolean(errorFor('email'))}
-          helperText={errorFor('email')}
+          helperText={errorFor('email') ?? `Debe terminar en ${INSTITUTIONAL_DOMAIN}`}
           autoComplete="email"
         />
 

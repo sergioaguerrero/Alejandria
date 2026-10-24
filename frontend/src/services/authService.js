@@ -76,20 +76,25 @@ export function logout() {
 // ── Login (FE-05) ──────────────────────────────────────────────────────────
 
 /**
- * Logs in with an email and a password.
- * @param {{ email: string, password: string }} credentials
+ * Logs in with a username, an email and a password.
+ * @param {{ username: string, email: string, password: string }} credentials
  * @returns {Promise<Session>}
  * @throws {ApiError} 401 if the credentials do not match, 403 if the account is suspended.
  */
-export async function login({ email, password }) {
+export async function login({ username, email, password }) {
+  const cleanUsername = String(username ?? '').trim().toLowerCase();
   const cleanEmail = String(email ?? '').trim().toLowerCase();
 
-  if (!cleanEmail || !password) {
-    throw new ApiError('Escribe tu correo y tu contraseña.', { status: 400 });
+  if (!cleanUsername || !cleanEmail || !password) {
+    throw new ApiError('Escribe tu usuario, tu correo y tu contraseña.', { status: 400 });
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post('/auth/login', { email: cleanEmail, password });
+    const { data } = await http.post('/auth/login', {
+      username: cleanUsername,
+      email: cleanEmail,
+      password,
+    });
     saveSession(data);
     return data;
   }
@@ -97,13 +102,16 @@ export async function login({ email, password }) {
   await waitForMock(700);
 
   const user = store.users.find(
-    (candidate) => candidate.email.toLowerCase() === cleanEmail,
+    (candidate) =>
+      candidate.username.toLowerCase() === cleanUsername &&
+      candidate.email.toLowerCase() === cleanEmail,
   );
 
   if (!user || user.password !== password) {
-    throw new ApiError('Credenciales incorrectas. Revisa tu correo y contraseña.', {
-      status: 401,
-    });
+    throw new ApiError(
+      'Credenciales incorrectas. Revisa tu usuario, tu correo y tu contraseña.',
+      { status: 401 },
+    );
   }
 
   if (user.suspended) {
