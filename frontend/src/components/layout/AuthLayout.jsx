@@ -2,16 +2,46 @@
  * @file AuthLayout.jsx
  * @description Structure of the public views: login and register (FE-04).
  *
- * Two columns on wide screens: the brand panel on the left and the form on the
- * right. On narrow screens the brand collapses into a compact header above the
- * form. Views are rendered in <Outlet />.
+ * Two columns on wide screens: a brand panel with the highlights of the
+ * platform on the left and the form on the right. On narrow screens the brand
+ * collapses into a compact header above the form. Views are rendered in
+ * <Outlet />.
  */
 
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import GroupsIcon from '@mui/icons-material/Groups';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import RouteIcon from '@mui/icons-material/Route';
 
 import LighthouseMark from '../brand/LighthouseMark.jsx';
+
+/** Highlights shown next to the form on wide screens. */
+const HIGHLIGHTS = [
+  {
+    Icon: LibraryBooksIcon,
+    title: 'Repositorios por materia',
+    description:
+      'Encuentra apuntes, talleres y parciales resueltos, organizados por materia y semestre.',
+  },
+  {
+    Icon: CloudUploadIcon,
+    title: 'Comparte tu material',
+    description: 'Sube tus apuntes y ayuda a otros estudiantes de Ingeniería de Sistemas.',
+  },
+  {
+    Icon: RouteIcon,
+    title: 'Sigue tu ruta académica',
+    description: 'Consulta los recursos sugeridos para cada semestre de tu pensum.',
+  },
+  {
+    Icon: GroupsIcon,
+    title: 'Comunidad UPC',
+    description: 'Aprende de lo que comparten tus compañeros de la Universidad Popular del Cesar.',
+  },
+];
 
 export default function AuthLayout() {
   return (
@@ -20,12 +50,10 @@ export default function AuthLayout() {
       <Box
         sx={{
           display: { xs: 'none', md: 'flex' },
-          flex: '0 0 44%',
+          flex: '0 0 50%',
           position: 'relative',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 3,
           overflow: 'hidden',
           p: 6,
           bgcolor: 'background.paper',
@@ -39,25 +67,33 @@ export default function AuthLayout() {
             inset: 0,
             pointerEvents: 'none',
             background: (theme) =>
-              `radial-gradient(circle at 50% 34%, ${alpha(
+              `radial-gradient(circle at 32% 30%, ${alpha(
                 theme.palette.primary.main,
-                0.16,
-              )}, transparent 62%)`,
+                0.14,
+              )}, transparent 60%)`,
           }}
         />
 
-        <Stack
-          spacing={2.5}
-          sx={{ position: 'relative', alignItems: 'center', textAlign: 'center' }}
-        >
-          <LighthouseMark size={52} />
-          <Stack spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Typography variant="h3" component="p">
+        <Stack spacing={4} sx={{ position: 'relative', maxWidth: 440 }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <LighthouseMark size={24} />
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
               Alejandría UPC
             </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 340 }}>
-              Comparte, encuentra y aprende con el material de tus compañeros.
-            </Typography>
+          </Stack>
+
+          <Stack spacing={3}>
+            {HIGHLIGHTS.map(({ Icon, title, description }) => (
+              <Stack key={title} direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
+                <Icon sx={{ color: 'primary.main', fontSize: 24, mt: 0.25 }} />
+                <Box>
+                  <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                    {title}
+                  </Typography>
+                  <Typography variant="body2">{description}</Typography>
+                </Box>
+              </Stack>
+            ))}
           </Stack>
         </Stack>
       </Box>
