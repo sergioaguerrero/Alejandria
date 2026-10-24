@@ -19,10 +19,10 @@
 export const REPOSITORIES = [
   {
     id: 'repository-001',
-    name: 'Programación II — Estructuras básicas',
+    name: 'Programación de Computadores II — Estructuras básicas',
     description:
       'Apuntes de clase, talleres resueltos y ejercicios de arreglos, listas y recursividad vistos con el profe en el semestre.',
-    subjectId: 9,
+    subjectId: 21,
     authorUsername: 'sergioaguerrero',
     likes: 14,
     createdAt: '2026-08-12T14:20:00.000Z',
@@ -30,10 +30,10 @@ export const REPOSITORIES = [
   },
   {
     id: 'repository-002',
-    name: 'Bases de Datos I — Talleres y parciales resueltos',
+    name: 'Base de Datos — Talleres y parciales resueltos',
     description:
       'Modelado entidad-relación, normalización hasta 3FN y consultas SQL con ejemplos reales del parcial.',
-    subjectId: 14,
+    subjectId: 25,
     authorUsername: 'lauramartinez',
     likes: 23,
     createdAt: '2026-08-15T10:00:00.000Z',
@@ -44,7 +44,7 @@ export const REPOSITORIES = [
     name: 'Cálculo Integral — Guías y repasos',
     description:
       'Guías del profesor Rojas, talleres de integración por partes y repaso de integrales impropias.',
-    subjectId: 6,
+    subjectId: 10,
     authorUsername: 'andrespineda',
     likes: 9,
     createdAt: '2026-08-20T08:30:00.000Z',
@@ -52,10 +52,10 @@ export const REPOSITORIES = [
   },
   {
     id: 'repository-004',
-    name: 'Programación I — Ejercicios en Java',
+    name: 'Programación de Computadores I — Ejercicios en Java',
     description:
       'Desde variables y condicionales hasta ciclos y métodos. Todo con solución y explicación paso a paso.',
-    subjectId: 4,
+    subjectId: 14,
     authorUsername: 'camilodaza',
     likes: 31,
     createdAt: '2026-08-05T19:10:00.000Z',
@@ -63,10 +63,10 @@ export const REPOSITORIES = [
   },
   {
     id: 'repository-005',
-    name: 'Estructuras de Datos — Implementaciones en C++',
+    name: 'Estructura de Datos — Implementaciones en C++',
     description:
       'Pilas, colas, listas enlazadas y árboles binarios implementados desde cero, con pruebas de escritorio.',
-    subjectId: 13,
+    subjectId: 20,
     authorUsername: 'valentinarojas',
     likes: 18,
     createdAt: '2026-08-22T13:45:00.000Z',
@@ -74,10 +74,10 @@ export const REPOSITORIES = [
   },
   {
     id: 'repository-006',
-    name: 'Redes de Computadores — Laboratorios en Packet Tracer',
+    name: 'Redes y Comunicaciones — Laboratorios en Packet Tracer',
     description:
       'Configuración de VLAN, enrutamiento estático y subnetting con los archivos .pkt de cada laboratorio.',
-    subjectId: 22,
+    subjectId: 49,
     authorUsername: 'valentinarojas',
     likes: 12,
     createdAt: '2026-08-28T15:20:00.000Z',
@@ -88,7 +88,7 @@ export const REPOSITORIES = [
     name: 'Ingeniería de Software I — Documentación del proyecto',
     description:
       'Historias de usuario, diagramas UML y plantillas de documentación para el proyecto integrador.',
-    subjectId: 23,
+    subjectId: 36,
     authorUsername: 'danielaospino',
     likes: 7,
     createdAt: '2026-09-01T09:00:00.000Z',
@@ -96,10 +96,10 @@ export const REPOSITORIES = [
   },
   {
     id: 'repository-008',
-    name: 'Bases de Datos II — PL/SQL y triggers',
+    name: 'Base de Datos Avanzadas — PL/SQL y triggers',
     description:
       'Procedimientos almacenados, funciones, cursores y triggers en Oracle, con scripts listos para SQL Developer.',
-    subjectId: 18,
+    subjectId: 34,
     authorUsername: 'lauramartinez',
     likes: 16,
     createdAt: '2026-09-03T17:35:00.000Z',
@@ -110,7 +110,7 @@ export const REPOSITORIES = [
     name: 'Inteligencia Artificial — Talleres de búsqueda',
     description:
       'Algoritmos de búsqueda no informada, A* y ejercicios de lógica difusa resueltos en Python.',
-    subjectId: 29,
+    subjectId: 48,
     authorUsername: 'sergioaguerrero',
     likes: 11,
     createdAt: '2026-09-10T11:40:00.000Z',
@@ -121,7 +121,7 @@ export const REPOSITORIES = [
     name: 'Cálculo Diferencial — Límites y derivadas',
     description:
       'Talleres de límites, derivadas por definición y reglas de derivación con ejercicios resueltos.',
-    subjectId: 1,
+    subjectId: 2,
     authorUsername: 'camilodaza',
     likes: 5,
     createdAt: '2026-09-12T08:15:00.000Z',

@@ -37,7 +37,7 @@ const SAMPLE_PDF = '/docs/example-notes.pdf';
 
 /** @type {Document[]} */
 export const DOCUMENTS = [
-  // ── repository-001 · Programación II ──────────────────────────────────────────
+  // ── repository-001 · Programación de Computadores II ──────────────────────────
   {
     id: 'doc-001',
     repositoryId: 'repository-001',
@@ -107,7 +107,7 @@ export const DOCUMENTS = [
     createdAt: '2026-09-24T18:00:00.000Z',
   },
 
-  // ── repository-002 · Bases de Datos I ─────────────────────────────────────────
+  // ── repository-002 · Base de Datos ────────────────────────────────────────────
   {
     id: 'doc-004',
     repositoryId: 'repository-002',
@@ -223,7 +223,7 @@ export const DOCUMENTS = [
     createdAt: '2026-10-11T11:15:00.000Z',
   },
 
-  // ── repository-004 · Programación I ───────────────────────────────────────────
+  // ── repository-004 · Programación de Computadores I ───────────────────────────
   {
     id: 'doc-009',
     repositoryId: 'repository-004',
@@ -269,7 +269,7 @@ export const DOCUMENTS = [
     createdAt: '2026-09-14T07:55:00.000Z',
   },
 
-  // ── repository-005 · Estructuras de Datos ─────────────────────────────────────
+  // ── repository-005 · Estructura de Datos ──────────────────────────────────────
   {
     id: 'doc-011',
     repositoryId: 'repository-005',
@@ -315,7 +315,7 @@ export const DOCUMENTS = [
     createdAt: '2026-10-19T18:30:00.000Z',
   },
 
-  // ── repository-006 · Redes ────────────────────────────────────────────────────
+  // ── repository-006 · Redes y Comunicaciones ───────────────────────────────────
   {
     id: 'doc-013',
     repositoryId: 'repository-006',
@@ -385,7 +385,7 @@ export const DOCUMENTS = [
     createdAt: '2026-10-16T10:25:00.000Z',
   },
 
-  // ── repository-008 · Bases de Datos II ────────────────────────────────────────
+  // ── repository-008 · Base de Datos Avanzadas ──────────────────────────────────
   {
     id: 'doc-016',
     repositoryId: 'repository-008',
