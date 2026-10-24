@@ -2,46 +2,17 @@
  * @file AuthLayout.jsx
  * @description Structure of the public views: login and register (FE-04).
  *
- * Two columns on wide screens: a brand panel with the highlights of the
- * platform on the left and the form on the right. On narrow screens the brand
- * collapses into a compact header above the form. Views are rendered in
- * <Outlet />.
+ * Two columns on wide screens: the brand panel with the lighthouse mark, the
+ * name and the subtitle on the left, and the form on the right. On narrow
+ * screens the brand collapses into a compact header above the form. Views are
+ * rendered in <Outlet />.
  */
 
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import GroupsIcon from '@mui/icons-material/Groups';
-import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
-import RouteIcon from '@mui/icons-material/Route';
 
 import LighthouseMark from '../brand/LighthouseMark.jsx';
-
-/** Highlights shown next to the form on wide screens. */
-const HIGHLIGHTS = [
-  {
-    Icon: LibraryBooksIcon,
-    title: 'Repositorios por materia',
-    description:
-      'Encuentra apuntes, talleres y parciales resueltos, organizados por materia y semestre.',
-  },
-  {
-    Icon: CloudUploadIcon,
-    title: 'Comparte tu material',
-    description: 'Sube tus apuntes y ayuda a otros estudiantes de Ingeniería de Sistemas.',
-  },
-  {
-    Icon: RouteIcon,
-    title: 'Sigue tu ruta académica',
-    description: 'Consulta los recursos sugeridos para cada semestre de tu pensum.',
-  },
-  {
-    Icon: GroupsIcon,
-    title: 'Comunidad UPC',
-    description: 'Aprende de lo que comparten tus compañeros de la Universidad Popular del Cesar.',
-  },
-];
 
 export default function AuthLayout() {
   return (
@@ -50,7 +21,7 @@ export default function AuthLayout() {
       <Box
         sx={{
           display: { xs: 'none', md: 'flex' },
-          flex: '0 0 50%',
+          flex: '0 0 45%',
           position: 'relative',
           alignItems: 'center',
           justifyContent: 'center',
@@ -67,33 +38,24 @@ export default function AuthLayout() {
             inset: 0,
             pointerEvents: 'none',
             background: (theme) =>
-              `radial-gradient(circle at 32% 30%, ${alpha(
+              `radial-gradient(circle at 50% 38%, ${alpha(
                 theme.palette.primary.main,
-                0.14,
+                0.16,
               )}, transparent 60%)`,
           }}
         />
 
-        <Stack spacing={4} sx={{ position: 'relative', maxWidth: 440 }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <LighthouseMark size={24} />
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+        <Stack
+          spacing={3}
+          sx={{ position: 'relative', alignItems: 'center', textAlign: 'center', maxWidth: 420 }}
+        >
+          <LighthouseMark size={80} />
+
+          <Stack spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Typography variant="h2" component="p">
               Alejandría UPC
             </Typography>
-          </Stack>
-
-          <Stack spacing={3}>
-            {HIGHLIGHTS.map(({ Icon, title, description }) => (
-              <Stack key={title} direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
-                <Icon sx={{ color: 'primary.main', fontSize: 24, mt: 0.25 }} />
-                <Box>
-                  <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                    {title}
-                  </Typography>
-                  <Typography variant="body2">{description}</Typography>
-                </Box>
-              </Stack>
-            ))}
+            <Typography variant="subtitle1">Repositorio virtual académico UPC</Typography>
           </Stack>
         </Stack>
       </Box>
@@ -108,7 +70,7 @@ export default function AuthLayout() {
           py: { xs: 4, sm: 5 },
         }}
       >
-        <Stack spacing={2.5} sx={{ width: '100%', maxWidth: 460 }}>
+        <Stack spacing={2.5} sx={{ width: '100%', maxWidth: 540 }}>
           {/* Compact brand — narrow screens only */}
           <Stack
             direction="row"
@@ -119,7 +81,7 @@ export default function AuthLayout() {
               justifyContent: 'center',
             }}
           >
-            <LighthouseMark size={26} />
+            <LighthouseMark size={30} />
             <Typography variant="h5">Alejandría UPC</Typography>
           </Stack>
 
