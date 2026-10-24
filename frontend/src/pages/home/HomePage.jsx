@@ -148,17 +148,18 @@ export default function HomePage() {
       </Stack>
 
       <Stack
+        direction={{ xs: 'column', sm: 'row' }}
         spacing={2}
         sx={{
           mb: 3,
-          flexDirection: { xs: 'column', sm: 'row' },
           alignItems: { sm: 'center' },
           justifyContent: 'space-between',
         }}
       >
         <Stack
+          direction={{ xs: 'column', sm: 'row' }}
           spacing={2}
-          sx={{ flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' } }}
+          sx={{ alignItems: { sm: 'center' } }}
         >
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel id="semester-filter-label">Semestre</InputLabel>
