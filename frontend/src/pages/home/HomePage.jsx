@@ -1,33 +1,212 @@
 /**
  * @file HomePage.jsx
- * @description Provisional home inside the layout.
+ * @description View 6 — Home / Explore repositories (FE-10, endpoints BE-12 and BE-20).
  *
- * TODO(FE-10): replace with view 6 (Explore repositories) with RepoCard,
- * filter by subject and pagination. For now it only validates that the layout,
- * the session and the protected routes work.
+ * A grid of repository cards with a subject filter and pagination. It shows
+ * skeletons while loading and an empty state when there is nothing to show.
+ * The "Create repository" button goes to view 8 and each card goes to the
+ * repository detail (view 7).
  */
 
-import { Alert, Box, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
-import { useAuth } from '../../context/authContext.js';
+import {
+  Alert,
+  Box,
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Pagination,
+  Select,
+  Skeleton,
+  Stack,
+  Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+
+import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
+import { getRepositories } from '../../services/repositoryService.js';
+import { getSubjects } from '../../services/subjectService.js';
+
+const PAGE_SIZE = 9;
+
+/** Grid shared by the cards and the loading skeletons. */
+const GRID_SX = {
+  display: 'grid',
+  gridTemplateColumns: {
+    xs: '1fr',
+    sm: 'repeat(2, 1fr)',
+    lg: 'repeat(3, 1fr)',
+  },
+  gap: 2.5,
+};
 
 export default function HomePage() {
-  const { user } = useAuth();
-  const name = user?.name?.split(' ')[0] ?? 'estudiante';
+  const [subjects, setSubjects] = useState([]);
+  const [subjectId, setSubjectId] = useState('');
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Loads the subject catalog once, for the filter.
+  useEffect(() => {
+    let active = true;
+
+    getSubjects()
+      .then((list) => {
+        if (active) setSubjects(list);
+      })
+      .catch(() => {
+        // If the catalog fails, the filter simply stays empty.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Loads the repositories again when the filter or the page changes. The
+  // loading flag is turned on by the handlers that start a new search, so the
+  // effect only talks to the external system (the service).
+  useEffect(() => {
+    let active = true;
+
+    getRepositories({
+      subjectId: subjectId === '' ? null : subjectId,
+      page,
+      size: PAGE_SIZE,
+    })
+      .then((data) => {
+        if (active) setResult(data);
+      })
+      .catch((serviceError) => {
+        if (active) {
+          setError(serviceError?.message ?? 'No se pudieron cargar los repositorios.');
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [subjectId, page]);
+
+  /** Shows the skeletons again while a new search is on its way. */
+  const startLoading = () => {
+    setIsLoading(true);
+    setError('');
+  };
+
+  const handleSubjectChange = (event) => {
+    startLoading();
+    setSubjectId(event.target.value);
+    setPage(1);
+  };
+
+  const handlePageChange = (event, value) => {
+    startLoading();
+    setPage(value);
+  };
+
+  const items = result?.items ?? [];
+  const totalPages = result?.totalPages ?? 1;
 
   return (
     <Box>
-      <Typography variant="h3" gutterBottom>
-        Hola, {name}
-      </Typography>
+      <Stack spacing={0.5} sx={{ mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          Explorar repositorios
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Encuentra material de estudio por materia y sigue las rutas que comparte la comunidad.
+        </Typography>
+      </Stack>
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Este es el punto de partida de Alejandría UPC.
-      </Typography>
+      <Stack
+        spacing={2}
+        sx={{
+          mb: 3,
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { sm: 'center' },
+          justifyContent: 'space-between',
+        }}
+      >
+        <FormControl size="small" sx={{ minWidth: 240 }}>
+          <InputLabel id="subject-filter-label">Materia</InputLabel>
+          <Select
+            labelId="subject-filter-label"
+            label="Materia"
+            value={subjectId}
+            onChange={handleSubjectChange}
+          >
+            <MenuItem value="">Todas las materias</MenuItem>
+            {subjects.map((subject) => (
+              <MenuItem key={subject.id} value={subject.id}>
+                {subject.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-      <Alert severity="info">
-        La vista 6 (Explorar repos) se implementa en la historia FE-10.
-      </Alert>
+        {/* TODO(FE-11): view 8 (create repository) lands in Sprint 2. */}
+        <Button
+          component={RouterLink}
+          to="/repositories/new"
+          variant="contained"
+          startIcon={<AddIcon />}
+        >
+          Crear repositorio
+        </Button>
+      </Stack>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <Box sx={GRID_SX}>
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} variant="rounded" height={210} />
+          ))}
+        </Box>
+      ) : items.length === 0 ? (
+        <Box sx={{ py: 8, textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>
+            No encontramos repositorios
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {subjectId === ''
+              ? 'Todavía no hay repositorios publicados.'
+              : 'Prueba con otra materia o quita el filtro.'}
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          <Box sx={GRID_SX}>
+            {items.map((repository) => (
+              <RepositoryCard key={repository.id} repository={repository} />
+            ))}
+          </Box>
+
+          {totalPages > 1 && (
+            <Stack sx={{ mt: 4, alignItems: 'center' }}>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={handlePageChange}
+                color="primary"
+              />
+            </Stack>
+          )}
+        </>
+      )}
     </Box>
   );
 }
