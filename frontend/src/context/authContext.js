@@ -1,41 +1,41 @@
 /**
  * @file authContext.js
- * @description Contexto de sesión y hook de acceso (FE-03).
+ * @description Session context and access hook (FE-03).
  *
- * El provider vive en AuthProvider.jsx. Este archivo solo expone el
- * contexto y el hook para que los componentes no importen el provider.
+ * The provider lives in AuthProvider.jsx. This file only exposes the
+ * context and the hook so that components don't import the provider.
  *
- * Se mantiene separado por la regla de Fast Refresh: un archivo que
- * exporta componentes no debería exportar también valores sueltos.
+ * It is kept separate because of the Fast Refresh rule: a file that
+ * exports components should not also export loose values.
  */
 
 import { createContext, useContext } from 'react';
 
 /**
- * @typedef {object} ValorAuth
- * @property {object|null} usuario            Usuario de la sesión.
- * @property {string|null} token              Token JWT.
- * @property {boolean} estaAutenticado
- * @property {boolean} esAdmin
- * @property {(credenciales: { correo: string, password: string }) => Promise<object>} login
- * @property {(datos: object) => Promise<object>} registro
+ * @typedef {object} AuthValue
+ * @property {object|null} user            Session user.
+ * @property {string|null} token           JWT token.
+ * @property {boolean} isAuthenticated
+ * @property {boolean} isAdmin
+ * @property {(credentials: { email: string, password: string }) => Promise<object>} login
+ * @property {(data: object) => Promise<object>} register
  * @property {() => void} logout
  */
 
-/** @type {import('react').Context<ValorAuth|null>} */
+/** @type {import('react').Context<AuthValue|null>} */
 export const AuthContext = createContext(null);
 
 /**
- * Acceso al contexto de sesión.
- * @returns {ValorAuth}
- * @throws {Error} Si se usa fuera de <AuthProvider>.
+ * Access to the session context.
+ * @returns {AuthValue}
+ * @throws {Error} If used outside <AuthProvider>.
  */
 export function useAuth() {
-  const contexto = useContext(AuthContext);
+  const context = useContext(AuthContext);
 
-  if (!contexto) {
-    throw new Error('useAuth debe usarse dentro de <AuthProvider>.');
+  if (!context) {
+    throw new Error('useAuth must be used inside <AuthProvider>.');
   }
 
-  return contexto;
+  return context;
 }

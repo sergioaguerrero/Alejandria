@@ -1,38 +1,38 @@
 /**
  * @file theme.js
- * @description Tema global del sistema de diseño — Alejandría UPC
+ * @description Global design system theme — Alejandría UPC
  *
- * Paleta oficial:
- *   Fondo principal  → #0B1220
- *   Superficies      → #111C30
- *   Azul secundario  → #1D3557
- *   Acento           → #60A5FA
- *   Texto principal  → #F8FAFC
+ * Official palette:
+ *   Main background  → #0B1220
+ *   Surfaces         → #111C30
+ *   Secondary blue   → #1D3557
+ *   Accent           → #60A5FA
+ *   Main text        → #F8FAFC
  *
- * Tipografía: Inter (Google Fonts)
+ * Typography: Inter (Google Fonts)
  */
 
 import { createTheme, alpha } from '@mui/material/styles';
 
-// ─── Tokens de Diseño ───────────────────────────────────────────────────────
+// ─── Design Tokens ───────────────────────────────────────────────────────
 
 const COLORS = {
-  bgMain:     '#0B1220',  // fondo global
-  surface:    '#111C30',  // tarjetas, paneles, formularios
-  secondary:  '#1D3557',  // secciones diferenciadas, nav activo
-  accent:     '#60A5FA',  // botones primarios, enlaces, detalles interactivos
-  textMain:   '#F8FAFC',  // texto principal, títulos
-  textMuted:  '#94A3B8',  // texto secundario / metadatos
-  error:      '#F87171',  // estados de error
-  warning:    '#FBBF24',  // estados de advertencia
-  success:    '#34D399',  // estados de éxito
+  bgMain:     '#0B1220',  // global background
+  surface:    '#111C30',  // cards, panels, forms
+  secondary:  '#1D3557',  // differentiated sections, active nav
+  accent:     '#60A5FA',  // primary buttons, links, interactive details
+  textMain:   '#F8FAFC',  // main text, headings
+  textMuted:  '#94A3B8',  // secondary text / metadata
+  error:      '#F87171',  // error states
+  warning:    '#FBBF24',  // warning states
+  success:    '#34D399',  // success states
   divider:    'rgba(96, 165, 250, 0.12)',
 };
 
-// ─── Tema MUI ────────────────────────────────────────────────────────────────
+// ─── MUI Theme ────────────────────────────────────────────────────────────────
 
 const theme = createTheme({
-  // 1. Paleta
+  // 1. Palette
   palette: {
     mode: 'dark',
 
@@ -45,7 +45,7 @@ const theme = createTheme({
       main:         COLORS.accent,
       dark:         '#3B82F6',
       light:        '#93C5FD',
-      contrastText: '#0B1220', // texto oscuro sobre azul brillante → contraste AAA
+      contrastText: '#0B1220', // dark text on bright blue → AAA contrast
     },
 
     secondary: {
@@ -78,17 +78,17 @@ const theme = createTheme({
 
     divider: COLORS.divider,
 
-    // Tokens accesibles desde sx={{ color: 'surface.main' }}
+    // Tokens accessible from sx={{ color: 'surface.main' }}
     surface: {
       main: COLORS.surface,
     },
   },
 
-  // 2. Tipografía — Inter
+  // 2. Typography — Inter
   typography: {
     fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
 
-    // Títulos principales: 48–64px, peso 800
+    // Main headings: 48–64px, weight 800
     h1: {
       fontSize: 'clamp(2.5rem, 5vw, 4rem)',     // 40–64px
       fontWeight: 800,
@@ -97,7 +97,7 @@ const theme = createTheme({
       color: COLORS.textMain,
     },
 
-    // Títulos de sección: 28–36px, peso 700
+    // Section headings: 28–36px, weight 700
     h2: {
       fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', // 28–36px
       fontWeight: 700,
@@ -106,7 +106,7 @@ const theme = createTheme({
       color: COLORS.textMain,
     },
 
-    // Sub-secciones: 20–24px, peso 600
+    // Sub-sections: 20–24px, weight 600
     h3: {
       fontSize: 'clamp(1.25rem, 2.5vw, 1.5rem)',
       fontWeight: 600,
@@ -134,7 +134,7 @@ const theme = createTheme({
       color: COLORS.textMain,
     },
 
-    // Subtítulos: 20–24px, peso 500
+    // Subtitles: 20–24px, weight 500
     subtitle1: {
       fontSize: '1.25rem',
       fontWeight: 500,
@@ -149,7 +149,7 @@ const theme = createTheme({
       lineHeight: 1.5,
     },
 
-    // Texto general: 16px, peso 400, line-height 1.6
+    // General text: 16px, weight 400, line-height 1.6
     body1: {
       fontSize: '1rem',
       fontWeight: 400,
@@ -164,15 +164,15 @@ const theme = createTheme({
       color: COLORS.textMuted,
     },
 
-    // Navegación: 15–17px, peso 500
+    // Navigation: 15–17px, weight 500
     button: {
       fontSize: '0.9375rem', // 15px
       fontWeight: 600,
       letterSpacing: '0.01em',
-      textTransform: 'none', // sin mayúsculas automáticas
+      textTransform: 'none', // no automatic uppercase
     },
 
-    // Etiquetas y metadatos: 13–14px
+    // Labels and metadata: 13–14px
     caption: {
       fontSize: '0.8125rem', // 13px
       fontWeight: 400,
@@ -189,15 +189,15 @@ const theme = createTheme({
     },
   },
 
-  // 3. Forma — radios globales
+  // 3. Shape — global radii
   shape: {
-    borderRadius: 10, // base 10px; se escalan con multiplier en sx
+    borderRadius: 10, // base 10px; scaled with multiplier in sx
   },
 
-  // 4. Espaciado base (8px por defecto — mantener)
+  // 4. Base spacing (8px by default — keep)
   spacing: 8,
 
-  // 5. Transiciones suaves
+  // 5. Smooth transitions
   transitions: {
     duration: {
       shortest:      150,
@@ -210,10 +210,10 @@ const theme = createTheme({
     },
   },
 
-  // 6. Sobrescrituras de componentes
+  // 6. Component overrides
   components: {
 
-    // ── CssBaseline: fondo global ──────────────────────────────────────────
+    // ── CssBaseline: global background ──────────────────────────────────────────
     MuiCssBaseline: {
       styleOverrides: {
         '*, *::before, *::after': { boxSizing: 'border-box' },
@@ -229,7 +229,7 @@ const theme = createTheme({
           display: 'flex',
           flexDirection: 'column',
         },
-        // Respeta preferencia de animación reducida
+        // Respects reduced-motion preference
         '@media (prefers-reduced-motion: reduce)': {
           '*, *::before, *::after': {
             animationDuration: '0.01ms !important',
@@ -259,7 +259,7 @@ const theme = createTheme({
             outlineOffset: 3,
           },
         },
-        // Primario: fondo acento, texto oscuro
+        // Primary: accent background, dark text
         containedPrimary: {
           backgroundColor: COLORS.accent,
           color: '#0B1220',
@@ -271,7 +271,7 @@ const theme = createTheme({
             color: alpha('#0B1220', 0.5),
           },
         },
-        // Secundario: fondo azul medio
+        // Secondary: medium blue background
         containedSecondary: {
           backgroundColor: COLORS.secondary,
           color: COLORS.textMain,
@@ -288,7 +288,7 @@ const theme = createTheme({
             backgroundColor: alpha(COLORS.accent, 0.08),
           },
         },
-        // Texto
+        // Text
         text: {
           color: COLORS.accent,
           '&:hover': {
@@ -452,14 +452,14 @@ const theme = createTheme({
       defaultProps: { elevation: 0 },
       styleOverrides: {
         root: {
-          backgroundImage: 'none', // quitar degradado por defecto de MUI dark mode
+          backgroundImage: 'none', // remove MUI dark mode default gradient
           backgroundColor: COLORS.surface,
           border: `1px solid ${COLORS.divider}`,
         },
       },
     },
 
-    // ── AppBar / Navegación ───────────────────────────────────────────────────
+    // ── AppBar / Navigation ───────────────────────────────────────────────────
     MuiAppBar: {
       defaultProps: { elevation: 0 },
       styleOverrides: {

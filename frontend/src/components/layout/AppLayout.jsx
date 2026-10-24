@@ -1,13 +1,13 @@
 /**
  * @file AppLayout.jsx
- * @description Estructura de todas las vistas con sesión iniciada (FE-03).
+ * @description Structure of all views with an active session (FE-03).
  *
- * Barra superior fija + menú lateral:
- *   - Escritorio: menú fijo visible.
- *   - Móvil y tablet: menú tipo cajón que se abre con el botón de hamburguesa.
+ * Fixed top bar + side menu:
+ *   - Desktop: fixed menu visible.
+ *   - Mobile and tablet: drawer-style menu opened by the hamburger button.
  *
- * Las vistas se renderizan en el <Outlet />. El menú crece a medida que se
- * implementan las vistas: por ahora solo Inicio (FE-10).
+ * Views are rendered in <Outlet />. The menu grows as views are
+ * implemented: for now only Home (FE-10).
  */
 
 import { useState } from 'react';
@@ -37,44 +37,44 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 
 import { useAuth } from '../../context/authContext.js';
-import { iniciales } from '../../utils/usuarios.js';
+import { initials } from '../../utils/users.js';
 
-const ANCHO_MENU = 248;
-
-/**
- * Enlaces del menú lateral.
- * Cada vista nueva agrega aquí su entrada cuando su ruta existe.
- */
-const ENLACES = [{ etiqueta: 'Inicio', ruta: '/', icono: HomeIcon }];
+const MENU_WIDTH = 248;
 
 /**
- * Cuerpo del menú lateral, compartido por el modo fijo y el cajón móvil.
- * @param {{ alNavegar?: () => void }} props
+ * Side menu links.
+ * Each new view adds its entry here once its route exists.
  */
-function ContenidoMenu({ alNavegar }) {
-  const ubicacion = useLocation();
+const LINKS = [{ label: 'Inicio', path: '/', icon: HomeIcon }];
+
+/**
+ * Side menu body, shared by the fixed mode and the mobile drawer.
+ * @param {{ onNavigate?: () => void }} props
+ */
+function MenuContent({ onNavigate }) {
+  const location = useLocation();
 
   return (
-    <Box sx={{ width: ANCHO_MENU }}>
-      {/* Espacio que ocupa la barra superior fija */}
+    <Box sx={{ width: MENU_WIDTH }}>
+      {/* Space taken by the fixed top bar */}
       <Toolbar />
 
       <Divider />
 
       <List sx={{ px: 1, py: 2 }}>
-        {ENLACES.map(({ etiqueta, ruta, icono: Icono }) => (
+        {LINKS.map(({ label, path, icon: Icon }) => (
           <ListItemButton
-            key={ruta}
+            key={path}
             component={RouterLink}
-            to={ruta}
-            selected={ubicacion.pathname === ruta}
-            onClick={alNavegar}
+            to={path}
+            selected={location.pathname === path}
+            onClick={onNavigate}
             sx={{ borderRadius: 2, mb: 0.5 }}
           >
             <ListItemIcon>
-              <Icono />
+              <Icon />
             </ListItemIcon>
-            <ListItemText primary={etiqueta} />
+            <ListItemText primary={label} />
           </ListItemButton>
         ))}
       </List>
@@ -84,33 +84,33 @@ function ContenidoMenu({ alNavegar }) {
 
 export default function AppLayout() {
   const theme = useTheme();
-  const esEscritorio = useMediaQuery(theme.breakpoints.up('md'));
-  const navegar = useNavigate();
-  const { usuario, logout } = useAuth();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const [menuAbierto, setMenuAbierto] = useState(false);
-  const [anclaUsuario, setAnclaUsuario] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [userAnchor, setUserAnchor] = useState(null);
 
-  const cerrarMenu = () => setMenuAbierto(false);
-  const abrirMenuUsuario = (evento) => setAnclaUsuario(evento.currentTarget);
-  const cerrarMenuUsuario = () => setAnclaUsuario(null);
+  const closeMenu = () => setMenuOpen(false);
+  const openUserMenu = (event) => setUserAnchor(event.currentTarget);
+  const closeUserMenu = () => setUserAnchor(null);
 
-  const cerrarSesion = () => {
-    cerrarMenuUsuario();
+  const handleLogout = () => {
+    closeUserMenu();
     logout();
-    navegar('/login', { replace: true });
+    navigate('/login', { replace: true });
   };
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100svh' }}>
       <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1 }}>
         <Toolbar sx={{ gap: 1 }}>
-          {!esEscritorio && (
+          {!isDesktop && (
             <IconButton
               edge="start"
               color="inherit"
               aria-label="Abrir menú"
-              onClick={() => setMenuAbierto(true)}
+              onClick={() => setMenuOpen(true)}
             >
               <MenuIcon />
             </IconButton>
@@ -129,35 +129,35 @@ export default function AppLayout() {
           <Tooltip title="Cuenta">
             <IconButton
               size="small"
-              onClick={abrirMenuUsuario}
+              onClick={openUserMenu}
               aria-label="Abrir menú de usuario"
             >
-              <Avatar sx={{ width: 36, height: 36 }}>{iniciales(usuario)}</Avatar>
+              <Avatar sx={{ width: 36, height: 36 }}>{initials(user)}</Avatar>
             </IconButton>
           </Tooltip>
         </Toolbar>
       </AppBar>
 
-      {esEscritorio ? (
+      {isDesktop ? (
         <Drawer
           variant="permanent"
           sx={{
-            width: ANCHO_MENU,
+            width: MENU_WIDTH,
             flexShrink: 0,
-            '& .MuiDrawer-paper': { width: ANCHO_MENU, boxSizing: 'border-box' },
+            '& .MuiDrawer-paper': { width: MENU_WIDTH, boxSizing: 'border-box' },
           }}
         >
-          <ContenidoMenu />
+          <MenuContent />
         </Drawer>
       ) : (
         <Drawer
           variant="temporary"
-          open={menuAbierto}
-          onClose={cerrarMenu}
+          open={menuOpen}
+          onClose={closeMenu}
           ModalProps={{ keepMounted: true }}
-          sx={{ '& .MuiDrawer-paper': { width: ANCHO_MENU } }}
+          sx={{ '& .MuiDrawer-paper': { width: MENU_WIDTH } }}
         >
-          <ContenidoMenu alNavegar={cerrarMenu} />
+          <MenuContent onNavigate={closeMenu} />
         </Drawer>
       )}
 
@@ -165,30 +165,30 @@ export default function AppLayout() {
         component="main"
         sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 3 } }}
       >
-        {/* Espacio que ocupa la barra fija */}
+        {/* Space taken by the fixed bar */}
         <Toolbar />
         <Outlet />
       </Box>
 
       <Menu
-        anchorEl={anclaUsuario}
-        open={Boolean(anclaUsuario)}
-        onClose={cerrarMenuUsuario}
+        anchorEl={userAnchor}
+        open={Boolean(userAnchor)}
+        onClose={closeUserMenu}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle2" color="text.primary" noWrap>
-            {usuario?.nombre}
+            {user?.name}
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
-            @{usuario?.username}
+            @{user?.username}
           </Typography>
         </Box>
 
         <Divider />
 
-        <MenuItem onClick={cerrarSesion}>
+        <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>

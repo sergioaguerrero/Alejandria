@@ -1,211 +1,211 @@
 /**
  * @file authService.js
- * @description Registro, inicio y cierre de sesión (FE-04 y FE-05).
+ * @description Registration, login and logout (FE-04 and FE-05).
  *
- * En modo mock valida las credenciales contra src/mocks/usuarios.js.
- * En modo real llama a los endpoints de BE-05 (registro) y BE-06 (login).
+ * In mock mode it validates the credentials against src/mocks/users.js.
+ * In real mode it calls the BE-05 (registration) and BE-06 (login) endpoints.
  *
- * Las pantallas solo llaman a estas funciones; nunca a Axios ni a los mocks.
+ * Screens only call these functions; never Axios or the mocks.
  */
 
 import {
   TOKEN_KEY,
-  USUARIO_KEY,
+  USER_KEY,
   USE_MOCK,
-  esperarMock,
+  waitForMock,
 } from './config.js';
-import { ErrorApi } from './errores.js';
+import { ApiError } from './errors.js';
 import http from './http.js';
-import { siguienteId, store } from '../mocks/store.js';
-import { sinPassword } from '../utils/usuarios.js';
+import { nextId, store } from '../mocks/store.js';
+import { withoutPassword } from '../utils/users.js';
 import {
-  esCorreoInstitucional,
-  esCorreoValido,
-  erroresDePassword,
-  esUsernameValido,
-} from '../utils/validaciones.js';
+  isInstitutionalEmail,
+  isValidEmail,
+  passwordErrors,
+  isValidUsername,
+} from '../utils/validations.js';
 
 /**
- * @typedef {object} Sesion
- * @property {object} usuario
+ * @typedef {object} Session
+ * @property {object} user
  * @property {string} token
  */
 
-// ── Sesión ─────────────────────────────────────────────────────────────────
+// ── Session ────────────────────────────────────────────────────────────────
 
 /**
- * Guarda el usuario y el token en localStorage.
- * @param {Sesion} sesion
+ * Saves the user and the token in localStorage.
+ * @param {Session} session
  */
-export function guardarSesion({ usuario, token }) {
+export function saveSession({ user, token }) {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USUARIO_KEY, JSON.stringify(usuario));
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 /**
- * Lee la sesión guardada.
- * @returns {Sesion|null}
+ * Reads the saved session.
+ * @returns {Session|null}
  */
-export function obtenerSesionActual() {
+export function getCurrentSession() {
   const token = localStorage.getItem(TOKEN_KEY);
-  const usuarioGuardado = localStorage.getItem(USUARIO_KEY);
+  const savedUser = localStorage.getItem(USER_KEY);
 
-  if (!token || !usuarioGuardado) return null;
+  if (!token || !savedUser) return null;
 
   try {
-    return { token, usuario: JSON.parse(usuarioGuardado) };
+    return { token, user: JSON.parse(savedUser) };
   } catch {
     return null;
   }
 }
 
 /**
- * Devuelve el usuario de la sesión actual, o null.
+ * Returns the user of the current session, or null.
  * @returns {object|null}
  */
-export function usuarioActual() {
-  return obtenerSesionActual()?.usuario ?? null;
+export function currentUser() {
+  return getCurrentSession()?.user ?? null;
 }
 
-/** Borra la sesión guardada. */
-export function cerrarSesion() {
+/** Deletes the saved session. */
+export function logout() {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USUARIO_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 // ── Login (FE-05) ──────────────────────────────────────────────────────────
 
 /**
- * Inicia sesión con correo y contraseña.
- * @param {{ correo: string, password: string }} credenciales
- * @returns {Promise<Sesion>}
- * @throws {ErrorApi} 401 si las credenciales no coinciden, 403 si la cuenta está suspendida.
+ * Logs in with an email and a password.
+ * @param {{ email: string, password: string }} credentials
+ * @returns {Promise<Session>}
+ * @throws {ApiError} 401 if the credentials do not match, 403 if the account is suspended.
  */
-export async function login({ correo, password }) {
-  const correoLimpio = String(correo ?? '').trim().toLowerCase();
+export async function login({ email, password }) {
+  const cleanEmail = String(email ?? '').trim().toLowerCase();
 
-  if (!correoLimpio || !password) {
-    throw new ErrorApi('Escribe tu correo y tu contraseña.', { estado: 400 });
+  if (!cleanEmail || !password) {
+    throw new ApiError('Escribe tu correo y tu contraseña.', { status: 400 });
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post('/auth/login', { correo: correoLimpio, password });
-    guardarSesion(data);
+    const { data } = await http.post('/auth/login', { email: cleanEmail, password });
+    saveSession(data);
     return data;
   }
 
-  await esperarMock(700);
+  await waitForMock(700);
 
-  const usuario = store.usuarios.find(
-    (candidato) => candidato.correo.toLowerCase() === correoLimpio,
+  const user = store.users.find(
+    (candidate) => candidate.email.toLowerCase() === cleanEmail,
   );
 
-  if (!usuario || usuario.password !== password) {
-    throw new ErrorApi('Credenciales incorrectas. Revisa tu correo y contraseña.', {
-      estado: 401,
+  if (!user || user.password !== password) {
+    throw new ApiError('Credenciales incorrectas. Revisa tu correo y contraseña.', {
+      status: 401,
     });
   }
 
-  if (usuario.suspendido) {
-    throw new ErrorApi(
+  if (user.suspended) {
+    throw new ApiError(
       'Tu cuenta está suspendida. Escribe a coordinación académica para más información.',
-      { estado: 403 },
+      { status: 403 },
     );
   }
 
-  const sesion = {
-    usuario: /** @type {any} */ (sinPassword(usuario)),
-    token: `mock.${usuario.id}.${Date.now()}`,
+  const session = {
+    user: /** @type {any} */ (withoutPassword(user)),
+    token: `mock.${user.id}.${Date.now()}`,
   };
 
-  guardarSesion(sesion);
-  return sesion;
+  saveSession(session);
+  return session;
 }
 
-// ── Registro (FE-04) ───────────────────────────────────────────────────────
+// ── Registration (FE-04) ───────────────────────────────────────────────────
 
 /**
- * @typedef {object} DatosRegistro
- * @property {string} nombre
+ * @typedef {object} RegistrationData
+ * @property {string} name
  * @property {string} username
- * @property {string} correo
+ * @property {string} email
  * @property {string} password
- * @property {number|null} [semestre]
+ * @property {number|null} [semester]
  */
 
 /**
- * Registra un estudiante nuevo y deja la sesión iniciada.
- * @param {DatosRegistro} datos
- * @returns {Promise<Sesion>}
- * @throws {ErrorApi} 400 con `campos` si hay datos inválidos, 409 si el correo o el usuario ya existen.
+ * Registers a new student and leaves the session started.
+ * @param {RegistrationData} data
+ * @returns {Promise<Session>}
+ * @throws {ApiError} 400 with `fields` if there is invalid data, 409 if the email or the user already exist.
  */
-export async function registro(datos) {
-  const nombre = String(datos.nombre ?? '').trim();
-  const username = String(datos.username ?? '').trim().toLowerCase();
-  const correo = String(datos.correo ?? '').trim().toLowerCase();
-  const { password } = datos;
-  const semestre = datos.semestre ?? null;
+export async function register(data) {
+  const name = String(data.name ?? '').trim();
+  const username = String(data.username ?? '').trim().toLowerCase();
+  const email = String(data.email ?? '').trim().toLowerCase();
+  const { password } = data;
+  const semester = data.semester ?? null;
 
   if (!USE_MOCK) {
-    const { data } = await http.post('/auth/registro', {
-      nombre,
+    const { data: response } = await http.post('/auth/register', {
+      name,
       username,
-      correo,
+      email,
       password,
-      semestre,
+      semester,
     });
-    guardarSesion(data);
-    return data;
+    saveSession(response);
+    return response;
   }
 
-  await esperarMock(700);
+  await waitForMock(700);
 
   /** @type {Record<string, string>} */
-  const campos = {};
+  const fields = {};
 
-  if (nombre.length < 3) campos.nombre = 'Escribe tu nombre completo.';
+  if (name.length < 3) fields.name = 'Escribe tu nombre completo.';
 
-  if (!esUsernameValido(username)) {
-    campos.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
-  } else if (store.usuarios.some((usuario) => usuario.username === username)) {
-    campos.username = 'Ese nombre de usuario ya está en uso.';
+  if (!isValidUsername(username)) {
+    fields.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
+  } else if (store.users.some((user) => user.username === username)) {
+    fields.username = 'Ese nombre de usuario ya está en uso.';
   }
 
-  if (!esCorreoValido(correo)) {
-    campos.correo = 'Escribe un correo válido.';
-  } else if (!esCorreoInstitucional(correo)) {
-    campos.correo = 'Debes usar tu correo institucional @unicesar.edu.co.';
-  } else if (store.usuarios.some((usuario) => usuario.correo.toLowerCase() === correo)) {
-    campos.correo = 'Ya existe una cuenta con ese correo.';
+  if (!isValidEmail(email)) {
+    fields.email = 'Escribe un correo válido.';
+  } else if (!isInstitutionalEmail(email)) {
+    fields.email = 'Debes usar tu correo institucional @unicesar.edu.co.';
+  } else if (store.users.some((user) => user.email.toLowerCase() === email)) {
+    fields.email = 'Ya existe una cuenta con ese correo.';
   }
 
-  const erroresPassword = erroresDePassword(password);
-  if (erroresPassword.length > 0) {
-    campos.password = erroresPassword.join(' ');
+  const passwordErrorList = passwordErrors(password);
+  if (passwordErrorList.length > 0) {
+    fields.password = passwordErrorList.join(' ');
   }
 
-  if (Object.keys(campos).length > 0) {
-    throw new ErrorApi('Revisa los datos del formulario.', { estado: 400, campos });
+  if (Object.keys(fields).length > 0) {
+    throw new ApiError('Revisa los datos del formulario.', { status: 400, fields });
   }
 
-  const nuevoUsuario = {
-    id: siguienteId('usuario'),
-    nombre,
+  const newUser = {
+    id: nextId('user'),
+    name,
     username,
-    correo,
-    semestre: semestre ? Number(semestre) : null,
-    rol: 'estudiante',
+    email,
+    semester: semester ? Number(semester) : null,
+    role: 'estudiante',
     password,
-    suspendido: false,
+    suspended: false,
   };
 
-  store.usuarios.push(nuevoUsuario);
+  store.users.push(newUser);
 
-  const sesion = {
-    usuario: /** @type {any} */ (sinPassword(nuevoUsuario)),
-    token: `mock.${nuevoUsuario.id}.${Date.now()}`,
+  const session = {
+    user: /** @type {any} */ (withoutPassword(newUser)),
+    token: `mock.${newUser.id}.${Date.now()}`,
   };
 
-  guardarSesion(sesion);
-  return sesion;
+  saveSession(session);
+  return session;
 }

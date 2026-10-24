@@ -1,10 +1,10 @@
 /**
  * @file ProtectedRoute.jsx
- * @description Guarda de rutas privadas (FE-03).
+ * @description Private route guard (FE-03).
  *
- * - Sin sesión → redirige al login guardando la ruta de origen.
- * - Con sesión pero rol incorrecto → vista 26 (403).
- * - Con sesión y rol correcto → renderiza la ruta hija.
+ * - No session → redirects to login saving the origin route.
+ * - With session but wrong role → view 26 (403).
+ * - With session and correct role → renders the child route.
  */
 
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
@@ -13,23 +13,23 @@ import { useAuth } from '../context/authContext.js';
 
 /**
  * @param {object} props
- * @param {string[]|null} [props.roles]  Roles permitidos. Si se omite, basta con tener sesión.
+ * @param {string[]|null} [props.roles]  Allowed roles. If omitted, having a session is enough.
  */
 export default function ProtectedRoute({ roles = null }) {
-  const { estaAutenticado, usuario } = useAuth();
-  const ubicacion = useLocation();
+  const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
 
-  if (!estaAutenticado) {
+  if (!isAuthenticated) {
     return (
       <Navigate
         to="/login"
         replace
-        state={{ desde: `${ubicacion.pathname}${ubicacion.search}` }}
+        state={{ from: `${location.pathname}${location.search}` }}
       />
     );
   }
 
-  if (roles && !roles.includes(usuario?.rol)) {
+  if (roles && !roles.includes(user?.role)) {
     return <Navigate to="/403" replace />;
   }
 

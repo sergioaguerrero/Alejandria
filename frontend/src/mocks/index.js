@@ -1,20 +1,20 @@
 /**
  * @file index.js
- * @description Punto de entrada de los datos de ejemplo (FE-02).
+ * @description Entry point of the example data (FE-02).
  *
- * Importa desde aquí para no depender de las rutas internas:
- *   import { REPOS, MATERIAS } from '../mocks';
+ * Import from here to avoid depending on the internal paths:
+ *   import { REPOSITORIES, SUBJECTS } from '../mocks';
  */
 
-export { MATERIAS } from './materias.js';
-export { USUARIOS } from './usuarios.js';
-export { REPOS } from './repos.js';
-export { DOCUMENTOS } from './documentos.js';
+export { SUBJECTS } from './subjects.js';
+export { USERS } from './users.js';
+export { REPOSITORIES } from './repositories.js';
+export { DOCUMENTS } from './documents.js';
 export {
-  TIPOS_MATERIAL,
-  CORTES,
-  ETIQUETAS_SUGERIDAS,
-  MOTIVOS_REPORTE,
+  MATERIAL_TYPES,
+  TERMS,
+  SUGGESTED_TAGS,
+  REPORT_REASONS,
   ROLES,
-} from './catalogos.js';
-export { store, restablecerStore, siguienteId } from './store.js';
+} from './catalogs.js';
+export { store, resetStore, nextId } from './store.js';

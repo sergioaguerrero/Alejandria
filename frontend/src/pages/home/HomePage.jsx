@@ -1,10 +1,10 @@
 /**
  * @file HomePage.jsx
- * @description Inicio provisional dentro del layout.
+ * @description Provisional home inside the layout.
  *
- * TODO(FE-10): reemplazar por la vista 6 (Explorar repos) con RepoCard,
- * filtro por materia y paginación. Por ahora solo valida que el layout,
- * la sesión y las rutas protegidas funcionan.
+ * TODO(FE-10): replace with view 6 (Explore repositories) with RepoCard,
+ * filter by subject and pagination. For now it only validates that the layout,
+ * the session and the protected routes work.
  */
 
 import { Alert, Box, Typography } from '@mui/material';
@@ -12,13 +12,13 @@ import { Alert, Box, Typography } from '@mui/material';
 import { useAuth } from '../../context/authContext.js';
 
 export default function HomePage() {
-  const { usuario } = useAuth();
-  const nombre = usuario?.nombre?.split(' ')[0] ?? 'estudiante';
+  const { user } = useAuth();
+  const name = user?.name?.split(' ')[0] ?? 'estudiante';
 
   return (
     <Box>
       <Typography variant="h3" gutterBottom>
-        Hola, {nombre}
+        Hola, {name}
       </Typography>
 
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>

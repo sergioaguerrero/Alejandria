@@ -1,15 +1,15 @@
 /* ============================================================
-   index.css — Tokens globales de diseño · Alejandría UPC
-   Sistema de diseño: Dark Blue Tech UI
-   Fuente: Inter (Google Fonts)
+   index.css — Global design tokens · Alejandría UPC
+   Design system: Dark Blue Tech UI
+   Font: Inter (Google Fonts)
    ============================================================ */
 
-/* ── Carga de fuente Inter desde Google Fonts ─────────────── */
+/* ── Inter font loaded from Google Fonts ─────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* ── Tokens de color (accesibles fuera de MUI, en CSS puro) ─ */
+/* ── Color tokens (accessible outside MUI, in plain CSS) ─ */
 :root {
-  /* Paleta oficial */
+  /* Official palette */
   --color-bg-main:    #0B1220;
   --color-surface:    #111C30;
   --color-secondary:  #1D3557;
@@ -21,26 +21,26 @@
   --color-success:    #34D399;
   --color-divider:    rgba(96, 165, 250, 0.12);
 
-  /* Tipografía */
+  /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Radios */
+  /* Radii */
   --radius-sm:  6px;
   --radius-md:  10px;
   --radius-lg:  14px;
   --radius-xl:  20px;
 
-  /* Sombras */
+  /* Shadows */
   --shadow-card:  0 2px 12px rgba(0, 0, 0, 0.35);
   --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.7);
 
-  /* Transiciones */
+  /* Transitions */
   --transition-fast:   150ms ease;
   --transition-normal: 250ms ease;
   --transition-slow:   350ms ease;
 }
 
-/* ── Reset y base global ─────────────────────────────────── */
+/* ── Reset and global base ─────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -66,7 +66,7 @@ body {
   flex-direction: column;
 }
 
-/* ── Scrollbar personalizado ─────────────────────────────── */
+/* ── Custom scrollbar ─────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -82,20 +82,20 @@ body {
   background: var(--color-accent);
 }
 
-/* ── Selección de texto ──────────────────────────────────── */
+/* ── Text selection ──────────────────────────────────── */
 ::selection {
   background: rgba(96, 165, 250, 0.25);
   color: var(--color-text);
 }
 
-/* ── Focus-visible global ────────────────────────────────── */
+/* ── Global focus-visible ────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
   border-radius: var(--radius-sm);
 }
 
-/* ── Reducción de movimiento ─────────────────────────────── */
+/* ── Motion reduction ─────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -103,7 +103,7 @@ body {
   }
 }
 
-/* ── Tipografía base ─────────────────────────────────────── */
+/* ── Base typography ─────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-sans);
   color: var(--color-text);
@@ -119,7 +119,7 @@ a {
 }
 a:hover { color: #93C5FD; }
 
-/* ── Responsive: escala tipográfica ─────────────────────── */
+/* ── Responsive: typographic scale ─────────────────────── */
 @media (max-width: 768px) {
   html { font-size: 15px; }
 }

@@ -1,18 +1,18 @@
 /**
  * @file http.js
- * @description Instancia única de Axios para toda la aplicación.
+ * @description Single Axios instance for the whole application.
  *
- * - Agrega el token JWT de la sesión a cada petición.
- * - Convierte cualquier error en un ErrorApi con mensaje en español.
+ * - Adds the session JWT token to every request.
+ * - Converts any error into an ApiError with a message in Spanish.
  *
- * Ninguna pantalla debe importar Axios directamente: siempre pasa por
- * los servicios (authService, repoService, documentoService, ...).
+ * No screen should import Axios directly: it always goes through
+ * the services (authService, repositoryService, documentService, ...).
  */
 
 import axios from 'axios';
 
 import { API_URL, TOKEN_KEY } from './config.js';
-import { normalizarError } from './errores.js';
+import { normalizeError } from './errors.js';
 
 const http = axios.create({
   baseURL: API_URL,
@@ -22,7 +22,7 @@ const http = axios.create({
   },
 });
 
-// ── Petición: adjunta el token de la sesión ────────────────────────────────
+// ── Request: attaches the session token ────────────────────────────────────
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY);
 
@@ -34,10 +34,10 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Respuesta: normaliza los errores ───────────────────────────────────────
+// ── Response: normalizes the errors ────────────────────────────────────────
 http.interceptors.response.use(
-  (respuesta) => respuesta,
-  (error) => Promise.reject(normalizarError(error)),
+  (response) => response,
+  (error) => Promise.reject(normalizeError(error)),
 );
 
 export default http;

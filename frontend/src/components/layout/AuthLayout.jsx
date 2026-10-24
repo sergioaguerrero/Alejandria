@@ -1,10 +1,10 @@
 /**
  * @file AuthLayout.jsx
- * @description Estructura de las vistas públicas: login, registro,
- * recuperar contraseña y nueva contraseña (FE-04).
+ * @description Structure of the public views: login, register,
+ * recover password and new password (FE-04).
  *
- * Centra una tarjeta en pantalla completa con la marca arriba. Las vistas
- * se renderizan en el <Outlet />.
+ * Centers a card on the full screen with the brand on top. Views
+ * are rendered in <Outlet />.
  */
 
 import { Box, Paper, Stack, Typography } from '@mui/material';

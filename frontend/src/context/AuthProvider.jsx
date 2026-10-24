@@ -1,56 +1,56 @@
 /**
  * @file AuthProvider.jsx
- * @description Provider de la sesión (FE-03).
+ * @description Session provider (FE-03).
  *
- * Envuelve a authService y guarda en el estado de React la sesión que
- * ya está persistida en localStorage, para que un F5 no cierre la sesión.
+ * Wraps authService and stores in React state the session that is
+ * already persisted in localStorage, so an F5 does not close the session.
  */
 
 import { useCallback, useMemo, useState } from 'react';
 
 import { AuthContext } from './authContext.js';
 import {
-  cerrarSesion as cerrarSesionServicio,
-  login as loginServicio,
-  obtenerSesionActual,
-  registro as registroServicio,
+  logout as logoutService,
+  login as loginService,
+  getCurrentSession,
+  register as registerService,
 } from '../services/authService.js';
 
 /**
  * @param {{ children: import('react').ReactNode }} props
  */
 export default function AuthProvider({ children }) {
-  const [sesion, setSesion] = useState(() => obtenerSesionActual());
+  const [session, setSession] = useState(() => getCurrentSession());
 
-  const login = useCallback(async (credenciales) => {
-    const nuevaSesion = await loginServicio(credenciales);
-    setSesion(nuevaSesion);
-    return nuevaSesion;
+  const login = useCallback(async (credentials) => {
+    const newSession = await loginService(credentials);
+    setSession(newSession);
+    return newSession;
   }, []);
 
-  const registro = useCallback(async (datos) => {
-    const nuevaSesion = await registroServicio(datos);
-    setSesion(nuevaSesion);
-    return nuevaSesion;
+  const register = useCallback(async (data) => {
+    const newSession = await registerService(data);
+    setSession(newSession);
+    return newSession;
   }, []);
 
   const logout = useCallback(() => {
-    cerrarSesionServicio();
-    setSesion(null);
+    logoutService();
+    setSession(null);
   }, []);
 
-  const valor = useMemo(
+  const value = useMemo(
     () => ({
-      usuario: sesion?.usuario ?? null,
-      token: sesion?.token ?? null,
-      estaAutenticado: Boolean(sesion?.usuario),
-      esAdmin: sesion?.usuario?.rol === 'admin',
+      user: session?.user ?? null,
+      token: session?.token ?? null,
+      isAuthenticated: Boolean(session?.user),
+      isAdmin: session?.user?.role === 'admin',
       login,
-      registro,
+      register,
       logout,
     }),
-    [sesion, login, registro, logout],
+    [session, login, register, logout],
   );
 
-  return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

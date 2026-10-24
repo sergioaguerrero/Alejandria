@@ -1,9 +1,9 @@
 /**
  * @file main.jsx
- * @description Punto de entrada principal de la aplicación Alejandría UPC.
+ * @description Main entry point of the Alejandría UPC application.
  *
- * Orden de wrappers:
- *   StrictMode → ThemeProvider (MUI tema oscuro) → CssBaseline (reset global) → App
+ * Wrapper order:
+ *   StrictMode → ThemeProvider (MUI dark theme) → CssBaseline (global reset) → App
  */
 
 import { StrictMode } from 'react';
@@ -13,10 +13,10 @@ import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
-// Tema personalizado Alejandría UPC
+// Alejandría UPC custom theme
 import theme from './theme/theme.js';
 
-// Estilos globales + tokens CSS
+// Global styles + CSS tokens
 import './index.css';
 
 import App from './App.jsx';
@@ -25,12 +25,12 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider theme={theme}>
       {/*
-        CssBaseline aplica:
-        - Fondo global #0B1220
-        - Reset de márgenes
-        - Tipografía Inter
-        - Suavizado de fuentes
-        - Respeto a prefers-reduced-motion (definido en el tema)
+        CssBaseline applies:
+        - Global background #0B1220
+        - Margin reset
+        - Inter typography
+        - Font smoothing
+        - Respect for prefers-reduced-motion (defined in the theme)
       */}
       <CssBaseline />
       <App />

@@ -1,12 +1,12 @@
 /**
  * @file RegisterPage.jsx
- * @description Vista 2 — Registro de estudiantes (FE-04, endpoint BE-05).
+ * @description View 2 — Student registration (FE-04, endpoint BE-05).
  *
- * Reglas del enunciado:
- *  - Solo correos del dominio institucional, con error al instante.
- *  - Indicador en vivo de las reglas de contraseña.
- *  - La casilla de normas es obligatoria: sin ella el botón queda deshabilitado.
- *  - Los errores de correo o usuario ya existentes llegan desde la API.
+ * Rules from the statement:
+ *  - Only emails from the institutional domain, with an instant error.
+ *  - Live indicator of the password rules.
+ *  - The terms checkbox is required: without it the button stays disabled.
+ *  - Errors for existing email or username come from the API.
  */
 
 import { useState } from 'react';
@@ -25,164 +25,164 @@ import {
   Typography,
 } from '@mui/material';
 
-import ReglasPassword from '../../components/forms/ReglasPassword.jsx';
+import PasswordRules from '../../components/forms/PasswordRules.jsx';
 import { useAuth } from '../../context/authContext.js';
 import {
-  DOMINIO_INSTITUCIONAL,
-  erroresDePassword,
-  esCorreoInstitucional,
-  esCorreoValido,
-  esUsernameValido,
-} from '../../utils/validaciones.js';
+  INSTITUTIONAL_DOMAIN,
+  passwordErrors,
+  isInstitutionalEmail,
+  isValidEmail,
+  isValidUsername,
+} from '../../utils/validations.js';
 
-const SEMESTRES = Array.from({ length: 10 }, (_, indice) => indice + 1);
+const SEMESTERS = Array.from({ length: 10 }, (_, index) => index + 1);
 
-const VALORES_INICIALES = {
-  nombre: '',
+const INITIAL_VALUES = {
+  name: '',
   username: '',
-  correo: '',
+  email: '',
   password: '',
-  confirmar: '',
-  semestre: '',
+  confirm: '',
+  semester: '',
 };
 
-/** Campos del formulario que se validan. */
-const CAMPOS = ['nombre', 'username', 'correo', 'password', 'confirmar', 'semestre'];
+/** Form fields that are validated. */
+const FIELDS = ['name', 'username', 'email', 'password', 'confirm', 'semester'];
 
 /**
- * Valida el formulario en el cliente antes de llamar al servicio.
- * @param {typeof VALORES_INICIALES} valores
+ * Validates the form on the client before calling the service.
+ * @param {typeof INITIAL_VALUES} values
  * @returns {Record<string, string>}
  */
-function validar(valores) {
+function validate(values) {
   /** @type {Record<string, string>} */
-  const errores = {};
+  const errors = {};
 
-  if (String(valores.nombre).trim().length < 3) {
-    errores.nombre = 'Escribe tu nombre completo.';
+  if (String(values.name).trim().length < 3) {
+    errors.name = 'Escribe tu nombre completo.';
   }
 
-  if (!esUsernameValido(valores.username)) {
-    errores.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
+  if (!isValidUsername(values.username)) {
+    errors.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
   }
 
-  if (!esCorreoValido(valores.correo)) {
-    errores.correo = 'Escribe un correo válido.';
-  } else if (!esCorreoInstitucional(valores.correo)) {
-    errores.correo = `Debes usar tu correo institucional ${DOMINIO_INSTITUCIONAL}.`;
+  if (!isValidEmail(values.email)) {
+    errors.email = 'Escribe un correo válido.';
+  } else if (!isInstitutionalEmail(values.email)) {
+    errors.email = `Debes usar tu correo institucional ${INSTITUTIONAL_DOMAIN}.`;
   }
 
-  if (erroresDePassword(valores.password).length > 0) {
-    errores.password = 'La contraseña todavía no cumple todas las reglas.';
+  if (passwordErrors(values.password).length > 0) {
+    errors.password = 'La contraseña todavía no cumple todas las reglas.';
   }
 
-  if (valores.password !== valores.confirmar) {
-    errores.confirmar = 'Las contraseñas no coinciden.';
+  if (values.password !== values.confirm) {
+    errors.confirm = 'Las contraseñas no coinciden.';
   }
 
-  return errores;
+  return errors;
 }
 
 /**
- * Copia el objeto de errores sin un campo.
- * @param {Record<string, string>} errores
- * @param {string} campo
+ * Copies the errors object without a field.
+ * @param {Record<string, string>} errors
+ * @param {string} field
  * @returns {Record<string, string>}
  */
-function sinCampo(errores, campo) {
-  if (!errores[campo]) return errores;
+function withoutField(errors, field) {
+  if (!errors[field]) return errors;
 
-  const siguientes = { ...errores };
-  delete siguientes[campo];
-  return siguientes;
+  const next = { ...errors };
+  delete next[field];
+  return next;
 }
 
 export default function RegisterPage() {
-  const navegar = useNavigate();
-  const { registro } = useAuth();
+  const navigate = useNavigate();
+  const { register } = useAuth();
 
-  const [valores, setValores] = useState(VALORES_INICIALES);
-  const [aceptaTerminos, setAceptaTerminos] = useState(false);
-  const [tocados, setTocados] = useState(/** @type {Record<string, boolean>} */ ({}));
-  const [erroresApi, setErroresApi] = useState(/** @type {Record<string, string>} */ ({}));
-  const [errorGeneral, setErrorGeneral] = useState('');
-  const [enviando, setEnviando] = useState(false);
+  const [values, setValues] = useState(INITIAL_VALUES);
+  const [acceptsTerms, setAcceptsTerms] = useState(false);
+  const [touched, setTouched] = useState(/** @type {Record<string, boolean>} */ ({}));
+  const [apiErrors, setApiErrors] = useState(/** @type {Record<string, string>} */ ({}));
+  const [generalError, setGeneralError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const erroresValidacion = validar(valores);
+  const validationErrors = validate(values);
 
   /**
-   * El correo ya tiene forma de correo pero no es institucional: se avisa
-   * en el momento, sin esperar a que el usuario salga del campo.
+   * The email already looks like an email but is not institutional: warn
+   * right away, without waiting for the user to leave the field.
    */
-  const correoFueraDeDominio =
-    esCorreoValido(valores.correo) && !esCorreoInstitucional(valores.correo);
+  const emailOutsideDomain =
+    isValidEmail(values.email) && !isInstitutionalEmail(values.email);
 
   /**
-   * Error visible de un campo. El de la API manda; si no hay, se muestra el
-   * de validación cuando el campo ya fue tocado (o antes, para el dominio).
-   * @param {string} campo
+   * Visible error of a field. The API one wins; if there is none, the
+   * validation one is shown once the field was touched (or earlier, for the domain).
+   * @param {string} field
    * @returns {string|undefined}
    */
-  const errorDe = (campo) => {
-    if (erroresApi[campo]) return erroresApi[campo];
+  const errorFor = (field) => {
+    if (apiErrors[field]) return apiErrors[field];
 
-    const mostrar = tocados[campo] || (campo === 'correo' && correoFueraDeDominio);
-    return mostrar ? erroresValidacion[campo] : undefined;
+    const shouldShow = touched[field] || (field === 'email' && emailOutsideDomain);
+    return shouldShow ? validationErrors[field] : undefined;
   };
 
   /**
-   * Actualiza un campo y borra el error de la API mientras el usuario lo corrige.
-   * @param {string} campo
+   * Updates a field and clears the API error while the user fixes it.
+   * @param {string} field
    */
-  const cambiar = (campo) => (evento) => {
-    const { value } = evento.target;
-    setValores((previos) => ({ ...previos, [campo]: value }));
-    setErroresApi((previos) => sinCampo(previos, campo));
+  const handleChange = (field) => (event) => {
+    const { value } = event.target;
+    setValues((previous) => ({ ...previous, [field]: value }));
+    setApiErrors((previous) => withoutField(previous, field));
   };
 
-  /** Marca el campo como tocado al salir de él, para mostrar sus errores. */
-  const marcarTocado = (campo) => () =>
-    setTocados((previos) => ({ ...previos, [campo]: true }));
+  /** Marks the field as touched on blur, to show its errors. */
+  const markTouched = (field) => () =>
+    setTouched((previous) => ({ ...previous, [field]: true }));
 
-  const alternarTerminos = (evento) => setAceptaTerminos(evento.target.checked);
+  const toggleTerms = (event) => setAcceptsTerms(event.target.checked);
 
-  const enviar = async (evento) => {
-    evento.preventDefault();
-    setErrorGeneral('');
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setGeneralError('');
 
-    // Al enviar ya se muestran los errores de todos los campos.
-    setTocados(Object.fromEntries(CAMPOS.map((campo) => [campo, true])));
+    // On submit all field errors are shown.
+    setTouched(Object.fromEntries(FIELDS.map((field) => [field, true])));
 
-    if (Object.keys(erroresValidacion).length > 0) {
+    if (Object.keys(validationErrors).length > 0) {
       return;
     }
 
     try {
-      setEnviando(true);
+      setIsSubmitting(true);
 
-      await registro({
-        nombre: valores.nombre,
-        username: valores.username,
-        correo: valores.correo,
-        password: valores.password,
-        semestre: valores.semestre === '' ? null : Number(valores.semestre),
+      await register({
+        name: values.name,
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        semester: values.semester === '' ? null : Number(values.semester),
       });
 
-      // TODO(FE-06): llevar a Mis materias de interés (vista 15) con las
-      // materias del semestre preseleccionadas.
-      navegar('/', { replace: true });
+      // TODO(FE-06): take to My subjects of interest (view 15) with the
+      // semester subjects preselected.
+      navigate('/', { replace: true });
     } catch (error) {
-      if (error?.campos) {
-        setErroresApi((previos) => ({ ...previos, ...error.campos }));
+      if (error?.fields) {
+        setApiErrors((previous) => ({ ...previous, ...error.fields }));
       }
-      setErrorGeneral(error?.message ?? 'No se pudo crear la cuenta. Intenta de nuevo.');
+      setGeneralError(error?.message ?? 'No se pudo crear la cuenta. Intenta de nuevo.');
     } finally {
-      setEnviando(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Box component="form" onSubmit={enviar} noValidate>
+    <Box component="form" onSubmit={handleSubmit} noValidate>
       <Stack spacing={2.5}>
         <Box>
           <Typography variant="h5" gutterBottom>
@@ -193,36 +193,36 @@ export default function RegisterPage() {
           </Typography>
         </Box>
 
-        {errorGeneral && <Alert severity="error">{errorGeneral}</Alert>}
+        {generalError && <Alert severity="error">{generalError}</Alert>}
 
         <TextField
           label="Nombre completo"
-          value={valores.nombre}
-          onChange={cambiar('nombre')}
-          onBlur={marcarTocado('nombre')}
-          error={Boolean(errorDe('nombre'))}
-          helperText={errorDe('nombre')}
+          value={values.name}
+          onChange={handleChange('name')}
+          onBlur={markTouched('name')}
+          error={Boolean(errorFor('name'))}
+          helperText={errorFor('name')}
           autoComplete="name"
         />
 
         <TextField
           label="Nombre de usuario"
-          value={valores.username}
-          onChange={cambiar('username')}
-          onBlur={marcarTocado('username')}
-          error={Boolean(errorDe('username'))}
-          helperText={errorDe('username') ?? 'Así te verán los demás. Sin espacios.'}
+          value={values.username}
+          onChange={handleChange('username')}
+          onBlur={markTouched('username')}
+          error={Boolean(errorFor('username'))}
+          helperText={errorFor('username') ?? 'Así te verán los demás. Sin espacios.'}
           autoComplete="username"
         />
 
         <TextField
           label="Correo institucional"
           type="email"
-          value={valores.correo}
-          onChange={cambiar('correo')}
-          onBlur={marcarTocado('correo')}
-          error={Boolean(errorDe('correo'))}
-          helperText={errorDe('correo') ?? `Debe terminar en ${DOMINIO_INSTITUCIONAL}`}
+          value={values.email}
+          onChange={handleChange('email')}
+          onBlur={markTouched('email')}
+          error={Boolean(errorFor('email'))}
+          helperText={errorFor('email') ?? `Debe terminar en ${INSTITUTIONAL_DOMAIN}`}
           autoComplete="email"
         />
 
@@ -230,56 +230,56 @@ export default function RegisterPage() {
           <TextField
             label="Contraseña"
             type="password"
-            value={valores.password}
-            onChange={cambiar('password')}
-            onBlur={marcarTocado('password')}
-            error={Boolean(errorDe('password'))}
-            helperText={errorDe('password')}
+            value={values.password}
+            onChange={handleChange('password')}
+            onBlur={markTouched('password')}
+            error={Boolean(errorFor('password'))}
+            helperText={errorFor('password')}
             autoComplete="new-password"
           />
-          <ReglasPassword password={valores.password} />
+          <PasswordRules password={values.password} />
         </Box>
 
         <TextField
           label="Confirmar contraseña"
           type="password"
-          value={valores.confirmar}
-          onChange={cambiar('confirmar')}
-          onBlur={marcarTocado('confirmar')}
-          error={Boolean(errorDe('confirmar'))}
-          helperText={errorDe('confirmar')}
+          value={values.confirm}
+          onChange={handleChange('confirm')}
+          onBlur={markTouched('confirm')}
+          error={Boolean(errorFor('confirm'))}
+          helperText={errorFor('confirm')}
           autoComplete="new-password"
         />
 
         <TextField
           select
           label="Semestre"
-          value={valores.semestre}
-          onChange={cambiar('semestre')}
+          value={values.semester}
+          onChange={handleChange('semester')}
           helperText="Opcional. Nos ayuda a sugerirte materias."
         >
           <MenuItem value="">Sin especificar</MenuItem>
-          {SEMESTRES.map((semestre) => (
-            <MenuItem key={semestre} value={semestre}>
-              {`Semestre ${semestre}`}
+          {SEMESTERS.map((semester) => (
+            <MenuItem key={semester} value={semester}>
+              {`Semestre ${semester}`}
             </MenuItem>
           ))}
         </TextField>
 
         <FormControlLabel
-          control={<Checkbox checked={aceptaTerminos} onChange={alternarTerminos} />}
+          control={<Checkbox checked={acceptsTerms} onChange={toggleTerms} />}
           label={
             <Typography variant="body2">
               Acepto las{' '}
-              <Link component={RouterLink} to="/normas">
+              <Link component={RouterLink} to="/terms">
                 normas de uso
               </Link>
             </Typography>
           }
         />
 
-        <Button type="submit" size="large" disabled={!aceptaTerminos || enviando}>
-          {enviando ? 'Creando cuenta…' : 'Crear cuenta'}
+        <Button type="submit" size="large" disabled={!acceptsTerms || isSubmitting}>
+          {isSubmitting ? 'Creando cuenta…' : 'Crear cuenta'}
         </Button>
 
         <Typography variant="body2" sx={{ textAlign: 'center' }}>

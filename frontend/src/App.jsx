@@ -1,14 +1,14 @@
 /**
  * @file App.jsx
- * @description Router principal de Alejandría UPC.
+ * @description Main router of Alejandría UPC.
  *
- * Estructura:
- *   - Rutas privadas: pasan por <ProtectedRoute /> y luego por <AppLayout />.
- *   - Rutas públicas: pasan por <AuthLayout /> (login, registro, recuperación).
- *   - Cualquier otra ruta cae en la vista 26 (404).
+ * Structure:
+ *   - Private routes: go through <ProtectedRoute /> and then <AppLayout />.
+ *   - Public routes: go through <AuthLayout /> (login, register, recovery).
+ *   - Any other route falls into view 26 (404).
  *
- * Las rutas de administrador se protegerán con roles={['admin']} cuando
- * existan las vistas del Sprint 3.
+ * Admin routes will be protected with roles={['admin']} when
+ * the Sprint 3 views exist.
  */
 
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
@@ -26,19 +26,19 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* ── Rutas públicas ─────────────────────────────────────────── */}
+          {/* ── Public routes ─────────────────────────────────────────── */}
           <Route element={<AuthLayout />}>
-            <Route path="/registro" element={<RegisterPage />} />
+            <Route path="/register" element={<RegisterPage />} />
           </Route>
 
-          {/* ── Rutas privadas ─────────────────────────────────────────── */}
+          {/* ── Private routes ─────────────────────────────────────────── */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />
             </Route>
           </Route>
 
-          {/* ── Errores ────────────────────────────────────────────────── */}
+          {/* ── Errors ────────────────────────────────────────────────── */}
           <Route path="/403" element={<ErrorPage code={403} />} />
           <Route path="*" element={<ErrorPage code={404} />} />
         </Routes>

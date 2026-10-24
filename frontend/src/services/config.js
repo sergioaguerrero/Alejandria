@@ -1,46 +1,46 @@
 /**
  * @file config.js
- * @description Configuración central de la capa de servicios.
+ * @description Central configuration of the services layer.
  *
- * La variable VITE_USE_MOCK decide de dónde salen los datos:
- *   - true  (por defecto) → src/mocks, permite avanzar sin backend (FE-02)
- *   - false               → API real mediante Axios
+ * The VITE_USE_MOCK variable decides where the data comes from:
+ *   - true  (by default) → src/mocks, allows progress without a backend (FE-02)
+ *   - false               → real API through Axios
  *
- * Cuando el backend esté listo, basta con poner VITE_USE_MOCK=false
- * y las pantallas siguen funcionando igual.
+ * When the backend is ready, setting VITE_USE_MOCK=false is enough
+ * and the screens keep working the same way.
  */
 
-const valorMock = import.meta.env.VITE_USE_MOCK;
+const mockValue = import.meta.env.VITE_USE_MOCK;
 
 /**
- * true si la aplicación debe usar los datos de ejemplo.
- * Si la variable no está definida se asume true, para que el proyecto
- * funcione recién clonado sin crear archivos .env.
+ * true if the application must use the sample data.
+ * If the variable is not defined it is assumed true, so the project
+ * works freshly cloned without creating .env files.
  * @type {boolean}
  */
 export const USE_MOCK =
-  valorMock === undefined ? true : String(valorMock).toLowerCase() !== 'false';
+  mockValue === undefined ? true : String(mockValue).toLowerCase() !== 'false';
 
-/** URL base del backend. @type {string} */
+/** Base URL of the backend. @type {string} */
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api';
 
-/** Retardo simulado de las respuestas mock, en milisegundos. @type {number} */
-export const LATENCIA_MOCK_MS = Number(import.meta.env.VITE_MOCK_DELAY ?? 400);
+/** Simulated delay of the mock responses, in milliseconds. @type {number} */
+export const MOCK_DELAY_MS = Number(import.meta.env.VITE_MOCK_DELAY ?? 400);
 
-/** Clave de localStorage donde se guarda el token JWT. @type {string} */
+/** localStorage key where the JWT token is saved. @type {string} */
 export const TOKEN_KEY = 'alejandria_token';
 
-/** Clave de localStorage donde se guarda el usuario de la sesión. @type {string} */
-export const USUARIO_KEY = 'alejandria_usuario';
+/** localStorage key where the session user is saved. @type {string} */
+export const USER_KEY = 'alejandria_user';
 
 /**
- * Espera el tiempo indicado. Se usa en los mocks para simular la red
- * y que se alcancen a ver los estados de carga.
- * @param {number} [ms=LATENCIA_MOCK_MS]
+ * Waits the given time. It is used in the mocks to simulate the network
+ * and to be able to see the loading states.
+ * @param {number} [ms=MOCK_DELAY_MS]
  * @returns {Promise<void>}
  */
-export function esperarMock(ms = LATENCIA_MOCK_MS) {
-  return new Promise((resolver) => {
-    setTimeout(resolver, ms);
+export function waitForMock(ms = MOCK_DELAY_MS) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 }

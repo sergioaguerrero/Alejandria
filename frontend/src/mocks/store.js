@@ -1,61 +1,61 @@
 /**
  * @file store.js
- * @description Estado en memoria de los datos de ejemplo.
+ * @description In-memory state of the example data.
  *
- * Los mocks originales son constantes; aquí se clonan una sola vez al
- * arrancar para que las acciones de la demo (me gusta, crear repo, subir
- * documento) se reflejen en pantalla aunque se recargue el módulo.
+ * The original mocks are constants; here they are cloned only once at
+ * startup so that the demo actions (like, create repository, upload
+ * document) are reflected on screen even if the module is reloaded.
  *
- * Al recargar la página el estado vuelve a los datos iniciales: es un mock.
+ * When the page is reloaded the state returns to the initial data: it is a mock.
  */
 
-import { DOCUMENTOS } from './documentos.js';
-import { MATERIAS } from './materias.js';
-import { REPOS } from './repos.js';
-import { USUARIOS } from './usuarios.js';
+import { DOCUMENTS } from './documents.js';
+import { SUBJECTS } from './subjects.js';
+import { REPOSITORIES } from './repositories.js';
+import { USERS } from './users.js';
 
-/** Clona en profundidad datos planos (objetos, arreglos, primitivos). */
-const clonar = (valor) => JSON.parse(JSON.stringify(valor));
+/** Deep clones flat data (objects, arrays, primitives). */
+const clone = (value) => JSON.parse(JSON.stringify(value));
 
 /**
- * Contadores para generar ids nuevos con el mismo formato de los mocks.
- * @returns {{ usuarios: object[], repos: object[], documentos: object[], materias: object[], likesRepos: Set<string>, likesDocumentos: Set<string>, consecutivos: { repo: number, documento: number, usuario: number } }}
+ * Counters to generate new ids with the same format as the mocks.
+ * @returns {{ users: object[], repositories: object[], documents: object[], subjects: object[], likedRepositories: Set<string>, likedDocuments: Set<string>, counters: { repository: number, document: number, user: number } }}
  */
-function crearEstadoInicial() {
+function createInitialState() {
   return {
-    usuarios: clonar(USUARIOS),
-    repos: clonar(REPOS),
-    documentos: clonar(DOCUMENTOS),
-    materias: clonar(MATERIAS),
-    /** Claves con formato `repoId::username`. */
-    likesRepos: new Set(),
-    /** Claves con formato `documentoId::username`. */
-    likesDocumentos: new Set(),
-    /** Ids de las materias marcadas por el usuario (FE-06). */
-    materiasDeInteres: /** @type {number[]} */ ([]),
-    consecutivos: {
-      repo: REPOS.length,
-      documento: DOCUMENTOS.length,
-      usuario: USUARIOS.length,
+    users: clone(USERS),
+    repositories: clone(REPOSITORIES),
+    documents: clone(DOCUMENTS),
+    subjects: clone(SUBJECTS),
+    /** Keys with format `repositoryId::username`. */
+    likedRepositories: new Set(),
+    /** Keys with format `documentId::username`. */
+    likedDocuments: new Set(),
+    /** Ids of the subjects marked by the user (FE-06). */
+    subjectsOfInterest: /** @type {number[]} */ ([]),
+    counters: {
+      repository: REPOSITORIES.length,
+      document: DOCUMENTS.length,
+      user: USERS.length,
     },
   };
 }
 
-/** Estado mutable que comparten todos los servicios en modo mock. */
-export const store = crearEstadoInicial();
+/** Mutable state shared by all services in mock mode. */
+export const store = createInitialState();
 
-/** Devuelve el estado a los datos originales. */
-export function restablecerStore() {
-  Object.assign(store, crearEstadoInicial());
+/** Returns the state to the original data. */
+export function resetStore() {
+  Object.assign(store, createInitialState());
 }
 
 /**
- * Genera el siguiente id de una entidad, por ejemplo `repo-011`.
- * @param {'repo'|'documento'|'usuario'} entidad
+ * Generates the next id of an entity, for example `repository-011`.
+ * @param {'repository'|'document'|'user'} entity
  * @returns {string}
  */
-export function siguienteId(entidad) {
-  store.consecutivos[entidad] += 1;
-  const numero = String(store.consecutivos[entidad]).padStart(3, '0');
-  return `${entidad}-${numero}`;
+export function nextId(entity) {
+  store.counters[entity] += 1;
+  const number = String(store.counters[entity]).padStart(3, '0');
+  return `${entity}-${number}`;
 }
