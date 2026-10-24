@@ -27,6 +27,7 @@ import {
 
 import PasswordRules from '../../components/forms/PasswordRules.jsx';
 import { useAuth } from '../../context/authContext.js';
+import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 import {
   INSTITUTIONAL_DOMAIN,
   passwordErrors,
@@ -265,6 +266,7 @@ export default function RegisterPage() {
           value={values.semester}
           onChange={handleChange('semester')}
           helperText="Opcional. Nos ayuda a sugerirte materias."
+          slotProps={{ select: { MenuProps: SELECT_MENU_PROPS } }}
         >
           <MenuItem value="">Sin especificar</MenuItem>
           {SEMESTERS.map((semester) => (
