@@ -76,23 +76,24 @@ export function logout() {
 // ── Login (FE-05) ──────────────────────────────────────────────────────────
 
 /**
- * Logs in with a username, an email and a password.
- * @param {{ username: string, email: string, password: string }} credentials
+ * Logs in with the username or the email, plus the password.
+ * @param {{ identifier: string, password: string }} credentials  Identifier: a username or an email.
  * @returns {Promise<Session>}
  * @throws {ApiError} 401 if the credentials do not match, 403 if the account is suspended.
  */
-export async function login({ username, email, password }) {
-  const cleanUsername = String(username ?? '').trim().toLowerCase();
-  const cleanEmail = String(email ?? '').trim().toLowerCase();
+export async function login({ identifier, password }) {
+  const cleanIdentifier = String(identifier ?? '').trim().toLowerCase();
 
-  if (!cleanUsername || !cleanEmail || !password) {
-    throw new ApiError('Escribe tu usuario, tu correo y tu contraseña.', { status: 400 });
+  if (!cleanIdentifier || !password) {
+    throw new ApiError('Escribe tu usuario o tu correo y tu contraseña.', { status: 400 });
   }
 
+  const isEmail = cleanIdentifier.includes('@');
+
   if (!USE_MOCK) {
+    // TODO(BE-41): confirm the login body against Swagger (BE-06).
     const { data } = await http.post('/auth/login', {
-      username: cleanUsername,
-      email: cleanEmail,
+      identifier: cleanIdentifier,
       password,
     });
     saveSession(data);
@@ -101,15 +102,15 @@ export async function login({ username, email, password }) {
 
   await waitForMock(700);
 
-  const user = store.users.find(
-    (candidate) =>
-      candidate.username.toLowerCase() === cleanUsername &&
-      candidate.email.toLowerCase() === cleanEmail,
+  const user = store.users.find((candidate) =>
+    isEmail
+      ? candidate.email.toLowerCase() === cleanIdentifier
+      : candidate.username.toLowerCase() === cleanIdentifier,
   );
 
   if (!user || user.password !== password) {
     throw new ApiError(
-      'Credenciales incorrectas. Revisa tu usuario, tu correo y tu contraseña.',
+      'Credenciales incorrectas. Revisa tu usuario o correo y tu contraseña.',
       { status: 401 },
     );
   }

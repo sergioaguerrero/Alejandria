@@ -3,9 +3,10 @@
  * @description View 1 — Login (FE-05, endpoint BE-06).
  *
  * Rules from the statement:
- *  - Username, institutional email and password fields plus the sign-in button.
- *  - Validate the email format (only the @unicesar.edu.co domain) and that
- *    no field is empty.
+ *  - The user signs in with the username OR the email (a single field)
+ *    plus the password. Registration requires both, authentication not.
+ *  - Validate the identifier: if it looks like an email, only the
+ *    @unicesar.edu.co domain is accepted; otherwise it must be a username.
  *  - An Alert with "Credenciales incorrectas" on 401, and a different
  *    message if the account is suspended (both come from the service).
  *  - On success, save the session and redirect: student to Home,
@@ -31,16 +32,16 @@ import {
   INSTITUTIONAL_DOMAIN,
   isInstitutionalEmail,
   isValidEmail,
+  isValidUsername,
 } from '../../utils/validations.js';
 
 const INITIAL_VALUES = {
-  username: '',
-  email: '',
+  identifier: '',
   password: '',
 };
 
 /** Form fields that are validated. */
-const FIELDS = ['username', 'email', 'password'];
+const FIELDS = ['identifier', 'password'];
 
 /**
  * Validates the form on the client before calling the service.
@@ -50,17 +51,18 @@ const FIELDS = ['username', 'email', 'password'];
 function validate(values) {
   /** @type {Record<string, string>} */
   const errors = {};
+  const identifier = String(values.identifier).trim();
 
-  if (String(values.username).trim() === '') {
-    errors.username = 'Escribe tu nombre de usuario.';
-  }
-
-  if (String(values.email).trim() === '') {
-    errors.email = 'Escribe tu correo.';
-  } else if (!isValidEmail(values.email)) {
-    errors.email = 'Escribe un correo válido.';
-  } else if (!isInstitutionalEmail(values.email)) {
-    errors.email = `Debes usar tu correo institucional ${INSTITUTIONAL_DOMAIN}.`;
+  if (identifier === '') {
+    errors.identifier = 'Escribe tu usuario o tu correo.';
+  } else if (identifier.includes('@')) {
+    if (!isValidEmail(identifier)) {
+      errors.identifier = 'Escribe un correo válido.';
+    } else if (!isInstitutionalEmail(identifier)) {
+      errors.identifier = `Debes usar tu correo institucional ${INSTITUTIONAL_DOMAIN}.`;
+    }
+  } else if (!isValidUsername(identifier)) {
+    errors.identifier = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
   }
 
   if (String(values.password) === '') {
@@ -83,11 +85,13 @@ export default function LoginPage() {
   const validationErrors = validate(values);
 
   /**
-   * The email already looks like an email but is not institutional: warn
-   * right away, without waiting for the user to leave the field.
+   * The identifier already looks like an email but is not institutional:
+   * warn right away, without waiting for the user to leave the field.
    */
   const emailOutsideDomain =
-    isValidEmail(values.email) && !isInstitutionalEmail(values.email);
+    values.identifier.includes('@') &&
+    isValidEmail(values.identifier) &&
+    !isInstitutionalEmail(values.identifier);
 
   /**
    * Visible error of a field. Shown once the field was touched, or earlier
@@ -96,7 +100,7 @@ export default function LoginPage() {
    * @returns {string|undefined}
    */
   const errorFor = (field) => {
-    const shouldShow = touched[field] || (field === 'email' && emailOutsideDomain);
+    const shouldShow = touched[field] || (field === 'identifier' && emailOutsideDomain);
     return shouldShow ? validationErrors[field] : undefined;
   };
 
@@ -126,8 +130,7 @@ export default function LoginPage() {
       setIsSubmitting(true);
 
       await login({
-        username: values.username,
-        email: values.email,
+        identifier: values.identifier,
         password: values.password,
       });
 
@@ -150,31 +153,20 @@ export default function LoginPage() {
             Iniciar sesión
           </Typography>
           <Typography variant="body2">
-            Entra con tu nombre de usuario y tu correo institucional.
+            Entra con tu nombre de usuario o tu correo institucional.
           </Typography>
         </Box>
 
         {generalError && <Alert severity="error">{generalError}</Alert>}
 
         <TextField
-          label="Nombre de usuario"
-          value={values.username}
-          onChange={handleChange('username')}
-          onBlur={markTouched('username')}
-          error={Boolean(errorFor('username'))}
-          helperText={errorFor('username')}
+          label="Usuario o correo"
+          value={values.identifier}
+          onChange={handleChange('identifier')}
+          onBlur={markTouched('identifier')}
+          error={Boolean(errorFor('identifier'))}
+          helperText={errorFor('identifier')}
           autoComplete="username"
-        />
-
-        <TextField
-          label="Correo institucional"
-          type="email"
-          value={values.email}
-          onChange={handleChange('email')}
-          onBlur={markTouched('email')}
-          error={Boolean(errorFor('email'))}
-          helperText={errorFor('email') ?? `Debe terminar en ${INSTITUTIONAL_DOMAIN}`}
-          autoComplete="email"
         />
 
         <TextField
