@@ -16,6 +16,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout.jsx';
 import AuthLayout from './components/layout/AuthLayout.jsx';
 import AuthProvider from './context/AuthProvider.jsx';
+import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
@@ -28,6 +29,7 @@ export default function App() {
         <Routes>
           {/* ── Public routes ─────────────────────────────────────────── */}
           <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
           </Route>
 
