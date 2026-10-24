@@ -30,6 +30,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import { getRepositories } from '../../services/repositoryService.js';
 import { getSubjects, groupBySemester } from '../../services/subjectService.js';
+import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 
 const PAGE_SIZE = 9;
 
@@ -168,6 +169,7 @@ export default function HomePage() {
               label="Semestre"
               value={semester}
               onChange={handleSemesterChange}
+              MenuProps={SELECT_MENU_PROPS}
             >
               <MenuItem value="">Todos los semestres</MenuItem>
               {semesters.map((value) => (
@@ -185,6 +187,7 @@ export default function HomePage() {
               label="Materia"
               value={subjectId}
               onChange={handleSubjectChange}
+              MenuProps={SELECT_MENU_PROPS}
             >
               <MenuItem value="">Todas las materias</MenuItem>
               {groupBySemester(visibleSubjects).flatMap((group) => [
