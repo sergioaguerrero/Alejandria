@@ -2,200 +2,210 @@
 
 ```mermaid
 classDiagram
-    class Facultad {
-+int id
-+String nombre }
-
-    class Programa {
-+int id
-+String nombre
-}
-class Asignatura {
+    class Faculty {
         +int id
-        +String codigo
-        +String nombre
-        +int creditos
+        +String name
     }
-    class Usuario {
+    class Program {
+        +int id
+        +String name
+    }
+    class Semester {
+        +int id
+        +int number
+    }
+    class Subject {
+        +int id
+        +String code
+        +String name
+        +int credits
+    }
+    class User {
         <<abstract>>
         +int id
-        +String nombre
-        +String correoInstitucional
+        +String name
+        +String institutionalEmail
         +String passwordHash
-        +boolean verificado
-        +Date fechaRegistro
-        +autenticar() boolean
-        +validarCorreoInstitucional() boolean
+        +boolean verified
+        +Date registrationDate
+        +authenticate() boolean
+        +validateInstitutionalEmail() boolean
     }
-    class Estudiante {
-        +int semestreActual
-        +subirRecurso() Recurso
-        +reportarRecurso() Reporte
-        +valorarRecurso() Valoracion
+    class Student {
+        +int currentSemester
+        +uploadResource() Resource
+        +reportResource() Report
+        +rateResource() Rating
     }
-    class Moderador {
-+revisarReporte() Decision
-+aprobarRecurso() void
-+retirarRecurso() void
-}
-    class Administrador {
-        +gestionarMalla() void
-        +asignarRol() void
-        +consultarAuditoria() List
+    class Moderator {
+        +reviewReport() Decision
+        +approveResource() void
+        +removeResource() void
     }
-    class Recurso {
+    class Administrator {
+        +manageCurriculum() void
+        +assignRole() void
+        +viewAuditLog() List
+    }
+    class Resource {
         +int id
-        +String titulo
-        +String descripcion
-        +TipoRecurso tipo
-        +String archivoUrl
-        +Date fechaSubida
-        +EstadoRecurso estado
-        +int totalDescargas
-        +publicar() void
-        +retirar() void
+        +String title
+        +String description
+        +ResourceType type
+        +String fileUrl
+        +Date uploadDate
+        +ResourceStatus status
+        +int totalDownloads
+        +publish() void
+        +remove() void
     }
-    class Etiqueta {
+    class Tag {
         +int id
-        +String nombre
+        +String name
     }
-    class Valoracion {
+    class Rating {
         +int id
-        +int puntaje
-        +String comentario
-        +Date fecha
+        +int score
+        +String comment
+        +Date date
     }
-    class TipoRecurso {
+    class ResourceType {
         <<enumeration>>
-        APUNTE
-        RESUMEN
-        GUIA
-        TALLER
-        PROYECTO
+        NOTE
+        SUMMARY
+        GUIDE
+        WORKSHOP
+        PROJECT
     }
-
-    class EstadoRecurso {
+    class ResourceStatus {
         <<enumeration>>
-        PENDIENTE
-        PUBLICADO
-        REPORTADO
-        RETIRADO
+        PENDING
+        PUBLISHED
+        REPORTED
+        REMOVED
     }
 
-    Semestre "1" --> "*" Asignatura : contiene
-    Usuario <|-- Estudiante
-    Usuario <|-- Moderador
-    Usuario <|-- Administrador
-    Estudiante "*" --> "1" Programa : pertenece a
-    Usuario "1" --> "*" Recurso : sube
-    Asignatura "1" --> "*" Recurso : agrupa
-    Recurso "*" --> "*" Etiqueta : se clasifica con
-    Recurso "1" --> "*" Valoracion : recibe
-    Usuario "1" --> "*" Valoracion : emite
-    Recurso --> TipoRecurso
-    Recurso --> EstadoRecurso
-
+    Faculty "1" --> "*" Program : has
+    Program "1" --> "*" Semester : organizes
+    Semester "1" --> "*" Subject : contains
+    User <|-- Student
+    User <|-- Moderator
+    User <|-- Administrator
+    Student "*" --> "1" Program : belongs to
+    User "1" --> "*" Resource : uploads
+    Subject "1" --> "*" Resource : groups
+    Resource "*" --> "*" Tag : is classified by
+    Resource "1" --> "*" Rating : receives
+    User "1" --> "*" Rating : submits
+    Resource --> ResourceType
+    Resource --> ResourceStatus
 ```
-# Modeling and Auditing
+
+# Moderation and Auditing
+
 ```mermaid
 classDiagram
-class Reporte {
-+int id
-+MotivoReporte motivo
-+String descripcion
-+Date fecha
-+EstadoReporte estado
-+asignarModerador() void
-+cerrar() void
-}
-class Decision {
-+int id
-+AccionModeracion accion
-+String justificacion
-+Date fecha
-}
-class Auditoria {
-+int id
-+String accion
-+String entidad
-+int entidadId
-+Date fecha
-+String ipOrigen
-}
-class MotivoReporte {
-<<enumeration>>
-EXAMEN_VIGENTE
-PLAGIO
-CONTENIDO_INAPROPIADO
-ARCHIVO_CORRUPTO
-OTRO
-}
-class EstadoReporte {
-<<enumeration>>
-ABIERTO
-EN_REVISION
-RESUELTO
-DESCARTADO
-}
-class AccionModeracion {
-<<enumeration>>
-MANTENER
-RETIRAR
-ADVERTIR_USUARIO
-SUSPENDER_USUARIO
-}
-class Usuario
-class Moderador
-class Recurso
-Usuario "1" --> "*" Reporte : presenta
-Recurso "1" --> "*" Reporte : es objeto de
-Moderador "1" --> "*" Decision : emite
-Reporte "1" --> "0..1" Decision : se resuelve con
-Usuario "1" --> "*" Auditoria : genera
-Reporte --> MotivoReporte
-Reporte --> EstadoReporte
-Decision --> AccionModeracion
+    class Report {
+        +int id
+        +ReportReason reason
+        +String description
+        +Date date
+        +ReportStatus status
+        +assignModerator() void
+        +close() void
+    }
+    class Decision {
+        +int id
+        +ModerationAction action
+        +String justification
+        +Date date
+    }
+    class AuditLog {
+        +int id
+        +String action
+        +String entity
+        +int entityId
+        +Date date
+        +String originIp
+    }
+    class ReportReason {
+        <<enumeration>>
+        ACTIVE_EXAM
+        PLAGIARISM
+        INAPPROPRIATE_CONTENT
+        CORRUPTED_FILE
+        OTHER
+    }
+    class ReportStatus {
+        <<enumeration>>
+        OPEN
+        UNDER_REVIEW
+        RESOLVED
+        DISMISSED
+    }
+    class ModerationAction {
+        <<enumeration>>
+        KEEP
+        REMOVE
+        WARN_USER
+        SUSPEND_USER
+    }
+    class User
+    class Moderator
+    class Resource
+
+    User "1" --> "*" Report : submits
+    Resource "1" --> "*" Report : is subject of
+    Moderator "1" --> "*" Decision : issues
+    Report "1" --> "0..1" Decision : is resolved by
+    User "1" --> "*" AuditLog : generates
+    Report --> ReportReason
+    Report --> ReportStatus
+    Decision --> ModerationAction
 ```
-#  Learning Analytics
+
+# Learning Analytics
+
 ```mermaid
 classDiagram
-class Interaccion {
-+int id
-+TipoInteraccion tipo
-+Date fecha
-+String terminoBusqueda
-+String usuarioAnonimo
-}
-class MetricaDemanda {
-+int id
-+String periodoAcademico
-+int totalConsultas
-+int totalDescargas
-+int totalBusquedas
-+double indiceDemanda
-}
-class ServicioAnalitica {
-+registrarInteraccion() void
-+calcularMetricas(periodo) List
-+asignaturasMasConsultadas(n) List
-+temasMasBuscados(n) List
-+exportarDatosAnonimizados() File
-}
-class TipoInteraccion {
-<<enumeration>>
-VISTA
-DESCARGA
-BUSQUEDA
-VALORACION
-}
-class Usuario
-class Recurso
-class Asignatura
-Usuario "1" --> "*" Interaccion : realiza
-Recurso "0..1" --> "*" Interaccion : recibe
-Asignatura "1" --> "*" Interaccion : se asocia a
-Asignatura "1" --> "*" MetricaDemanda : se resume en
-ServicioAnalitica ..> Interaccion : lee
-ServicioAnalitica ..> MetricaDemanda : genera
-Interaccion --> TipoInteraccion
+    class Interaction {
+        +int id
+        +InteractionType type
+        +Date date
+        +String searchTerm
+        +String anonymousUserId
+    }
+    class DemandMetric {
+        +int id
+        +String academicPeriod
+        +int totalQueries
+        +int totalDownloads
+        +int totalSearches
+        +double demandIndex
+    }
+    class AnalyticsService {
+        +logInteraction() void
+        +calculateMetrics(period) List
+        +mostQueriedSubjects(n) List
+        +mostSearchedTopics(n) List
+        +exportAnonymizedData() File
+    }
+    class InteractionType {
+        <<enumeration>>
+        VIEW
+        DOWNLOAD
+        SEARCH
+        RATING
+    }
+    class User
+    class Resource
+    class Subject
+
+    User "1" --> "*" Interaction : performs
+    Resource "0..1" --> "*" Interaction : receives
+    Subject "1" --> "*" Interaction : is related to
+    Subject "1" --> "*" DemandMetric : is summarized in
+    AnalyticsService ..> Interaction : reads
+    AnalyticsService ..> DemandMetric : generates
+    Interaction --> InteractionType
 ```
