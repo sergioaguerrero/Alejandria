@@ -39,7 +39,6 @@ import {
 const SEMESTERS = Array.from({ length: 9 }, (_, index) => index + 1);
 
 const INITIAL_VALUES = {
-  name: '',
   username: '',
   email: '',
   password: '',
@@ -48,7 +47,7 @@ const INITIAL_VALUES = {
 };
 
 /** Form fields that are validated. */
-const FIELDS = ['name', 'username', 'email', 'password', 'confirm', 'semester'];
+const FIELDS = ['username', 'email', 'password', 'confirm', 'semester'];
 
 /**
  * Validates the form on the client before calling the service.
@@ -58,10 +57,6 @@ const FIELDS = ['name', 'username', 'email', 'password', 'confirm', 'semester'];
 function validate(values) {
   /** @type {Record<string, string>} */
   const errors = {};
-
-  if (String(values.name).trim().length < 3) {
-    errors.name = 'Escribe tu nombre completo.';
-  }
 
   if (!isValidUsername(values.username)) {
     errors.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
@@ -169,7 +164,6 @@ export default function RegisterPage() {
       setIsSubmitting(true);
 
       await register({
-        name: values.name,
         username: values.username,
         email: values.email,
         password: values.password,
@@ -202,16 +196,6 @@ export default function RegisterPage() {
         </Box>
 
         {generalError && <Alert severity="error">{generalError}</Alert>}
-
-        <TextField
-          label="Nombre completo"
-          value={values.name}
-          onChange={handleChange('name')}
-          onBlur={markTouched('name')}
-          error={Boolean(errorFor('name'))}
-          helperText={errorFor('name')}
-          autoComplete="name"
-        />
 
         <TextField
           label="Nombre de usuario"

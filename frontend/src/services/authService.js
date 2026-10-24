@@ -135,7 +135,6 @@ export async function login({ identifier, password }) {
 
 /**
  * @typedef {object} RegistrationData
- * @property {string} name
  * @property {string} username
  * @property {string} email
  * @property {string} password
@@ -149,7 +148,6 @@ export async function login({ identifier, password }) {
  * @throws {ApiError} 400 with `fields` if there is invalid data, 409 if the email or the user already exist.
  */
 export async function register(data) {
-  const name = String(data.name ?? '').trim();
   const username = String(data.username ?? '').trim().toLowerCase();
   const email = String(data.email ?? '').trim().toLowerCase();
   const { password } = data;
@@ -157,7 +155,6 @@ export async function register(data) {
 
   if (!USE_MOCK) {
     const { data: response } = await http.post('/auth/register', {
-      name,
       username,
       email,
       password,
@@ -171,8 +168,6 @@ export async function register(data) {
 
   /** @type {Record<string, string>} */
   const fields = {};
-
-  if (name.length < 3) fields.name = 'Escribe tu nombre completo.';
 
   if (!isValidUsername(username)) {
     fields.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
@@ -199,7 +194,6 @@ export async function register(data) {
 
   const newUser = {
     id: nextId('user'),
-    name,
     username,
     email,
     semester: semester ? Number(semester) : null,

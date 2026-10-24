@@ -37,7 +37,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 
 import { useAuth } from '../../context/authContext.js';
-import { initials } from '../../utils/users.js';
+import { initials, usernameLabel } from '../../utils/users.js';
 
 const MENU_WIDTH = 248;
 
@@ -179,10 +179,7 @@ export default function AppLayout() {
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle2" color="text.primary" noWrap>
-            {user?.name}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            @{user?.username}
+            {usernameLabel(user)}
           </Typography>
         </Box>
 

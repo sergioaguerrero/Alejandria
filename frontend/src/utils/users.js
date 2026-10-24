@@ -27,12 +27,12 @@ export function usernameLabel(user) {
 }
 
 /**
- * Initials of the name, for the avatars.
- * @param {{ name?: string }|null|undefined} user
+ * Initials of the username, for the avatars.
+ * @param {{ username?: string }|null|undefined} user
  * @returns {string}
  */
 export function initials(user) {
-  const parts = String(user?.name ?? '')
+  const parts = String(user?.username ?? '')
     .trim()
     .split(/\s+/)
     .filter(Boolean);
