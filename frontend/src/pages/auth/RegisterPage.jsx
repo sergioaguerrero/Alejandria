@@ -35,7 +35,7 @@ import {
   isValidUsername,
 } from '../../utils/validations.js';
 
-const SEMESTERS = Array.from({ length: 10 }, (_, index) => index + 1);
+const SEMESTERS = Array.from({ length: 9 }, (_, index) => index + 1);
 
 const INITIAL_VALUES = {
   name: '',
