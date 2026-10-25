@@ -20,39 +20,37 @@ classDiagram
         +String name
         +int credits
     }
-    class User {
-        <<abstract>>
+    class Role {
         +int id
         +String name
+        +List~String~ permissions
+    }
+    class User {
+        +int id
+        +String username
+        +String first_name
+        +String second_name
+        +String first_lastname
+        +String second_lastname
         +String institutionalEmail
         +String passwordHash
         +boolean verified
         +Date registrationDate
         +authenticate() boolean
         +validateInstitutionalEmail() boolean
-    }
-    class Student {
-        +int currentSemester
         +uploadResource() Resource
         +reportResource() Report
         +rateResource() Rating
-    }
-    class Moderator {
-        +reviewReport() Decision
-        +approveResource() void
-        +removeResource() void
-    }
-    class Administrator {
         +manageCurriculum() void
-        +assignRole() void
-        +viewAuditLog() List
     }
     class Resource {
         +int id
         +String title
         +String description
         +ResourceType type
-        +String fileUrl
+        +byte[] fileBytes
+        +String mimeType
+        +long fileSizeBytes
         +Date uploadDate
         +ResourceStatus status
         +int totalDownloads
@@ -88,15 +86,16 @@ classDiagram
     Faculty "1" --> "*" Program : has
     Program "1" --> "*" Semester : organizes
     Semester "1" --> "*" Subject : contains
-    User <|-- Student
-    User <|-- Moderator
-    User <|-- Administrator
-    Student "*" --> "1" Program : belongs to
+
+    User "*" --> "1" Role : assigned to
+    User "*" --> "1" Program : belongs to
+
     User "1" --> "*" Resource : uploads
     Subject "1" --> "*" Resource : groups
     Resource "*" --> "*" Tag : is classified by
     Resource "1" --> "*" Rating : receives
     User "1" --> "*" Rating : submits
+
     Resource --> ResourceType
     Resource --> ResourceStatus
 ```
