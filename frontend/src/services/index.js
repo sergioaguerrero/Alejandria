@@ -1,49 +1,49 @@
 /**
  * @file index.js
- * @description Punto de entrada de la capa de servicios (FE-02).
+ * @description Entry point of the services layer (FE-02).
  *
- * Las pantallas importan desde aquí:
- *   import { obtenerRepos } from '../services';
+ * Screens import from here:
+ *   import { getRepositories } from '../services';
  *
- * Así, si mañana se parte un servicio en varios archivos, las pantallas
- * no se enteran.
+ * So, if tomorrow a service is split into several files, the screens
+ * do not notice.
  */
 
 export { USE_MOCK, API_URL } from './config.js';
-export { ErrorApi, normalizarError } from './errores.js';
+export { ApiError, normalizeError } from './errors.js';
 export { default as http } from './http.js';
 
 export {
   login,
-  registro,
-  cerrarSesion,
-  guardarSesion,
-  obtenerSesionActual,
-  usuarioActual,
+  register,
+  logout,
+  saveSession,
+  getCurrentSession,
+  currentUser,
 } from './authService.js';
 
 export {
-  obtenerRepos,
-  obtenerRepo,
-  obtenerReposDeUsuario,
-  crearRepo,
-  actualizarRepo,
-  eliminarRepo,
-  alternarLikeRepo,
-} from './repoService.js';
+  getRepositories,
+  getRepository,
+  getRepositoriesByUser,
+  createRepository,
+  updateRepository,
+  deleteRepository,
+  toggleRepositoryLike,
+} from './repositoryService.js';
 
 export {
-  listarPorRepo,
-  obtenerDocumento,
-  subirDocumento,
-  editarDocumento,
-  eliminarDocumento,
-  descargarDocumento,
-  alternarLikeDocumento,
-} from './documentoService.js';
+  listByRepository,
+  getDocument,
+  uploadDocument,
+  updateDocument,
+  deleteDocument,
+  downloadDocument,
+  toggleDocumentLike,
+} from './documentService.js';
 
 export {
-  obtenerMaterias,
-  agruparPorSemestre,
-  obtenerMateriasDeInteres,
-} from './materiaService.js';
+  getSubjects,
+  groupBySemester,
+  getSubjectsOfInterest,
+} from './subjectService.js';
