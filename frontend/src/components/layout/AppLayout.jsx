@@ -21,6 +21,7 @@ import {
   Divider,
   Drawer,
   IconButton,
+  InputBase,
   List,
   ListItemButton,
   ListItemIcon,
@@ -36,6 +37,8 @@ import {
 } from '@mui/material';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import BookmarksIcon from '@mui/icons-material/Bookmarks';
+import ClearIcon from '@mui/icons-material/Clear';
+import ExploreIcon from '@mui/icons-material/Explore';
 import FlagIcon from '@mui/icons-material/Flag';
 import FolderIcon from '@mui/icons-material/Folder';
 import HomeIcon from '@mui/icons-material/Home';
@@ -58,8 +61,8 @@ const MENU_WIDTH = 248;
  */
 const MAIN_LINKS = [
   { label: 'Inicio', path: '/', icon: HomeIcon },
-  { label: 'Búsqueda', path: '/search', icon: SearchIcon },
-  { label: 'Mis contenidos', path: '/my-content', icon: FolderIcon },
+  { label: 'Explorar', path: '/search', icon: ExploreIcon },
+  { label: 'Mis repositorios', path: '/my-content', icon: FolderIcon },
   { label: 'Mis materias', path: '/my-subjects', icon: BookmarksIcon },
   { label: 'Mis estadísticas', path: '/statistics', icon: BarChartIcon },
   { label: 'Notificaciones', path: '/notifications', icon: NotificationsIcon },
@@ -166,14 +169,40 @@ export default function AppLayout() {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAdmin, logout } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [userAnchor, setUserAnchor] = useState(null);
+  const [searchTerm, setSearchTerm] = useState(
+    () => new URLSearchParams(location.search).get('q') ?? '',
+  );
+  const [syncedSearch, setSyncedSearch] = useState(
+    location.pathname === '/search' ? location.search : null,
+  );
+
+  // Keeps the search field in sync with the URL (?q=) when the user lands on
+  // the search view, submits a search or navigates back to it. This is the
+  // "adjust state while rendering" pattern, cheaper than an effect.
+  if (location.pathname === '/search') {
+    if (location.search !== syncedSearch) {
+      setSyncedSearch(location.search);
+      setSearchTerm(new URLSearchParams(location.search).get('q') ?? '');
+    }
+  } else if (syncedSearch !== null) {
+    // Leaving the search view drops the baseline so coming back re-reads ?q=.
+    setSyncedSearch(null);
+  }
 
   const closeMenu = () => setMenuOpen(false);
   const openUserMenu = (event) => setUserAnchor(event.currentTarget);
   const closeUserMenu = () => setUserAnchor(null);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    const term = searchTerm.trim();
+    navigate(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
+  };
 
   const handleLogout = () => {
     closeUserMenu();
@@ -201,10 +230,64 @@ export default function AppLayout() {
             to="/"
             variant="h6"
             noWrap
-            sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}
+            sx={{
+              flexGrow: { xs: 1, md: 0 },
+              mr: { md: 2 },
+              color: 'inherit',
+              textDecoration: 'none',
+            }}
           >
             Alejandría UPC
           </Typography>
+
+          {isDesktop ? (
+            <Box
+              component="form"
+              role="search"
+              onSubmit={handleSearchSubmit}
+              sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', px: 2 }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  width: '100%',
+                  maxWidth: 560,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 999,
+                  bgcolor: 'action.hover',
+                  '&:focus-within': { outline: '2px solid', outlineColor: 'primary.main' },
+                }}
+              >
+                <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+
+                <InputBase
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar materias, apuntes y usuarios…"
+                  inputProps={{ 'aria-label': 'Buscar materias, apuntes y usuarios' }}
+                  sx={{ flex: 1, fontSize: '0.95rem' }}
+                />
+
+                {searchTerm && (
+                  <IconButton
+                    size="small"
+                    edge="end"
+                    aria-label="Limpiar búsqueda"
+                    onClick={() => setSearchTerm('')}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+            </Box>
+          ) : (
+            <IconButton color="inherit" aria-label="Buscar" onClick={() => navigate('/search')}>
+              <SearchIcon />
+            </IconButton>
+          )}
 
           <Tooltip title="Cuenta">
             <IconButton
