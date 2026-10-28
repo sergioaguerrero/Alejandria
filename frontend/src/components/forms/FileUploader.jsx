@@ -30,11 +30,19 @@ const FORMATS = 'PDF, Word, PowerPoint, Excel, JPG o PNG';
 /**
  * @param {object} props
  * @param {File|null} props.file
+ * @param {{ name: string, extension?: string, sizeBytes?: number, size?: number }|null} [props.currentFile]
+ *   File already saved, shown while no replacement is chosen (view 13).
  * @param {(file: File|null) => void} props.onChange
  * @param {string} [props.error]
  * @param {boolean} [props.disabled]
  */
-export default function FileUploader({ file, onChange, error = '', disabled = false }) {
+export default function FileUploader({
+  file,
+  currentFile = null,
+  onChange,
+  error = '',
+  disabled = false,
+}) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -63,7 +71,9 @@ export default function FileUploader({ file, onChange, error = '', disabled = fa
     if (!disabled) setIsDragging(true);
   };
 
-  const FileIcon = file ? fileTypeInfo(getExtension(file)).Icon : null;
+  // A saved file is shown while the author does not choose a new one.
+  const shownFile = file ?? currentFile;
+  const FileIcon = shownFile ? fileTypeInfo(getExtension(shownFile)).Icon : null;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -110,7 +120,9 @@ export default function FileUploader({ file, onChange, error = '', disabled = fa
         <CloudUploadIcon sx={{ fontSize: 40, color: error ? 'error.main' : 'primary.main' }} />
 
         <Typography variant="body2" color="text.secondary">
-          Arrastra el archivo aquí o haz clic para elegirlo
+          {currentFile && !file
+            ? 'Arrastra el archivo nuevo o haz clic para reemplazarlo'
+            : 'Arrastra el archivo aquí o haz clic para elegirlo'}
         </Typography>
 
         <Typography variant="caption" color="text.secondary">
@@ -118,7 +130,7 @@ export default function FileUploader({ file, onChange, error = '', disabled = fa
         </Typography>
       </Box>
 
-      {file && FileIcon && (
+      {shownFile && FileIcon && (
         <Stack
           direction="row"
           spacing={1.5}
@@ -135,21 +147,25 @@ export default function FileUploader({ file, onChange, error = '', disabled = fa
 
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography variant="body2" noWrap>
-              {file.name}
+              {shownFile.name}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {formatSize(file.size ?? 0)}
+              {`${formatSize(shownFile.size ?? shownFile.sizeBytes ?? 0)}${
+                file ? '' : ' · archivo actual'
+              }`}
             </Typography>
           </Box>
 
-          <IconButton
-            size="small"
-            aria-label="Quitar archivo"
-            onClick={() => onChange(null)}
-            disabled={disabled}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
+          {file && (
+            <IconButton
+              size="small"
+              aria-label="Quitar archivo"
+              onClick={() => onChange(null)}
+              disabled={disabled}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          )}
         </Stack>
       )}
 
