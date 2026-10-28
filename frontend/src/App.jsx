@@ -43,6 +43,23 @@ export default function App() {
               <Route path="/repositories/:id" element={<RepositoryDetailPage />} />
               <Route path="/repositories/:id/upload" element={<UploadDocumentPage />} />
               <Route path="/documents/:id" element={<DocumentDetailPage />} />
+
+              {/* ── Placeholders of the side menu ─────────────────────────
+                  Their views are not implemented yet, so they render the
+                  error page inside the layout to keep the menu visible.
+                  Each one is replaced when its story lands. */}
+              <Route path="/search" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/my-content" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/my-subjects" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/statistics" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/notifications" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/ai" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/profile" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/admin/reports" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route
+                path="/admin/statistics"
+                element={<ErrorPage code={404} fullHeight={false} />}
+              />
             </Route>
           </Route>
 
