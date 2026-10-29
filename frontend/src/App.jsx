@@ -26,6 +26,7 @@ import MyStatisticsPage from './pages/statistics/MyStatisticsPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
+import SearchPage from './pages/search/SearchPage.jsx';
 import DocumentDetailPage from './pages/documents/DocumentDetailPage.jsx';
 import EditDocumentPage from './pages/documents/EditDocumentPage.jsx';
 import UploadDocumentPage from './pages/documents/UploadDocumentPage.jsx';
@@ -59,7 +60,7 @@ export default function App() {
                   Their views are not implemented yet, so they render the
                   error page inside the layout to keep the menu visible.
                   Each one is replaced when its story lands. */}
-              <Route path="/search" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/my-content" element={<MyContentPage />} />
               <Route path="/my-subjects" element={<MySubjectsPage />} />
               <Route path="/statistics" element={<MyStatisticsPage />} />
