@@ -22,6 +22,7 @@ import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
 import MyContentPage from './pages/content/MyContentPage.jsx';
 import MySubjectsPage from './pages/subjects/MySubjectsPage.jsx';
+import MyStatisticsPage from './pages/statistics/MyStatisticsPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -61,7 +62,7 @@ export default function App() {
               <Route path="/search" element={<ErrorPage code={404} fullHeight={false} />} />
               <Route path="/my-content" element={<MyContentPage />} />
               <Route path="/my-subjects" element={<MySubjectsPage />} />
-              <Route path="/statistics" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/statistics" element={<MyStatisticsPage />} />
               <Route path="/notifications" element={<ErrorPage code={404} fullHeight={false} />} />
               <Route path="/ai" element={<ErrorPage code={404} fullHeight={false} />} />
               <Route path="/profile" element={<ErrorPage code={404} fullHeight={false} />} />

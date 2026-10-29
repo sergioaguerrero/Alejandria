@@ -49,3 +49,5 @@ export {
   getSubjectsOfInterest,
   updateSubjectsOfInterest,
 } from './subjectService.js';
+
+export { getMyStatistics } from './statisticsService.js';
