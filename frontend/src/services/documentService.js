@@ -81,6 +81,25 @@ export async function listByRepository(repositoryId, { term = null } = {}) {
 }
 
 /**
+ * Lists the documents of a user, newest first (view 12, my content).
+ * @param {string} username
+ * @returns {Promise<object[]>}
+ */
+export async function getDocumentsByUser(username) {
+  if (!USE_MOCK) {
+    const { data } = await http.get(`/users/${username}/documents`);
+    return asList(data);
+  }
+
+  await waitForMock();
+
+  return store.documents
+    .filter((document) => document.authorUsername === username)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(enrich);
+}
+
+/**
  * Gets a document by id.
  * @param {string} id
  * @returns {Promise<object>}
