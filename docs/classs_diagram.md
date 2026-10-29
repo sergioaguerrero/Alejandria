@@ -226,7 +226,7 @@ classDiagram
     CatalogRepository ..> Subject : gestiona
     InteractionRepository ..> Interaction : gestiona
     ReportRepository ..> Report : gestiona
-
+    RoleRepository ..> Role : gestiona
 
     %% ==========================================
     %% CAPA DE LÓGICA DE NEGOCIO (SERVICIOS)
