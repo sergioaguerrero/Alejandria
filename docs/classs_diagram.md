@@ -210,6 +210,15 @@ classDiagram
             <<interface>>
             +findByStatus(status) List
         }
+        class DemandMetricRepository {
+            <<interface>>
+            +findBySubject_IdAndAcademicPeriod(subjectId, academicPeriod) Optional
+            +findByAcademicPeriodOrderByTotalQueriesDesc(academicPeriod, Pageable) List
+        }
+        class RoleRepository {
+            <<interface>>
+            +findByName(name) Role
+        }
     }
 %% Relaciones: Los repositorios gestionan las entidades del dominio
     UserRepository ..> User : gestiona
@@ -217,7 +226,7 @@ classDiagram
     CatalogRepository ..> Subject : gestiona
     InteractionRepository ..> Interaction : gestiona
     ReportRepository ..> Report : gestiona
-
+    RoleRepository ..> Role : gestiona
 
     %% ==========================================
     %% CAPA DE LÓGICA DE NEGOCIO (SERVICIOS)
