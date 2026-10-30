@@ -1,6 +1,6 @@
 /**
  * @file App.jsx
- * @description Main router of Alejandría UPC.
+ * @description Main router of Alejandría.
  *
  * Structure:
  *   - Private routes: go through <ProtectedRoute /> and then <AppLayout />.

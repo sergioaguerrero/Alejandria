@@ -61,7 +61,7 @@ export const NOTIFICATIONS = [
     id: 'notif-005',
     userId: 'usr-001',
     type: 'system',
-    title: 'Bienvenido a Alejandría UPC',
+    title: 'Bienvenido a Alejandría',
     message: 'Recuerda revisar las normas de uso antes de compartir nuevo material académico.',
     targetUrl: '/terms',
     read: true,

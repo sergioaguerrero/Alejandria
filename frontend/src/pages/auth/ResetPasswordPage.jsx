@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
             Restablecer contraseña
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Crea una nueva contraseña segura para tu cuenta de Alejandría UPC.
+            Crea una nueva contraseña segura para tu cuenta de Alejandría.
           </Typography>
         </Box>
 

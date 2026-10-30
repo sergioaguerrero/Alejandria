@@ -598,7 +598,7 @@ export default function QuizPage() {
         icon={<HelpOutlineOutlinedIcon />}
         sx={{ mt: 3, mb: 4, borderRadius: 2 }}
       >
-        Las preguntas y justificaciones son generadas con base en los contenidos cargados en Alejandría UPC.
+        Las preguntas y justificaciones son generadas con base en los contenidos cargados en Alejandría.
         Puedes guardar este cuestionario en tu sección &ldquo;Mi estudio&rdquo; para repasar antes de tus evaluaciones.
       </Alert>
 

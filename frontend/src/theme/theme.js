@@ -1,6 +1,6 @@
 /**
  * @file theme.js
- * @description Global design system theme — Alejandría UPC
+ * @description Global design system theme — Alejandría
  *
  * Official palette:
  *   Main background  → #0B1220

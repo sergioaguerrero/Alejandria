@@ -172,7 +172,7 @@ export default function ReportInboxPage() {
           Bandeja de reportes
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Modera los contenidos y perfiles reportados por la comunidad de Alejandría UPC.
+          Modera los contenidos y perfiles reportados por la comunidad de Alejandría.
         </Typography>
       </Box>
 

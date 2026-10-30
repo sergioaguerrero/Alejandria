@@ -256,7 +256,7 @@ export default function AppLayout() {
                 letterSpacing: '-0.01em',
               }}
             >
-              Alejandría UPC
+              Alejandría
             </Typography>
           </Box>
 
@@ -369,7 +369,7 @@ export default function AppLayout() {
           sx={{ mt: 6, pt: 2, borderTop: '1px solid', borderColor: 'divider', textAlign: 'center' }}
         >
           <Typography variant="caption" color="text.secondary">
-            {`© ${new Date().getFullYear()} Alejandría UPC · `}
+            {`© ${new Date().getFullYear()} Alejandría · `}
             <Link component={RouterLink} to="/terms" color="inherit">
               Normas de uso
             </Link>

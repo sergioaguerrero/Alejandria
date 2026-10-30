@@ -61,7 +61,7 @@ export default function RulesPage() {
           >
             <LighthouseMark size={28} />
             <Typography variant="h6" component="span">
-              Alejandría UPC
+              Alejandría
             </Typography>
           </Stack>
 
@@ -77,7 +77,7 @@ export default function RulesPage() {
             Normas de uso y política de contenido
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Alejandría UPC es una plataforma colaborativa y académica para la comunidad
+            Alejandría es una plataforma colaborativa y académica para la comunidad
             universitaria.
           </Typography>
         </Stack>

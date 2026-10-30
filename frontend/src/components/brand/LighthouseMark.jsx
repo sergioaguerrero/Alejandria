@@ -1,6 +1,6 @@
 /**
  * @file LighthouseMark.jsx
- * @description Brand mark of Alejandría UPC: a lighthouse inside a rounded square.
+ * @description Brand mark of Alejandría: a lighthouse inside a rounded square.
  *
  * The square uses the dark secondary blue and the lighthouse is drawn in a
  * reddish tone, so the shape reads on the dark palette. "Alejandría" alludes

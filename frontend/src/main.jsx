@@ -1,6 +1,6 @@
 /**
  * @file main.jsx
- * @description Main entry point of the Alejandría UPC application.
+ * @description Main entry point of the Alejandría application.
  *
  * Wrapper order:
  *   StrictMode → ThemeModeProvider (Dynamic dark/light theme + CssBaseline) → App
