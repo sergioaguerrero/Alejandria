@@ -56,6 +56,7 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 
 import { useAuth } from '../../context/authContext.js';
 import { useThemeMode } from '../../context/themeContext.js';
+import LighthouseMark from '../brand/LighthouseMark.jsx';
 import NotificationBell from '../common/NotificationBell.jsx';
 import { initials, usernameLabel } from '../../utils/users.js';
 
@@ -233,20 +234,31 @@ export default function AppLayout() {
             </IconButton>
           )}
 
-          <Typography
+          <Box
             component={RouterLink}
             to="/"
-            variant="h6"
-            noWrap
             sx={{
-              flexGrow: { xs: 1, md: 0 },
-              mr: { md: 2 },
-              color: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
               textDecoration: 'none',
+              color: 'inherit',
+              mr: { md: 2 },
+              flexGrow: { xs: 1, md: 0 },
             }}
           >
-            Alejandría UPC
-          </Typography>
+            <LighthouseMark size={18} sx={{ p: '5px', borderRadius: '7px' }} />
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Alejandría UPC
+            </Typography>
+          </Box>
 
           {isDesktop ? (
             <Box
