@@ -20,6 +20,8 @@ export {
   saveSession,
   getCurrentSession,
   currentUser,
+  requestPasswordReset,
+  resetPassword,
 } from './authService.js';
 
 export {
@@ -63,3 +65,13 @@ export {
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from './notificationService.js';
+
+export {
+  getDailyAiQuota,
+  generateQuiz,
+  getQuizById,
+  submitQuizAnswers,
+  toggleSaveQuizToMyStudy,
+  getMyStudyMaterials,
+  deleteFromMyStudy,
+} from './aiService.js';
