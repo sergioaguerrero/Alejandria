@@ -101,3 +101,35 @@ export async function createReport(data) {
   store.reports.unshift(report);
   return { ...report };
 }
+
+/**
+ * Lists reports filtered by status and optional reason. Admin only.
+ * @param {object} [filters]
+ * @param {'pendiente'|'resuelto'} [filters.status]
+ * @param {string} [filters.reason]
+ * @returns {Promise<object[]>}
+ */
+export async function getReports(filters = {}) {
+  const user = currentUser();
+  if (!user || user.role !== 'admin') {
+    throw new ApiError('Solo los administradores pueden consultar la bandeja de reportes.', {
+      status: 403,
+    });
+  }
+
+  if (USE_MOCK) {
+    await waitForMock();
+    let result = [...store.reports];
+    if (filters.status) {
+      result = result.filter((r) => r.status === filters.status);
+    }
+    if (filters.reason && filters.reason !== 'todos') {
+      result = result.filter((r) => r.reason === filters.reason);
+    }
+    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return JSON.parse(JSON.stringify(result));
+  }
+
+  const response = await http.get('/api/admin/reports', { params: filters });
+  return response.data;
+}

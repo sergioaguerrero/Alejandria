@@ -26,6 +26,7 @@ import MyStatisticsPage from './pages/statistics/MyStatisticsPage.jsx';
 import ProfilePage from './pages/profile/ProfilePage.jsx';
 import NotificationsPage from './pages/notifications/NotificationsPage.jsx';
 import PublicProfilePage from './pages/profile/PublicProfilePage.jsx';
+import ReportInboxPage from './pages/admin/ReportInboxPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -71,7 +72,16 @@ export default function App() {
               <Route path="/ai" element={<ErrorPage code={404} fullHeight={false} />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/users/:username" element={<PublicProfilePage />} />
-              <Route path="/admin/reports" element={<ErrorPage code={404} fullHeight={false} />} />
+            </Route>
+          </Route>
+
+          {/* ── Admin routes ───────────────────────────────────────────── */}
+          <Route element={<ProtectedRoute roles={['admin']} />}>
+            <Route element={<AppLayout />}>
+              <Route path="/admin/reports" element={<ReportInboxPage />} />
+              <Route path="/admin/reports/:id" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/admin/users/:id" element={<ErrorPage code={404} fullHeight={false} />} />
+
               <Route
                 path="/admin/statistics"
                 element={<ErrorPage code={404} fullHeight={false} />}
