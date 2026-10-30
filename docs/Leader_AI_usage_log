@@ -1,0 +1,40 @@
+ARTIFICIAL INTELLIGENCE (AI) USAGE LOG IN PROJECT DEVELOPMENT
+
+DEVELOPER INFORMATION
+
+Name: José Daniel Pinzón Racero
+
+Project Role: Technical Lead / Backend Developer
+
+Email: jdpinzon@unicesar.edu.co
+
+Identification (CC/TI/Student ID): 1121531780
+
+Project: Alejandría (Academic and Analytics Platform)
+
+AI Model Used: Google Gemini
+
+Purpose and Scope of AI Usage
+Artificial intelligence was implemented as a tool for technical assistance, code review, and architectural consulting during the development of the Alejandría platform's backend. Its use was focused on solving logical problems, optimizing queries, configuring external API integrations, and structuring the Service and Controller Layers following Clean Architecture principles in Spring Boot.
+
+Descriptive Log of Interactions and Solutions
+1. Structuring Business Logic and Dependency Injection
+The use of AI began with the need to connect the Repository Layer (developed using JPA interfaces) with the new Service Layer. The assistant was used to understand and implement dependency injection through constructors in Spring Boot. The AI guided the creation of the AuthService, establishing validation rules for duplicate institutional emails and structuring password encryption by globally configuring a Bean for BCryptPasswordEncoder.
+
+2. File Management and Validation Rules
+The AI was consulted to design the physical file management within the ResourceService. The tool provided the structure to receive MultipartFile objects, apply critical business rules (such as the 25 MB maximum size limit and PDF format restriction), and extract bytes for persistence as BLOB objects in the Oracle 18c XE database, ensuring proper Input/Output exception handling (IOException).
+
+3. Architecture Review and Analytics Optimization
+A previously designed data analytics algorithm (AnalyticsService) was submitted for review. The AI acted as a quality validator, confirming the efficiency of using asynchronous processes (@Async), memory optimization through JPA references (em.getReference), and the correct application of cryptography (SHA-256 with salt) for the anonymization of student identifiers. The code was adjusted to comply with English naming standards, and the exact requirements that the Repository Layer needed to meet to support these metric queries were defined.
+
+4. Governance and Moderation Implementation
+The AI was used to structure the content moderation flow (ModerationService). The assistance consisted of designing a transactional service capable of simultaneously coordinating multiple repositories (Reports, Users, and Resources). This allowed for the registration of complaints with initial states and the execution of complex administrative decisions, such as temporary user suspensions or document removal, guaranteeing data consistency in the event of potential failures.
+
+5. External Services Integration (AI API)
+A key collaboration point was the configuration of the AiService to connect the Alejandría backend with the external artificial intelligence provider (Google Gemini API). The AI explained the mechanics of RestTemplate, the secure injection of credentials through the application.properties file, and the exact structuring of the request body (JSON) and HTTP headers necessary to request the dynamic generation of academic quizzes based on document metadata.
+
+6. Presentation Layer Design and Exposure (Controllers)
+To finalize the MVP development cycle, AI assistance was requested to design the REST controller layer. The structure of the endpoints (AuthController, ResourceController, AnalyticsController, ModerationController, and AiController) was built collaboratively. The tool provided instructions on the use of key annotations (@RestController, @PostMapping, @GetMapping, @PathVariable), standardized response handling with ResponseEntity, and the fundamental differences between processing a standard JSON and multipart/form-data.
+
+7. Continuous Debugging and Error Correction
+Throughout the previous phases, the AI served as a real-time debugging tool. Unrecognized symbol conflicts were resolved by importing modern Java classes (LocalDateTime), missing Bean declarations in the global configuration were corrected, and missing bidirectional JPA relationship mappings (explicit Getters and Setters) in the Domain entities (Resource, Report) were established to ensure correct communication between the application layers.
