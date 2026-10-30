@@ -50,6 +50,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import PersonIcon from '@mui/icons-material/Person';
 import SearchIcon from '@mui/icons-material/Search';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import SchoolIcon from '@mui/icons-material/School';
 
 import { useAuth } from '../../context/authContext.js';
 import NotificationBell from '../common/NotificationBell.jsx';
@@ -69,6 +70,7 @@ const MAIN_LINKS = [
   { label: 'Mis estadísticas', path: '/statistics', icon: BarChartIcon },
   { label: 'Notificaciones', path: '/notifications', icon: NotificationsIcon },
   { label: 'Estudio con IA', path: '/ai', icon: SmartToyIcon },
+  { label: 'Mi estudio', path: '/ai/my-study', icon: SchoolIcon },
   { label: 'Mi perfil', path: '/profile', icon: PersonIcon },
 ];
 
