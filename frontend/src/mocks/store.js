@@ -35,6 +35,8 @@ function createInitialState() {
     likedDocuments: new Set(),
     /** Ids of the subjects marked by the user (FE-06). */
     subjectsOfInterest: /** @type {number[]} */ ([]),
+    /** User interactions (views, downloads, likes) for statistics (FE-25, FE-27, BE-21). */
+    interactions: /** @type {object[]} */ ([]),
     /** Reports of content sent by the students (FE-23, FE-24). */
     reports: clone(REPORTS),
     /** Notifications for the users (FE-18, FE-19). */

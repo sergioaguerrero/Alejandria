@@ -243,6 +243,21 @@ export async function getDocumentsByUser(username) {
  * @returns {Promise<object>}
  * @throws {ApiError} 404 if it does not exist.
  */
+function recordInteraction(type, document) {
+  if (!document) return;
+  const user = currentUser();
+  if (user) {
+    store.interactions = store.interactions || [];
+    store.interactions.push({
+      type,
+      documentId: document.id,
+      subjectId: document.subjectId,
+      username: user.username,
+      createdAt: new Date().toISOString(),
+    });
+  }
+}
+
 export async function getDocument(id) {
   if (!USE_MOCK) {
     const { data } = await http.get(`/documents/${id}`);
@@ -255,6 +270,9 @@ export async function getDocument(id) {
   if (!document) {
     throw new ApiError('El documento no existe o fue eliminado.', { status: 404 });
   }
+
+  document.views = (document.views || 0) + 1;
+  recordInteraction('view', document);
 
   return enrich(document);
 }
@@ -524,6 +542,7 @@ export async function downloadDocument(id) {
   }
 
   document.downloads += 1;
+  recordInteraction('download', document);
 
   return { url: document.file.url, name: document.file.name };
 }
@@ -559,6 +578,7 @@ export async function toggleDocumentLike(id) {
   } else {
     store.likedDocuments.add(key);
     document.likes += 1;
+    recordInteraction('like', document);
   }
 
   return { liked: store.likedDocuments.has(key), likes: document.likes };

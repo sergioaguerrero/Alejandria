@@ -28,6 +28,8 @@ import NotificationsPage from './pages/notifications/NotificationsPage.jsx';
 import PublicProfilePage from './pages/profile/PublicProfilePage.jsx';
 import ReportInboxPage from './pages/admin/ReportInboxPage.jsx';
 import ReportDetailPage from './pages/admin/ReportDetailPage.jsx';
+import AdminUserPage from './pages/admin/AdminUserPage.jsx';
+import GlobalStatisticsPage from './pages/admin/GlobalStatisticsPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -81,11 +83,11 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/admin/reports" element={<ReportInboxPage />} />
               <Route path="/admin/reports/:id" element={<ReportDetailPage />} />
-              <Route path="/admin/users/:id" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/admin/users/:id" element={<AdminUserPage />} />
 
               <Route
                 path="/admin/statistics"
-                element={<ErrorPage code={404} fullHeight={false} />}
+                element={<GlobalStatisticsPage />}
               />
             </Route>
           </Route>

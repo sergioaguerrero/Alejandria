@@ -51,11 +51,11 @@ export {
   updateSubjectsOfInterest,
 } from './subjectService.js';
 
-export { getMyStatistics } from './statisticsService.js';
+export { getMyStatistics, getGlobalStatistics } from './statisticsService.js';
 
 export { createReport, getReports, getReportById, resolveReport } from './reportService.js';
 
-export { getPublicProfile } from './userService.js';
+export { getPublicProfile, getAdminUser, toggleUserSuspension } from './userService.js';
 
 export {
   getNotifications,
