@@ -27,6 +27,7 @@ import ProfilePage from './pages/profile/ProfilePage.jsx';
 import NotificationsPage from './pages/notifications/NotificationsPage.jsx';
 import PublicProfilePage from './pages/profile/PublicProfilePage.jsx';
 import ReportInboxPage from './pages/admin/ReportInboxPage.jsx';
+import ReportDetailPage from './pages/admin/ReportDetailPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -79,7 +80,7 @@ export default function App() {
           <Route element={<ProtectedRoute roles={['admin']} />}>
             <Route element={<AppLayout />}>
               <Route path="/admin/reports" element={<ReportInboxPage />} />
-              <Route path="/admin/reports/:id" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/admin/reports/:id" element={<ReportDetailPage />} />
               <Route path="/admin/users/:id" element={<ErrorPage code={404} fullHeight={false} />} />
 
               <Route
