@@ -3,7 +3,7 @@ package com.backend.domain.governance;
 import com.backend.cross.ReportReason;
 import com.backend.cross.ReportStatus;
 import com.backend.domain.identity.User;
-import com.backend.domain.repository.Resource;   // ajusta si renombraste el paquete
+import com.backend.domain.repos.Resource;   // ajusta si renombraste el paquete
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -70,4 +70,7 @@ public class Report {
     public User getReporter() { return reporter; }
     public Resource getResource() { return resource; }
     public User getModerator() { return moderator; }
+    public void setDate(LocalDateTime date) {
+        this.date = date;
+    }
 }
