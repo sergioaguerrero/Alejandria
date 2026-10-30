@@ -158,6 +158,10 @@ export default function LoginPage() {
           </Typography>
         </Box>
 
+        {location.state?.notice && !generalError && (
+          <Alert severity="success">{location.state.notice}</Alert>
+        )}
+
         {generalError && <Alert severity="error">{generalError}</Alert>}
 
         <TextField

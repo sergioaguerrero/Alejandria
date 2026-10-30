@@ -37,6 +37,8 @@ function createInitialState() {
     subjectsOfInterest: /** @type {number[]} */ ([]),
     /** User interactions (views, downloads, likes) for statistics (FE-25, FE-27, BE-21). */
     interactions: /** @type {object[]} */ ([]),
+    /** Password reset tokens generated in mock mode (FE-08, BE-10). */
+    resetTokens: new Map(),
     /** Reports of content sent by the students (FE-23, FE-24). */
     reports: clone(REPORTS),
     /** Notifications for the users (FE-18, FE-19). */

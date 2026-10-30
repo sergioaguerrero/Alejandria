@@ -20,6 +20,8 @@ export {
   saveSession,
   getCurrentSession,
   currentUser,
+  requestPasswordReset,
+  resetPassword,
 } from './authService.js';
 
 export {

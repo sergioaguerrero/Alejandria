@@ -364,3 +364,115 @@ export async function changePassword({ currentPassword, newPassword }) {
 
   storedUser.password = newPassword;
 }
+
+/**
+ * Requests a password reset link by email (FE-08, BE-10).
+ * Returns a neutral success message regardless of whether the email exists.
+ * @param {string} email
+ * @returns {Promise<{ success: boolean, message: string, testToken?: string }>}
+ */
+export async function requestPasswordReset(email) {
+  const cleanEmail = String(email ?? '').trim().toLowerCase();
+
+  if (!cleanEmail) {
+    throw new ApiError('Escribe tu correo institucional.', {
+      status: 400,
+      fields: { email: 'Escribe tu correo institucional.' },
+    });
+  }
+
+  if (!isValidEmail(cleanEmail) || !isInstitutionalEmail(cleanEmail)) {
+    throw new ApiError('Debes ingresar un correo institucional válido (@unicesar.edu.co).', {
+      status: 400,
+      fields: { email: 'Debes ingresar un correo institucional válido (@unicesar.edu.co).' },
+    });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post('/api/auth/recover', { email: cleanEmail });
+    return data;
+  }
+
+  await waitForMock(300);
+
+  const foundUser = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
+  let testToken = null;
+
+  if (foundUser) {
+    testToken = `token-${Math.random().toString(36).substring(2, 10)}`;
+    store.resetTokens.set(testToken, {
+      userId: foundUser.id,
+      email: foundUser.email,
+      expiresAt: Date.now() + 1000 * 60 * 60, // 1 hour
+    });
+  }
+
+  return {
+    success: true,
+    message: 'Si el correo institucional existe en nuestro sistema, te enviamos un enlace de recuperación.',
+    testToken,
+  };
+}
+
+/**
+ * Resets the password using a recovery token (FE-08, BE-10).
+ * @param {{ token: string, newPassword: string }} data
+ * @returns {Promise<{ success: boolean, message: string }>}
+ */
+export async function resetPassword({ token, newPassword }) {
+  const cleanToken = String(token ?? '').trim();
+  const cleanPassword = String(newPassword ?? '');
+
+  if (!cleanToken) {
+    throw new ApiError('El token de restablecimiento es inválido o expiró.', {
+      status: 400,
+      code: 'TOKEN_EXPIRED',
+    });
+  }
+
+  const rules = passwordErrors(cleanPassword);
+  if (rules.length > 0) {
+    throw new ApiError('La contraseña no cumple con los requisitos de seguridad.', {
+      status: 400,
+      fields: { newPassword: rules.join(' ') },
+    });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post('/api/auth/reset', {
+      token: cleanToken,
+      newPassword: cleanPassword,
+    });
+    return data;
+  }
+
+  await waitForMock(300);
+
+  if (cleanToken === 'expired') {
+    throw new ApiError('El enlace ha expirado o ya fue utilizado. Solicita uno nuevo.', {
+      status: 400,
+      code: 'TOKEN_EXPIRED',
+    });
+  }
+
+  const tokenRecord = store.resetTokens.get(cleanToken);
+  if (!tokenRecord || Date.now() > tokenRecord.expiresAt) {
+    throw new ApiError('El enlace ha expirado o ya fue utilizado. Solicita uno nuevo.', {
+      status: 400,
+      code: 'TOKEN_EXPIRED',
+    });
+  }
+
+  const user = store.users.find((u) => u.id === tokenRecord.userId);
+  if (!user) {
+    throw new ApiError('Usuario no encontrado.', { status: 404 });
+  }
+
+  user.password = cleanPassword;
+  store.resetTokens.delete(cleanToken);
+
+  return {
+    success: true,
+    message: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.',
+  };
+}

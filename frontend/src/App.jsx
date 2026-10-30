@@ -18,6 +18,8 @@ import AuthLayout from './components/layout/AuthLayout.jsx';
 import AuthProvider from './context/AuthProvider.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
+import RecoverPasswordPage from './pages/auth/RecoverPasswordPage.jsx';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage.jsx';
 import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
 import MyContentPage from './pages/content/MyContentPage.jsx';
@@ -50,6 +52,10 @@ export default function App() {
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/recover" element={<RecoverPasswordPage />} />
+            <Route path="/forgot-password" element={<RecoverPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            <Route path="/reset/:token" element={<ResetPasswordPage />} />
           </Route>
 
           {/* ── Private routes ─────────────────────────────────────────── */}
