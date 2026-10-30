@@ -20,6 +20,8 @@ import { createContext, useContext } from 'react';
  * @property {(credentials: { email: string, password: string }) => Promise<object>} login
  * @property {(data: object) => Promise<object>} register
  * @property {() => void} logout
+ * @property {(data: { name: string, username: string, semester: number|null }) => Promise<object>} updateProfile
+ * @property {(data: { currentPassword: string, newPassword: string }) => Promise<void>} changePassword
  */
 
 /** @type {import('react').Context<AuthValue|null>} */
