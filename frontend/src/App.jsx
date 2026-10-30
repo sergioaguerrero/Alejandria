@@ -20,6 +20,7 @@ import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
+import MyContentPage from './pages/content/MyContentPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -57,7 +58,7 @@ export default function App() {
                   error page inside the layout to keep the menu visible.
                   Each one is replaced when its story lands. */}
               <Route path="/search" element={<ErrorPage code={404} fullHeight={false} />} />
-              <Route path="/my-content" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/my-content" element={<MyContentPage />} />
               <Route path="/my-subjects" element={<ErrorPage code={404} fullHeight={false} />} />
               <Route path="/statistics" element={<ErrorPage code={404} fullHeight={false} />} />
               <Route path="/notifications" element={<ErrorPage code={404} fullHeight={false} />} />

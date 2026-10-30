@@ -35,6 +35,7 @@ export {
 export {
   listByRepository,
   getDocument,
+  getDocumentsByUser,
   uploadDocument,
   updateDocument,
   deleteDocument,
