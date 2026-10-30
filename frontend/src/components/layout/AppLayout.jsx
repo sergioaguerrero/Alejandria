@@ -26,6 +26,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Link,
   ListSubheader,
   Menu,
   MenuItem,
@@ -331,6 +332,18 @@ export default function AppLayout() {
         {/* Space taken by the fixed bar */}
         <Toolbar />
         <Outlet />
+
+        <Box
+          component="footer"
+          sx={{ mt: 6, pt: 2, borderTop: '1px solid', borderColor: 'divider', textAlign: 'center' }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {`© ${new Date().getFullYear()} Alejandría UPC · `}
+            <Link component={RouterLink} to="/terms" color="inherit">
+              Normas de uso
+            </Link>
+          </Typography>
+        </Box>
       </Box>
 
       <Menu

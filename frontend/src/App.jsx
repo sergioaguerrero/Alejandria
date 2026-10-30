@@ -21,6 +21,7 @@ import RegisterPage from './pages/auth/RegisterPage.jsx';
 import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
+import RulesPage from './pages/rules/RulesPage.jsx';
 import DocumentDetailPage from './pages/documents/DocumentDetailPage.jsx';
 import EditDocumentPage from './pages/documents/EditDocumentPage.jsx';
 import UploadDocumentPage from './pages/documents/UploadDocumentPage.jsx';
@@ -32,6 +33,8 @@ export default function App() {
       <AuthProvider>
         <Routes>
           {/* ── Public routes ─────────────────────────────────────────── */}
+          <Route path="/terms" element={<RulesPage />} />
+
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

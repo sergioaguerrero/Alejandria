@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
 import {
   Alert,
@@ -18,6 +19,7 @@ import {
   Divider,
   FormControlLabel,
   LinearProgress,
+  Link,
   MenuItem,
   Stack,
   TextField,
@@ -306,7 +308,17 @@ export default function DocumentForm({
           label={
             <Typography variant="body2">
               Declaro que este material es de mi autoría o tengo derecho a compartirlo, y que no es
-              un examen vigente.
+              un examen vigente. Cumplo las{' '}
+              <Link
+                component={RouterLink}
+                to="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+              >
+                normas de uso
+              </Link>
+              .
             </Typography>
           }
         />
