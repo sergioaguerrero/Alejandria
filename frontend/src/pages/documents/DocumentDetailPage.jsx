@@ -306,7 +306,6 @@ export default function DocumentDetailPage() {
                 </DetailRow>
 
                 <DetailRow label="Autor">
-                  {/* TODO(FE-13): the public profile (view 16) lands in Sprint 3. */}
                   <Link component={RouterLink} to={`/users/${documentData.authorUsername}`}>
                     {`@${documentData.authorUsername}`}
                   </Link>

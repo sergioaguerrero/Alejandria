@@ -212,3 +212,155 @@ export async function register(data) {
   saveSession(session);
   return session;
 }
+
+// ── Profile (FE-07, BE-08) ─────────────────────────────────────────────────
+
+/**
+ * @typedef {object} ProfileData
+ * @property {string} name
+ * @property {string} username
+ * @property {number|null} semester
+ */
+
+/**
+ * Updates the editable data of the current user (name, username and semester).
+ * The email cannot be changed.
+ * @param {ProfileData} data
+ * @returns {Promise<object>} The updated user.
+ * @throws {ApiError} 400 with `fields` if there is invalid data, 401 without
+ *   session, 409 if another account already uses the username.
+ */
+export async function updateProfile(data) {
+  const name = String(data.name ?? '').trim();
+  const username = String(data.username ?? '').trim().toLowerCase();
+  const semester =
+    data.semester === null || data.semester === undefined || data.semester === ''
+      ? null
+      : Number(data.semester);
+
+  if (!USE_MOCK) {
+    const { data: updatedUser } = await http.put('/users/me', {
+      name,
+      username,
+      semester,
+    });
+    const session = getCurrentSession();
+    if (session) saveSession({ ...session, user: updatedUser });
+    return updatedUser;
+  }
+
+  await waitForMock();
+
+  const session = getCurrentSession();
+  if (!session) {
+    throw new ApiError('Debes iniciar sesión para editar tu perfil.', { status: 401 });
+  }
+
+  const storedUser = store.users.find((user) => user.id === session.user.id);
+  if (!storedUser) {
+    throw new ApiError('No se encontró tu cuenta.', { status: 404 });
+  }
+
+  /** @type {Record<string, string>} */
+  const fields = {};
+
+  if (name.length < 3 || name.length > 80) {
+    fields.name = 'Escribe tu nombre completo (entre 3 y 80 caracteres).';
+  }
+
+  if (!isValidUsername(username)) {
+    fields.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
+  } else if (
+    store.users.some((user) => user.id !== storedUser.id && user.username === username)
+  ) {
+    fields.username = 'Ese nombre de usuario ya está en uso.';
+  }
+
+  if (storedUser.role !== 'admin') {
+    if (semester === null) {
+      fields.semester = 'Selecciona tu semestre.';
+    } else if (!Number.isInteger(semester) || semester < 1 || semester > 9) {
+      fields.semester = 'Selecciona un semestre entre 1 y 9.';
+    }
+  }
+
+  if (Object.keys(fields).length > 0) {
+    throw new ApiError('Revisa los datos del formulario.', { status: 400, fields });
+  }
+
+  const previousUsername = storedUser.username;
+
+  storedUser.name = name;
+  storedUser.username = username;
+  if (storedUser.role !== 'admin') storedUser.semester = semester;
+
+  // The example data references the user by username, so a change is mirrored
+  // everywhere to keep the ownership of the content and the inbox consistent.
+  if (previousUsername !== username) {
+    for (const repository of store.repositories) {
+      if (repository.authorUsername === previousUsername) repository.authorUsername = username;
+    }
+
+    for (const document of store.documents) {
+      if (document.authorUsername === previousUsername) document.authorUsername = username;
+    }
+
+    for (const report of store.reports) {
+      if (report.reporterUsername === previousUsername) report.reporterUsername = username;
+      if (report.targetType === 'profile' && report.targetId === previousUsername) {
+        report.targetId = username;
+      }
+    }
+  }
+
+  const updatedUser = /** @type {any} */ (withoutPassword(storedUser));
+  saveSession({ ...session, user: updatedUser });
+  return updatedUser;
+}
+
+/**
+ * Changes the password of the current user after checking the current one.
+ * @param {{ currentPassword: string, newPassword: string }} data
+ * @returns {Promise<void>}
+ * @throws {ApiError} 400 with `fields` if there is invalid data, 401 without session.
+ */
+export async function changePassword({ currentPassword, newPassword }) {
+  if (!USE_MOCK) {
+    await http.put('/users/me/password', { currentPassword, newPassword });
+    return;
+  }
+
+  await waitForMock();
+
+  const session = getCurrentSession();
+  if (!session) {
+    throw new ApiError('Debes iniciar sesión para cambiar tu contraseña.', { status: 401 });
+  }
+
+  const storedUser = store.users.find((user) => user.id === session.user.id);
+  if (!storedUser) {
+    throw new ApiError('No se encontró tu cuenta.', { status: 404 });
+  }
+
+  /** @type {Record<string, string>} */
+  const fields = {};
+
+  if (!currentPassword) {
+    fields.currentPassword = 'Escribe tu contraseña actual.';
+  } else if (storedUser.password !== currentPassword) {
+    fields.currentPassword = 'La contraseña actual no es correcta.';
+  }
+
+  const pendingRules = passwordErrors(newPassword);
+  if (pendingRules.length > 0) {
+    fields.newPassword = pendingRules.join(' ');
+  } else if (newPassword === currentPassword) {
+    fields.newPassword = 'La nueva contraseña debe ser diferente a la actual.';
+  }
+
+  if (Object.keys(fields).length > 0) {
+    throw new ApiError('Revisa los datos del formulario.', { status: 400, fields });
+  }
+
+  storedUser.password = newPassword;
+}

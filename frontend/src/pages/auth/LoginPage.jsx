@@ -129,7 +129,7 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
 
-      await login({
+      const session = await login({
         identifier: values.identifier,
         password: values.password,
       });
@@ -137,7 +137,8 @@ export default function LoginPage() {
       // Back to the guarded route that sent us here, or Home.
       // TODO(FE-22): admins should land on the reports inbox (view 22,
       // /admin/reports) once that view and its route exist.
-      navigate(location.state?.from ?? '/', { replace: true });
+      const fallback = session?.user?.role === 'admin' ? '/admin/reports' : '/';
+      navigate(location.state?.from ?? fallback, { replace: true });
     } catch (error) {
       setGeneralError(error?.message ?? 'No se pudo iniciar sesión. Intenta de nuevo.');
     } finally {

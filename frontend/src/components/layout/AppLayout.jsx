@@ -52,6 +52,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 import { useAuth } from '../../context/authContext.js';
+import NotificationBell from '../common/NotificationBell.jsx';
 import { initials, usernameLabel } from '../../utils/users.js';
 
 const MENU_WIDTH = 248;
@@ -289,6 +290,8 @@ export default function AppLayout() {
               <SearchIcon />
             </IconButton>
           )}
+
+          <NotificationBell />
 
           <Tooltip title="Cuenta">
             <IconButton

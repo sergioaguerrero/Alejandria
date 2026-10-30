@@ -10,10 +10,12 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { AuthContext } from './authContext.js';
 import {
+  changePassword as changePasswordService,
   logout as logoutService,
   login as loginService,
   getCurrentSession,
   register as registerService,
+  updateProfile as updateProfileService,
 } from '../services/authService.js';
 
 /**
@@ -39,6 +41,14 @@ export default function AuthProvider({ children }) {
     setSession(null);
   }, []);
 
+  const updateProfile = useCallback(async (data) => {
+    const updatedUser = await updateProfileService(data);
+    setSession((current) => (current ? { ...current, user: updatedUser } : current));
+    return updatedUser;
+  }, []);
+
+  const changePassword = useCallback((data) => changePasswordService(data), []);
+
   const value = useMemo(
     () => ({
       user: session?.user ?? null,
@@ -48,8 +58,10 @@ export default function AuthProvider({ children }) {
       login,
       register,
       logout,
+      updateProfile,
+      changePassword,
     }),
-    [session, login, register, logout],
+    [session, login, register, logout, updateProfile, changePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

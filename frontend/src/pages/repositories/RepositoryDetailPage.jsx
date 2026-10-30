@@ -244,7 +244,6 @@ export default function RepositoryDetailPage() {
               spacing={2}
               sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
             >
-              {/* TODO(FE-13): the public profile (view 16) lands in Sprint 3. */}
               <Link
                 component={RouterLink}
                 to={`/users/${repository.authorUsername}`}
