@@ -12,7 +12,6 @@ import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-d
 
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -40,7 +39,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import SearchIcon from '@mui/icons-material/Search';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -49,7 +47,6 @@ import {
   generateQuiz,
   getDailyAiQuota,
   getFollowedRepositories,
-  getRepositories,
   getRepositoriesByUser,
 } from '../../services/index.js';
 
@@ -61,9 +58,7 @@ export default function AiStudyPage() {
 
   // Repository states
   const [followedRepos, setFollowedRepos] = useState([]);
-  const [allRepos, setAllRepos] = useState([]);
   const [selectedRepo, setSelectedRepo] = useState(null);
-  const [showCatalogSearch, setShowCatalogSearch] = useState(false);
   const [quota, setQuota] = useState({ total: 5, used: 0, remaining: 5 });
 
   // Scope state
@@ -87,10 +82,9 @@ export default function AiStudyPage() {
     Promise.all([
       getFollowedRepositories(),
       getRepositoriesByUser(user.username),
-      getRepositories({ size: 100 }),
       getDailyAiQuota(),
     ])
-      .then(([followedList, userRepos, allReposData, quotaData]) => {
+      .then(([followedList, userRepos, quotaData]) => {
         if (!active) return;
 
         // Merge followed and authored repositories (deduplicating by id)
@@ -100,24 +94,13 @@ export default function AiStudyPage() {
         });
         const myStudyList = Array.from(repoMap.values());
         setFollowedRepos(myStudyList);
-
-        const fullList = Array.isArray(allReposData)
-          ? allReposData
-          : (allReposData?.items ?? []);
-        setAllRepos(fullList);
         setQuota(quotaData);
 
         // Pre-selection strategy
         if (preselectedRepoId) {
-          const found =
-            myStudyList.find((r) => r.id === preselectedRepoId) ||
-            fullList.find((r) => r.id === preselectedRepoId);
+          const found = myStudyList.find((r) => r.id === preselectedRepoId);
           if (found) {
             setSelectedRepo(found);
-            // If it's not in followed list, open catalog search so they see it
-            if (!myStudyList.some((r) => r.id === preselectedRepoId)) {
-              setShowCatalogSearch(true);
-            }
           }
         } else if (myStudyList.length > 0) {
           // Select first followed repo by default for instant 1-click readiness
@@ -378,74 +361,19 @@ export default function AiStudyPage() {
                           title="Aún no sigues ningún repositorio de estudio"
                           description="Sigue los repositorios de las materias que estás cursando para tenerlos aquí siempre a mano y generar evaluaciones automáticas en 1 clic."
                           action={
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                              <Button
-                                component={RouterLink}
-                                to="/search"
-                                variant="contained"
-                                startIcon={<ExploreOutlinedIcon />}
-                              >
-                                Explorar repositorios
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                onClick={() => setShowCatalogSearch(true)}
-                                startIcon={<SearchIcon />}
-                              >
-                                Buscar en el catálogo
-                              </Button>
-                            </Stack>
+                            <Button
+                              component={RouterLink}
+                              to="/search"
+                              variant="contained"
+                              startIcon={<ExploreOutlinedIcon />}
+                            >
+                              Explorar repositorios
+                            </Button>
                           }
                         />
                       )}
 
-                      {/* Secondary Catalog Search Toggle */}
-                      {followedRepos.length > 0 && (
-                        <Box sx={{ mt: 2 }}>
-                          <Button
-                            size="small"
-                            variant="text"
-                            onClick={() => setShowCatalogSearch((prev) => !prev)}
-                            startIcon={<SearchIcon />}
-                            sx={{ color: 'text.secondary' }}
-                          >
-                            {showCatalogSearch
-                              ? 'Ocultar buscador del catálogo general'
-                              : '¿Quieres estudiar otro repositorio? Buscar en todo el catálogo…'}
-                          </Button>
-                        </Box>
-                      )}
 
-                      {/* Expanded Autocomplete Search */}
-                      {showCatalogSearch && (
-                        <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: 'action.hover' }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                            Buscador de repositorios de toda la universidad:
-                          </Typography>
-                          <Autocomplete
-                            options={Array.isArray(allRepos) ? allRepos : []}
-                            value={selectedRepo}
-                            onChange={(_e, val) => {
-                              if (val) setSelectedRepo(val);
-                            }}
-                            getOptionLabel={(option) => {
-                              if (!option) return '';
-                              if (typeof option === 'string') return option;
-                              return `${option.name ?? ''} (${option.subject?.name ?? 'Materia'})`;
-                            }}
-                            isOptionEqualToValue={(option, value) => !value || option?.id === value?.id}
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
-                                size="small"
-                                label="Buscar en el catálogo general…"
-                                placeholder="Escribe el nombre de la materia o repositorio"
-                              />
-                            )}
-                            noOptionsText="No se encontraron repositorios"
-                          />
-                        </Box>
-                      )}
                     </Box>
 
                     {/* Selected Repository Confirmation pill */}
