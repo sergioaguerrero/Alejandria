@@ -2,7 +2,8 @@
  * @file RegisterPage.jsx
  * @description View 2 — Student registration (FE-04, endpoint BE-05).
  *
- * Rules from the statement:
+ * Requirements:
+ *  - Individual fields for first_name, second_name, first_lastname, second_lastname.
  *  - Only emails from the institutional domain, with an instant error.
  *  - Live indicator of the password rules.
  *  - The terms checkbox is required: without it the button stays disabled.
@@ -18,6 +19,7 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
+  Grid,
   Link,
   MenuItem,
   Stack,
@@ -39,6 +41,10 @@ import {
 const SEMESTERS = Array.from({ length: 9 }, (_, index) => index + 1);
 
 const INITIAL_VALUES = {
+  first_name: '',
+  second_name: '',
+  first_lastname: '',
+  second_lastname: '',
   username: '',
   email: '',
   password: '',
@@ -47,7 +53,17 @@ const INITIAL_VALUES = {
 };
 
 /** Form fields that are validated. */
-const FIELDS = ['username', 'email', 'password', 'confirm', 'semester'];
+const FIELDS = [
+  'first_name',
+  'second_name',
+  'first_lastname',
+  'second_lastname',
+  'username',
+  'email',
+  'password',
+  'confirm',
+  'semester',
+];
 
 /**
  * Validates the form on the client before calling the service.
@@ -57,6 +73,18 @@ const FIELDS = ['username', 'email', 'password', 'confirm', 'semester'];
 function validate(values) {
   /** @type {Record<string, string>} */
   const errors = {};
+
+  if (!values.first_name.trim()) {
+    errors.first_name = 'El primer nombre es obligatorio.';
+  }
+
+  if (!values.first_lastname.trim()) {
+    errors.first_lastname = 'El primer apellido es obligatorio.';
+  }
+
+  if (!values.second_lastname.trim()) {
+    errors.second_lastname = 'El segundo apellido es obligatorio.';
+  }
 
   if (!isValidUsername(values.username)) {
     errors.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
@@ -164,14 +192,16 @@ export default function RegisterPage() {
       setIsSubmitting(true);
 
       await register({
+        first_name: values.first_name.trim(),
+        second_name: values.second_name.trim(),
+        first_lastname: values.first_lastname.trim(),
+        second_lastname: values.second_lastname.trim(),
         username: values.username,
         email: values.email,
         password: values.password,
         semester: values.semester === '' ? null : Number(values.semester),
       });
 
-      // TODO(FE-06): take to My subjects of interest (view 15) with the
-      // semester subjects preselected.
       navigate('/', { replace: true });
     } catch (error) {
       if (error?.fields) {
@@ -190,13 +220,68 @@ export default function RegisterPage() {
           <Typography variant="h5" gutterBottom>
             Crear cuenta
           </Typography>
-          <Typography variant="body2">
-            Usa tu correo institucional para registrarte.
+          <Typography variant="body2" color="text.secondary">
+            Completa tus datos personales y usa tu correo institucional para registrarte.
           </Typography>
         </Box>
 
         {generalError && <Alert severity="error">{generalError}</Alert>}
 
+        {/* ── Nombres (Primer y Segundo) ────────────────────────────── */}
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Primer nombre"
+              value={values.first_name}
+              onChange={handleChange('first_name')}
+              onBlur={markTouched('first_name')}
+              error={Boolean(errorFor('first_name'))}
+              helperText={errorFor('first_name')}
+              required
+              fullWidth
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Segundo nombre"
+              value={values.second_name}
+              onChange={handleChange('second_name')}
+              onBlur={markTouched('second_name')}
+              helperText="Opcional"
+              fullWidth
+            />
+          </Grid>
+        </Grid>
+
+        {/* ── Apellidos (Primer y Segundo) ──────────────────────────── */}
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Primer apellido"
+              value={values.first_lastname}
+              onChange={handleChange('first_lastname')}
+              onBlur={markTouched('first_lastname')}
+              error={Boolean(errorFor('first_lastname'))}
+              helperText={errorFor('first_lastname')}
+              required
+              fullWidth
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Segundo apellido"
+              value={values.second_lastname}
+              onChange={handleChange('second_lastname')}
+              onBlur={markTouched('second_lastname')}
+              error={Boolean(errorFor('second_lastname'))}
+              helperText={errorFor('second_lastname')}
+              required
+              fullWidth
+            />
+          </Grid>
+        </Grid>
+
+        {/* ── Usuario y Correo Institucional ───────────────────────── */}
         <TextField
           label="Nombre de usuario"
           value={values.username}
@@ -205,6 +290,7 @@ export default function RegisterPage() {
           error={Boolean(errorFor('username'))}
           helperText={errorFor('username') ?? 'Así te verán los demás. Sin espacios.'}
           autoComplete="username"
+          fullWidth
         />
 
         <TextField
@@ -216,8 +302,10 @@ export default function RegisterPage() {
           error={Boolean(errorFor('email'))}
           helperText={errorFor('email') ?? `Debe terminar en ${INSTITUTIONAL_DOMAIN}`}
           autoComplete="email"
+          fullWidth
         />
 
+        {/* ── Contraseña y confirmación ────────────────────────────── */}
         <Box>
           <TextField
             label="Contraseña"
@@ -229,6 +317,7 @@ export default function RegisterPage() {
             error={Boolean(errorFor('password'))}
             helperText={errorFor('password')}
             autoComplete="new-password"
+            fullWidth
           />
           <PasswordRules password={values.password} focused={passwordFocused} />
         </Box>
@@ -242,8 +331,10 @@ export default function RegisterPage() {
           error={Boolean(errorFor('confirm'))}
           helperText={errorFor('confirm')}
           autoComplete="new-password"
+          fullWidth
         />
 
+        {/* ── Semestre ─────────────────────────────────────────────── */}
         <TextField
           select
           label="Semestre"
@@ -251,6 +342,7 @@ export default function RegisterPage() {
           onChange={handleChange('semester')}
           helperText="Opcional. Nos ayuda a sugerirte materias."
           slotProps={{ select: { MenuProps: SELECT_MENU_PROPS } }}
+          fullWidth
         >
           <MenuItem value="">Sin especificar</MenuItem>
           {SEMESTERS.map((semester) => (
@@ -260,6 +352,7 @@ export default function RegisterPage() {
           ))}
         </TextField>
 
+        {/* ── Normas de uso ────────────────────────────────────────── */}
         <FormControlLabel
           control={<Checkbox checked={acceptsTerms} onChange={toggleTerms} />}
           label={

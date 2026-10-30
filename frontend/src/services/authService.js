@@ -135,6 +135,10 @@ export async function login({ identifier, password }) {
 
 /**
  * @typedef {object} RegistrationData
+ * @property {string} first_name
+ * @property {string} [second_name]
+ * @property {string} first_lastname
+ * @property {string} second_lastname
  * @property {string} username
  * @property {string} email
  * @property {string} password
@@ -148,15 +152,29 @@ export async function login({ identifier, password }) {
  * @throws {ApiError} 400 with `fields` if there is invalid data, 409 if the email or the user already exist.
  */
 export async function register(data) {
+  const first_name = String(data.first_name ?? '').trim();
+  const second_name = String(data.second_name ?? '').trim();
+  const first_lastname = String(data.first_lastname ?? '').trim();
+  const second_lastname = String(data.second_lastname ?? '').trim();
   const username = String(data.username ?? '').trim().toLowerCase();
   const email = String(data.email ?? '').trim().toLowerCase();
   const { password } = data;
   const semester = data.semester ?? null;
 
+  const fullName = [first_name, second_name, first_lastname, second_lastname]
+    .filter(Boolean)
+    .join(' ');
+
   if (!USE_MOCK) {
     const { data: response } = await http.post('/auth/register', {
+      first_name,
+      second_name,
+      first_lastname,
+      second_lastname,
       username,
+      institutionalEmail: email,
       email,
+      passwordHash: password,
       password,
       semester,
     });
@@ -194,6 +212,11 @@ export async function register(data) {
 
   const newUser = {
     id: nextId('user'),
+    name: fullName || username,
+    first_name,
+    second_name,
+    first_lastname,
+    second_lastname,
     username,
     email,
     semester: semester ? Number(semester) : null,
