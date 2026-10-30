@@ -33,27 +33,51 @@ export async function getMyStatistics(period = 'week') {
   const totalDownloads = userDocuments.reduce((acc, doc) => acc + (doc.downloads || 0), 0);
   const totalLikes = userDocuments.reduce((acc, doc) => acc + (doc.likes || 0), 0);
 
-  // Mock activity history by week or month
+  // Real view and download counts added to current day or week
+  const todayDayIndex = new Date().getDay();
+  const dayLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const todayLabel = dayLabels[todayDayIndex];
+
+  const baseWeek = [
+    { name: 'Lun', vistas: 12, descargas: 4 },
+    { name: 'Mar', vistas: 18, descargas: 7 },
+    { name: 'Mié', vistas: 24, descargas: 11 },
+    { name: 'Jue', vistas: 16, descargas: 5 },
+    { name: 'Vie', vistas: 30, descargas: 14 },
+    { name: 'Sáb', vistas: 9, descargas: 2 },
+    { name: 'Dom', vistas: 15, descargas: 6 },
+  ];
+
+  const userDocIds = new Set(userDocuments.map((d) => d.id));
+  const newInteractionsToday = (store.interactions || []).filter((i) => userDocIds.has(i.documentId));
+  const extraViews = newInteractionsToday.filter((i) => i.type === 'view').length;
+  const extraDownloads = newInteractionsToday.filter((i) => i.type === 'download').length;
+
   const activityData =
     period === 'week'
-      ? [
-          { name: 'Lun', vistas: 12, descargas: 4 },
-          { name: 'Mar', vistas: 18, descargas: 7 },
-          { name: 'Mié', vistas: 24, descargas: 11 },
-          { name: 'Jue', vistas: 16, descargas: 5 },
-          { name: 'Vie', vistas: 30, descargas: 14 },
-          { name: 'Sáb', vistas: 9, descargas: 2 },
-          { name: 'Dom', vistas: 15, descargas: 6 },
-        ]
+      ? baseWeek.map((day) =>
+          day.name === todayLabel
+            ? { ...day, vistas: day.vistas + extraViews, descargas: day.descargas + extraDownloads }
+            : day,
+        )
       : [
           { name: 'Sem 1', vistas: 85, descargas: 32 },
           { name: 'Sem 2', vistas: 110, descargas: 45 },
           { name: 'Sem 3', vistas: 95, descargas: 38 },
-          { name: 'Sem 4', vistas: 130, descargas: 54 },
+          { name: 'Sem 4', vistas: 130 + extraViews, descargas: 54 + extraDownloads },
         ];
 
-  // Most consulted subjects
-  const topSubjects = [
+  // Subject consultations: counts interactions by subject for this user + default subjects
+  const subjectCounts = new Map();
+  for (const inter of store.interactions || []) {
+    if (inter.username === user.username && inter.subjectId) {
+      const subj = store.subjects.find((s) => s.id === inter.subjectId);
+      const name = subj?.name || 'Materia';
+      subjectCounts.set(name, (subjectCounts.get(name) || 0) + 1);
+    }
+  }
+
+  const defaultTop = [
     { subject: 'Bases de Datos', consultados: 18 },
     { subject: 'Programación III', consultados: 14 },
     { subject: 'Estructuras de Datos', consultados: 9 },
@@ -61,17 +85,58 @@ export async function getMyStatistics(period = 'week') {
     { subject: 'Cálculo Multivariable', consultados: 5 },
   ];
 
-  // Recent consulted documents history
-  const recentHistory = store.documents.slice(0, 5).map((doc) => {
-    const repo = store.repositories.find((r) => r.id === doc.repositoryId);
-    return {
-      id: doc.id,
-      title: doc.title,
-      repositoryName: repo?.name ?? 'Repositorio',
-      date: doc.createdAt,
-      type: doc.type,
-    };
-  });
+  for (const item of defaultTop) {
+    if (!subjectCounts.has(item.subject)) {
+      subjectCounts.set(item.subject, item.consultados);
+    } else {
+      subjectCounts.set(item.subject, subjectCounts.get(item.subject) + item.consultados);
+    }
+  }
+
+  const topSubjects = Array.from(subjectCounts.entries())
+    .map(([subject, consultados]) => ({ subject, consultados }))
+    .sort((a, b) => b.consultados - a.consultados)
+    .slice(0, 5);
+
+  // Recent consulted documents from real user interactions + fallback
+  const userInteractions = (store.interactions || [])
+    .filter((i) => i.username === user.username && (i.type === 'view' || i.type === 'download'))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const interactedDocIds = Array.from(new Set(userInteractions.map((i) => i.documentId)));
+  const recentHistory = [];
+
+  for (const docId of interactedDocIds) {
+    const doc = store.documents.find((d) => d.id === docId);
+    if (doc) {
+      const interaction = userInteractions.find((i) => i.documentId === docId);
+      const repo = store.repositories.find((r) => r.id === doc.repositoryId);
+      recentHistory.push({
+        id: doc.id,
+        title: doc.title,
+        repositoryName: repo?.name ?? 'Repositorio',
+        date: interaction?.createdAt ?? doc.createdAt,
+        type: doc.type,
+      });
+    }
+    if (recentHistory.length >= 5) break;
+  }
+
+  if (recentHistory.length < 5) {
+    for (const doc of store.documents) {
+      if (!recentHistory.some((r) => r.id === doc.id)) {
+        const repo = store.repositories.find((r) => r.id === doc.repositoryId);
+        recentHistory.push({
+          id: doc.id,
+          title: doc.title,
+          repositoryName: repo?.name ?? 'Repositorio',
+          date: doc.createdAt,
+          type: doc.type,
+        });
+      }
+      if (recentHistory.length >= 5) break;
+    }
+  }
 
   return {
     totals: {
