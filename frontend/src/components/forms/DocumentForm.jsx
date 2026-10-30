@@ -98,17 +98,25 @@ function withoutField(errors, field) {
 /**
  * @param {object} props
  * @param {Partial<DocumentFormValues>} [props.initialValues]
+ * @param {object|null} [props.currentFile]  File already saved (view 13).
  * @param {boolean} [props.requireFile]  The file is mandatory when uploading.
  * @param {string} [props.submitLabel]
+ * @param {import('react').ReactNode} [props.submitIcon]
  * @param {number|null} [props.progress]  Upload progress (0-100), or null.
+ * @param {string} [props.progressLabel]
+ * @param {string} [props.busyLabel]
  * @param {(data: DocumentFormValues & { file: File|null }) => Promise<void>} props.onSubmit
  * @param {() => void} [props.onCancel]
  */
 export default function DocumentForm({
   initialValues,
+  currentFile = null,
   requireFile = true,
   submitLabel = 'Subir documento',
+  submitIcon = <UploadFileIcon />,
   progress = null,
+  progressLabel = 'Subiendo…',
+  busyLabel = 'Subiendo…',
   onSubmit,
   onCancel,
 }) {
@@ -203,6 +211,7 @@ export default function DocumentForm({
         >
           <FileUploader
             file={file}
+            currentFile={currentFile}
             onChange={handleFileChange}
             error={errorFor('file')}
             disabled={isSubmitting}
@@ -306,7 +315,7 @@ export default function DocumentForm({
           <Box>
             <LinearProgress variant="determinate" value={progress} />
             <Typography variant="caption" color="text.secondary">
-              {`Subiendo… ${progress}%`}
+              {`${progressLabel} ${progress}%`}
             </Typography>
           </Box>
         )}
@@ -320,10 +329,10 @@ export default function DocumentForm({
 
           <Button
             type="submit"
-            startIcon={<UploadFileIcon />}
+            startIcon={submitIcon}
             disabled={!declaration || isSubmitting}
           >
-            {isSubmitting ? 'Subiendo…' : submitLabel}
+            {isSubmitting ? busyLabel : submitLabel}
           </Button>
         </Stack>
       </Stack>

@@ -22,6 +22,7 @@ import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import DocumentDetailPage from './pages/documents/DocumentDetailPage.jsx';
+import EditDocumentPage from './pages/documents/EditDocumentPage.jsx';
 import UploadDocumentPage from './pages/documents/UploadDocumentPage.jsx';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/repositories/:id" element={<RepositoryDetailPage />} />
               <Route path="/repositories/:id/upload" element={<UploadDocumentPage />} />
               <Route path="/documents/:id" element={<DocumentDetailPage />} />
+              <Route path="/documents/:id/edit" element={<EditDocumentPage />} />
 
               {/* ── Placeholders of the side menu ─────────────────────────
                   Their views are not implemented yet, so they render the
