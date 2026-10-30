@@ -6,8 +6,9 @@
  *   - Desktop: fixed menu visible.
  *   - Mobile and tablet: drawer-style menu opened by the hamburger button.
  *
- * Views are rendered in <Outlet />. The menu grows as views are
- * implemented: for now only Home (FE-10).
+ * Views are rendered in <Outlet />. The side menu lists every planned
+ * section; the ones that are not implemented yet lead to the error page
+ * (view 26) until their story lands.
  */
 
 import { useState } from 'react';
@@ -20,10 +21,12 @@ import {
   Divider,
   Drawer,
   IconButton,
+  InputBase,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Menu,
   MenuItem,
   Toolbar,
@@ -32,9 +35,20 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import BookmarksIcon from '@mui/icons-material/Bookmarks';
+import ClearIcon from '@mui/icons-material/Clear';
+import ExploreIcon from '@mui/icons-material/Explore';
+import FlagIcon from '@mui/icons-material/Flag';
+import FolderIcon from '@mui/icons-material/Folder';
 import HomeIcon from '@mui/icons-material/Home';
+import InsightsIcon from '@mui/icons-material/Insights';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import PersonIcon from '@mui/icons-material/Person';
+import SearchIcon from '@mui/icons-material/Search';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 import { useAuth } from '../../context/authContext.js';
 import { initials, usernameLabel } from '../../utils/users.js';
@@ -42,16 +56,70 @@ import { initials, usernameLabel } from '../../utils/users.js';
 const MENU_WIDTH = 248;
 
 /**
- * Side menu links.
- * Each new view adds its entry here once its route exists.
+ * Main side menu links (views 6 to 21).
+ * The view that is not implemented yet renders the error page (view 26).
  */
-const LINKS = [{ label: 'Inicio', path: '/', icon: HomeIcon }];
+const MAIN_LINKS = [
+  { label: 'Inicio', path: '/', icon: HomeIcon },
+  { label: 'Explorar', path: '/search', icon: ExploreIcon },
+  { label: 'Mis repositorios', path: '/my-content', icon: FolderIcon },
+  { label: 'Mis materias', path: '/my-subjects', icon: BookmarksIcon },
+  { label: 'Mis estadísticas', path: '/statistics', icon: BarChartIcon },
+  { label: 'Notificaciones', path: '/notifications', icon: NotificationsIcon },
+  { label: 'Estudio con IA', path: '/ai', icon: SmartToyIcon },
+  { label: 'Mi perfil', path: '/profile', icon: PersonIcon },
+];
+
+/**
+ * Admin-only links. They are not rendered unless the user role is admin.
+ */
+const ADMIN_LINKS = [
+  { label: 'Reportes', path: '/admin/reports', icon: FlagIcon },
+  { label: 'Estadísticas globales', path: '/admin/statistics', icon: InsightsIcon },
+];
+
+/**
+ * Indicates if the link matches the current route.
+ * Home only matches exactly; the rest also match their child routes.
+ * @param {string} pathname
+ * @param {string} path
+ * @returns {boolean}
+ */
+function isActive(pathname, path) {
+  return path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`);
+}
+
+/**
+ * One entry of the side menu.
+ * @param {object} props
+ * @param {string} props.label
+ * @param {string} props.path
+ * @param {import('react').ElementType} props.icon
+ * @param {string} props.pathname
+ * @param {() => void} [props.onNavigate]
+ */
+function MenuLink({ label, path, icon: Icon, pathname, onNavigate }) {
+  return (
+    <ListItemButton
+      component={RouterLink}
+      to={path}
+      selected={isActive(pathname, path)}
+      onClick={onNavigate}
+      sx={{ borderRadius: 2, mb: 0.5 }}
+    >
+      <ListItemIcon>
+        <Icon />
+      </ListItemIcon>
+      <ListItemText primary={label} />
+    </ListItemButton>
+  );
+}
 
 /**
  * Side menu body, shared by the fixed mode and the mobile drawer.
- * @param {{ onNavigate?: () => void }} props
+ * @param {{ onNavigate?: () => void, isAdmin?: boolean }} props
  */
-function MenuContent({ onNavigate }) {
+function MenuContent({ onNavigate, isAdmin = false }) {
   const location = useLocation();
 
   return (
@@ -62,21 +130,36 @@ function MenuContent({ onNavigate }) {
       <Divider />
 
       <List sx={{ px: 1, py: 2 }}>
-        {LINKS.map(({ label, path, icon: Icon }) => (
-          <ListItemButton
-            key={path}
-            component={RouterLink}
-            to={path}
-            selected={location.pathname === path}
-            onClick={onNavigate}
-            sx={{ borderRadius: 2, mb: 0.5 }}
-          >
-            <ListItemIcon>
-              <Icon />
-            </ListItemIcon>
-            <ListItemText primary={label} />
-          </ListItemButton>
+        {MAIN_LINKS.map((link) => (
+          <MenuLink
+            key={link.path}
+            {...link}
+            pathname={location.pathname}
+            onNavigate={onNavigate}
+          />
         ))}
+
+        {isAdmin && (
+          <>
+            <Divider sx={{ my: 1.5 }} />
+
+            <ListSubheader
+              disableSticky
+              sx={{ bgcolor: 'transparent', lineHeight: 2.5, px: 2 }}
+            >
+              Administración
+            </ListSubheader>
+
+            {ADMIN_LINKS.map((link) => (
+              <MenuLink
+                key={link.path}
+                {...link}
+                pathname={location.pathname}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </>
+        )}
       </List>
     </Box>
   );
@@ -86,14 +169,40 @@ export default function AppLayout() {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const location = useLocation();
+  const { user, isAdmin, logout } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [userAnchor, setUserAnchor] = useState(null);
+  const [searchTerm, setSearchTerm] = useState(
+    () => new URLSearchParams(location.search).get('q') ?? '',
+  );
+  const [syncedSearch, setSyncedSearch] = useState(
+    location.pathname === '/search' ? location.search : null,
+  );
+
+  // Keeps the search field in sync with the URL (?q=) when the user lands on
+  // the search view, submits a search or navigates back to it. This is the
+  // "adjust state while rendering" pattern, cheaper than an effect.
+  if (location.pathname === '/search') {
+    if (location.search !== syncedSearch) {
+      setSyncedSearch(location.search);
+      setSearchTerm(new URLSearchParams(location.search).get('q') ?? '');
+    }
+  } else if (syncedSearch !== null) {
+    // Leaving the search view drops the baseline so coming back re-reads ?q=.
+    setSyncedSearch(null);
+  }
 
   const closeMenu = () => setMenuOpen(false);
   const openUserMenu = (event) => setUserAnchor(event.currentTarget);
   const closeUserMenu = () => setUserAnchor(null);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    const term = searchTerm.trim();
+    navigate(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
+  };
 
   const handleLogout = () => {
     closeUserMenu();
@@ -121,10 +230,64 @@ export default function AppLayout() {
             to="/"
             variant="h6"
             noWrap
-            sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}
+            sx={{
+              flexGrow: { xs: 1, md: 0 },
+              mr: { md: 2 },
+              color: 'inherit',
+              textDecoration: 'none',
+            }}
           >
             Alejandría UPC
           </Typography>
+
+          {isDesktop ? (
+            <Box
+              component="form"
+              role="search"
+              onSubmit={handleSearchSubmit}
+              sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', px: 2 }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  width: '100%',
+                  maxWidth: 560,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 999,
+                  bgcolor: 'action.hover',
+                  '&:focus-within': { outline: '2px solid', outlineColor: 'primary.main' },
+                }}
+              >
+                <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+
+                <InputBase
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar materias, apuntes y usuarios…"
+                  inputProps={{ 'aria-label': 'Buscar materias, apuntes y usuarios' }}
+                  sx={{ flex: 1, fontSize: '0.95rem' }}
+                />
+
+                {searchTerm && (
+                  <IconButton
+                    size="small"
+                    edge="end"
+                    aria-label="Limpiar búsqueda"
+                    onClick={() => setSearchTerm('')}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+            </Box>
+          ) : (
+            <IconButton color="inherit" aria-label="Buscar" onClick={() => navigate('/search')}>
+              <SearchIcon />
+            </IconButton>
+          )}
 
           <Tooltip title="Cuenta">
             <IconButton
@@ -147,7 +310,7 @@ export default function AppLayout() {
             '& .MuiDrawer-paper': { width: MENU_WIDTH, boxSizing: 'border-box' },
           }}
         >
-          <MenuContent />
+          <MenuContent isAdmin={isAdmin} />
         </Drawer>
       ) : (
         <Drawer
@@ -157,7 +320,7 @@ export default function AppLayout() {
           ModalProps={{ keepMounted: true }}
           sx={{ '& .MuiDrawer-paper': { width: MENU_WIDTH } }}
         >
-          <MenuContent onNavigate={closeMenu} />
+          <MenuContent onNavigate={closeMenu} isAdmin={isAdmin} />
         </Drawer>
       )}
 

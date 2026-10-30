@@ -29,15 +29,17 @@ const CONTENT = {
 /**
  * @param {object} props
  * @param {403|404|number} [props.code=404]
+ * @param {boolean} [props.fullHeight=true]  Centers the content on the whole screen;
+ *   disable it when the page is rendered inside the application layout.
  */
-export default function ErrorPage({ code = 404 }) {
+export default function ErrorPage({ code = 404, fullHeight = true }) {
   const { isAuthenticated } = useAuth();
   const info = CONTENT[code] ?? CONTENT[404];
 
   return (
     <Box
       sx={{
-        minHeight: '100svh',
+        minHeight: fullHeight ? '100svh' : 0,
         display: 'grid',
         placeItems: 'center',
         px: 3,
