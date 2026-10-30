@@ -32,6 +32,7 @@ import ReportInboxPage from './pages/admin/ReportInboxPage.jsx';
 import ReportDetailPage from './pages/admin/ReportDetailPage.jsx';
 import AdminUserPage from './pages/admin/AdminUserPage.jsx';
 import GlobalStatisticsPage from './pages/admin/GlobalStatisticsPage.jsx';
+import AiStudyPage from './pages/ai/AiStudyPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -78,7 +79,7 @@ export default function App() {
               <Route path="/my-subjects" element={<MySubjectsPage />} />
               <Route path="/statistics" element={<MyStatisticsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/ai" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/ai" element={<AiStudyPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/users/:username" element={<PublicProfilePage />} />
             </Route>

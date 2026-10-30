@@ -11,6 +11,7 @@
 
 import { DOCUMENTS } from './documents.js';
 import { NOTIFICATIONS } from './notifications.js';
+import { QUIZZES } from './quizzes.js';
 import { REPORTS } from './reports.js';
 import { SUBJECTS } from './subjects.js';
 import { REPOSITORIES } from './repositories.js';
@@ -39,6 +40,10 @@ function createInitialState() {
     interactions: /** @type {object[]} */ ([]),
     /** Password reset tokens generated in mock mode (FE-08, BE-10). */
     resetTokens: new Map(),
+    /** AI-generated quizzes (FE-20, FE-21, FE-22, BE-35, BE-36). */
+    quizzes: clone(QUIZZES),
+    /** Count of daily AI generations consumed today by user id. */
+    aiGenerationsToday: new Map(),
     /** Reports of content sent by the students (FE-23, FE-24). */
     reports: clone(REPORTS),
     /** Notifications for the users (FE-18, FE-19). */
@@ -62,6 +67,7 @@ function createInitialState() {
       report: REPORTS.length,
       notification: NOTIFICATIONS.length,
       sanction: 1,
+      quiz: QUIZZES.length,
     },
   };
 }

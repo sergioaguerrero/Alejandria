@@ -27,6 +27,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -261,6 +262,16 @@ export default function RepositoryDetailPage() {
                   aria-label="Me gusta"
                 >
                   {repository.likes}
+                </Button>
+
+                <Button
+                  component={RouterLink}
+                  to={`/ai?repositoryId=${repository.id}`}
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<AutoAwesomeIcon />}
+                >
+                  Estudiar con IA
                 </Button>
 
                 {!isOwner && (

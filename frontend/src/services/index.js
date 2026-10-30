@@ -65,3 +65,13 @@ export {
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from './notificationService.js';
+
+export {
+  getDailyAiQuota,
+  generateQuiz,
+  getQuizById,
+  submitQuizAnswers,
+  toggleSaveQuizToMyStudy,
+  getMyStudyMaterials,
+  deleteFromMyStudy,
+} from './aiService.js';
