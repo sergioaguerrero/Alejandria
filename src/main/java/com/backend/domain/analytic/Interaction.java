@@ -3,7 +3,7 @@ package com.backend.domain.analytic;
 import com.backend.cross.InteractionType;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
-import com.backend.domain.repository.Resource;   // ajusta si renombraste ese paquete
+import com.backend.domain.repos.Resource;   // ajusta si renombraste ese paquete
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 

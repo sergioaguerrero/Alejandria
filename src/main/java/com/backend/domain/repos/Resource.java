@@ -1,4 +1,4 @@
-package com.backend.domain.repository;
+package com.backend.domain.repos;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -54,6 +54,10 @@ public class Resource {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "subject_id")
     private Subject subject;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User uploader;
 
     @ManyToMany
     @JoinTable(
@@ -120,4 +124,7 @@ public class Resource {
 
     public Set<Tag> getTags() { return tags; }
     public void setTags(Set<Tag> tags) { this.tags = tags; }
+
+    public User getUploader() {return uploader;}
+    public void setUploader(User uploader) {this.uploader = uploader;}
 }

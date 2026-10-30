@@ -1,4 +1,4 @@
-package com.backend.domain.repository;
+package com.backend.domain.repos;
 import jakarta.persistence.*;
 
 @Entity
