@@ -21,6 +21,7 @@ import RegisterPage from './pages/auth/RegisterPage.jsx';
 import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
+import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
 import DocumentDetailPage from './pages/documents/DocumentDetailPage.jsx';
 import EditDocumentPage from './pages/documents/EditDocumentPage.jsx';
@@ -44,7 +45,9 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/repositories/new" element={<RepositoryFormPage />} />
               <Route path="/repositories/:id" element={<RepositoryDetailPage />} />
+              <Route path="/repositories/:id/edit" element={<RepositoryFormPage />} />
               <Route path="/repositories/:id/upload" element={<UploadDocumentPage />} />
               <Route path="/documents/:id" element={<DocumentDetailPage />} />
               <Route path="/documents/:id/edit" element={<EditDocumentPage />} />

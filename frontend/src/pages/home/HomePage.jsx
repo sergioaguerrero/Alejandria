@@ -204,7 +204,6 @@ export default function HomePage() {
           </FormControl>
         </Stack>
 
-        {/* TODO(FE-11): view 8 (create repository) lands in Sprint 2. */}
         <Button
           component={RouterLink}
           to="/repositories/new"
