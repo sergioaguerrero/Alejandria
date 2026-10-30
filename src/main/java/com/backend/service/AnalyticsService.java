@@ -5,7 +5,7 @@ import com.backend.domain.academy.Subject;
 import com.backend.domain.analytic.DemandMetric;
 import com.backend.domain.analytic.Interaction;
 import com.backend.domain.identity.User;
-import com.backend.domain.repository.Resource;
+import com.backend.domain.repos.Resource;
 import com.backend.repository.DemandMetricRepository;
 import com.backend.repository.InteractionRepository;
 import jakarta.persistence.EntityManager;
