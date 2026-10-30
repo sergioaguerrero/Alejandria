@@ -45,10 +45,20 @@ public class ResourceService {
         // se llama al repository para que lo guarde
         return resourceRepository.save(resourceData);
 
-
         //conceptos
         //MultipartFile file: Es la interfaz de Spring Boot que representa el archivo físico (el PDF, Word, etc.) que Sergio enviará desde el frontend en React. Te permite acceder al peso (getSize()), al tipo de archivo (getContentType()) y al contenido crudo (getBytes()).
         //throws IOException: Al manipular archivos físicos o extraer bytes, siempre existe el riesgo de que el archivo esté corrupto o la lectura falle. Esta instrucción le avisa a Java que este método podría fallar por un error de entrada/salida (I/O)
         //resourceData: Este es el objeto que contiene la metadata (el título del documento, la descripción, a qué materia pertenece). En el controlador, dev2 se encargará de unir el archivo físico con estos datos de texto y pasártelos limpios a este método.
+    }
+
+    // Obtienes to el catálogo
+    public java.util.List<Resource> getAllResources() {
+        return resourceRepository.findAll();
+    }
+
+    // Buscar un documento específico por su ID
+    public Resource getResourceById(Long id) {
+        return resourceRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("no se pudo encontrar el documento"));
     }
 }

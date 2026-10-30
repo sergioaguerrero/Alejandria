@@ -32,5 +32,29 @@ public class ResourceController {
         // Respondemos con éxito y devolvemos los datos del recurso guardado
         return ResponseEntity.status(HttpStatus.CREATED).body(savedResource);
     }
+
+    /** Endpoint para dibujar las tarjetas del catálogo en React */
+    @GetMapping
+    public ResponseEntity<java.util.List<Resource>> getAllResources() {
+        return ResponseEntity.ok(resourceService.getAllResources());
+    }
+
+    /** Endpoint para ver el detalle de un solo documento */
+    @GetMapping("/{id}")
+    public ResponseEntity<Resource> getResourceDetails(@PathVariable Long id) {
+        return ResponseEntity.ok(resourceService.getResourceById(id));
+    }
+
+    /** Endpoint para descargar el archivo físico (Los bytes del BLOB) */
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> downloadResource(@PathVariable Long id) {
+        Resource resource = resourceService.getResourceById(id);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + resource.getTitle() + ".pdf\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType(resource.getMimeType()))
+                .body(resource.getFileBytes());
+    }
 }
 
