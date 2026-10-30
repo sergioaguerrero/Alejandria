@@ -32,6 +32,8 @@ export {
   updateRepository,
   deleteRepository,
   toggleRepositoryLike,
+  toggleFollowRepository,
+  getFollowedRepositories,
 } from './repositoryService.js';
 
 export {

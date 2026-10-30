@@ -33,6 +33,8 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
+import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 
@@ -47,6 +49,7 @@ import {
   getRepository,
   listByRepository,
   toggleRepositoryLike,
+  toggleFollowRepository,
 } from '../../services/index.js';
 
 export default function RepositoryDetailPage() {
@@ -105,6 +108,29 @@ export default function RepositoryDetailPage() {
   }, [documents]);
 
   const isOwner = Boolean(repository && user?.username === repository.authorUsername);
+
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  const handleFollow = async () => {
+    setIsFollowing(true);
+    try {
+      const result = await toggleFollowRepository(repository.id);
+      setRepository((current) => ({ ...current, followed: result.followed }));
+      setNotice({
+        severity: 'success',
+        message: result.followed
+          ? 'Ahora sigues este repositorio. Recibirás avisos de nuevos contenidos y podrás estudiarlo con IA.'
+          : 'Has dejado de seguir este repositorio.',
+      });
+    } catch (serviceError) {
+      setNotice({
+        severity: 'error',
+        message: serviceError?.message ?? 'No se pudo actualizar el seguimiento.',
+      });
+    } finally {
+      setIsFollowing(false);
+    }
+  };
 
   const handleLike = async () => {
     setIsLiking(true);
@@ -262,6 +288,16 @@ export default function RepositoryDetailPage() {
                   aria-label="Me gusta"
                 >
                   {repository.likes}
+                </Button>
+
+                <Button
+                  variant={repository.followed ? 'contained' : 'outlined'}
+                  color={repository.followed ? 'primary' : 'inherit'}
+                  onClick={handleFollow}
+                  disabled={isFollowing}
+                  startIcon={repository.followed ? <BookmarkAddedIcon /> : <BookmarkAddOutlinedIcon />}
+                >
+                  {repository.followed ? 'Siguiendo' : 'Seguir repositorio'}
                 </Button>
 
                 <Button
