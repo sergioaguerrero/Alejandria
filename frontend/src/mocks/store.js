@@ -10,6 +10,7 @@
  */
 
 import { DOCUMENTS } from './documents.js';
+import { NOTIFICATIONS } from './notifications.js';
 import { SUBJECTS } from './subjects.js';
 import { REPOSITORIES } from './repositories.js';
 import { USERS } from './users.js';
@@ -35,11 +36,14 @@ function createInitialState() {
     subjectsOfInterest: /** @type {number[]} */ ([]),
     /** Reports of content sent by the students (FE-23, FE-24). */
     reports: /** @type {object[]} */ ([]),
+    /** Notifications for the users (FE-18, FE-19). */
+    notifications: clone(NOTIFICATIONS),
     counters: {
       repository: REPOSITORIES.length,
       document: DOCUMENTS.length,
       user: USERS.length,
       report: 0,
+      notification: NOTIFICATIONS.length,
     },
   };
 }

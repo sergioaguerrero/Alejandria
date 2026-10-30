@@ -56,3 +56,10 @@ export { getMyStatistics } from './statisticsService.js';
 export { createReport } from './reportService.js';
 
 export { getPublicProfile } from './userService.js';
+
+export {
+  getNotifications,
+  getUnreadNotificationsCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from './notificationService.js';

@@ -24,6 +24,7 @@ import MyContentPage from './pages/content/MyContentPage.jsx';
 import MySubjectsPage from './pages/subjects/MySubjectsPage.jsx';
 import MyStatisticsPage from './pages/statistics/MyStatisticsPage.jsx';
 import ProfilePage from './pages/profile/ProfilePage.jsx';
+import NotificationsPage from './pages/notifications/NotificationsPage.jsx';
 import PublicProfilePage from './pages/profile/PublicProfilePage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
@@ -66,7 +67,7 @@ export default function App() {
               <Route path="/my-content" element={<MyContentPage />} />
               <Route path="/my-subjects" element={<MySubjectsPage />} />
               <Route path="/statistics" element={<MyStatisticsPage />} />
-              <Route path="/notifications" element={<ErrorPage code={404} fullHeight={false} />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/ai" element={<ErrorPage code={404} fullHeight={false} />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/users/:username" element={<PublicProfilePage />} />
