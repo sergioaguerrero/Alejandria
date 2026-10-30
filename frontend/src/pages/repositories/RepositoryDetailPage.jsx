@@ -24,7 +24,6 @@ import {
   Stack,
   Tab,
   Tabs,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -38,6 +37,7 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import ReportDialog from '../../components/common/ReportDialog.jsx';
 import DocumentItem from '../../components/documents/DocumentItem.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { TERMS } from '../../mocks/catalogs.js';
@@ -60,6 +60,7 @@ export default function RepositoryDetailPage() {
   const [tab, setTab] = useState(1);
   const [isLiking, setIsLiking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [notice, setNotice] = useState(null);
   const [deleted, setDeleted] = useState(false);
@@ -142,6 +143,14 @@ export default function RepositoryDetailPage() {
   const handleNoticeClose = () => {
     setNotice(null);
     if (deleted) navigate('/', { replace: true });
+  };
+
+  const handleReported = () => {
+    setReportOpen(false);
+    setNotice({
+      severity: 'success',
+      message: 'Gracias por tu reporte. El equipo de administración lo revisará.',
+    });
   };
 
   if (isLoading) {
@@ -255,14 +264,15 @@ export default function RepositoryDetailPage() {
                   {repository.likes}
                 </Button>
 
-                {/* TODO(FE-23): the report dialog (view 7) lands in Sprint 3. */}
-                <Tooltip title="Disponible en el Sprint 3">
-                  <span>
-                    <Button variant="outlined" startIcon={<FlagOutlinedIcon />} disabled>
-                      Reportar
-                    </Button>
-                  </span>
-                </Tooltip>
+                {!isOwner && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<FlagOutlinedIcon />}
+                    onClick={() => setReportOpen(true)}
+                  >
+                    Reportar
+                  </Button>
+                )}
               </Stack>
             </Stack>
 
@@ -365,6 +375,15 @@ export default function RepositoryDetailPage() {
         isBusy={isDeleting}
         onConfirm={handleDelete}
         onClose={() => setConfirmOpen(false)}
+      />
+
+      <ReportDialog
+        open={reportOpen}
+        targetType="repository"
+        targetId={repository.id}
+        targetLabel={repository.name}
+        onClose={() => setReportOpen(false)}
+        onReported={handleReported}
       />
 
       <Snackbar open={Boolean(notice)} autoHideDuration={4000} onClose={handleNoticeClose}>

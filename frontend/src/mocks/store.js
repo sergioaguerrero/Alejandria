@@ -19,7 +19,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 
 /**
  * Counters to generate new ids with the same format as the mocks.
- * @returns {{ users: object[], repositories: object[], documents: object[], subjects: object[], likedRepositories: Set<string>, likedDocuments: Set<string>, counters: { repository: number, document: number, user: number } }}
+ * @returns {{ users: object[], repositories: object[], documents: object[], subjects: object[], reports: object[], likedRepositories: Set<string>, likedDocuments: Set<string>, counters: { repository: number, document: number, user: number, report: number } }}
  */
 function createInitialState() {
   return {
@@ -33,10 +33,13 @@ function createInitialState() {
     likedDocuments: new Set(),
     /** Ids of the subjects marked by the user (FE-06). */
     subjectsOfInterest: /** @type {number[]} */ ([]),
+    /** Reports of content sent by the students (FE-23, FE-24). */
+    reports: /** @type {object[]} */ ([]),
     counters: {
       repository: REPOSITORIES.length,
       document: DOCUMENTS.length,
       user: USERS.length,
+      report: 0,
     },
   };
 }
