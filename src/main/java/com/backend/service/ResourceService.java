@@ -1,7 +1,7 @@
 package com.backend.service;
 
 import com.backend.repository.ResourceRepository;
-import com.backend.domain.repository.Resource; // Asegúrate de que la ruta coincida con tu paquete
+import com.backend.domain.repos.Resource; // Asegúrate de que la ruta coincida con tu paquete
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
