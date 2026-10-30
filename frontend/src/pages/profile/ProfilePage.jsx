@@ -215,19 +215,25 @@ export default function ProfilePage() {
         <Box
           sx={{
             display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            alignItems: { xs: 'flex-start', sm: 'flex-end' },
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-start', md: 'flex-start' },
             justifyContent: 'space-between',
-            gap: 2,
-            mt: { xs: -6, sm: -7, md: -8 },
-            mb: 2,
+            gap: 2.5,
+            mb: 2.5,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2.5, flexWrap: 'wrap' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'flex-start', sm: 'flex-start' },
+              gap: { xs: 1.5, sm: 2.5 },
+            }}
+          >
             <Avatar
               sx={{
-                width: { xs: 88, sm: 108, md: 120 },
-                height: { xs: 88, sm: 108, md: 120 },
+                width: { xs: 90, sm: 110, md: 120 },
+                height: { xs: 90, sm: 110, md: 120 },
                 fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
                 fontWeight: 700,
                 bgcolor: '#F59E0B',
@@ -235,16 +241,18 @@ export default function ProfilePage() {
                 border: '4px solid',
                 borderColor: 'background.paper',
                 boxShadow: 3,
+                mt: { xs: -5.5, sm: -7, md: -7.5 },
+                flexShrink: 0,
               }}
             >
               {initials(user)}
             </Avatar>
 
-            <Box sx={{ pb: { sm: 0.5 } }}>
-              <Typography variant="h4" component="h1" fontWeight={700}>
+            <Box sx={{ pt: { xs: 0, sm: 1.5 } }}>
+              <Typography variant="h4" component="h1" fontWeight={700} sx={{ lineHeight: 1.2 }}>
                 {user?.name}
               </Typography>
-              <Typography variant="body1" color="text.secondary">
+              <Typography variant="body1" color="text.secondary" sx={{ mt: 0.25 }}>
                 @{user?.username}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -255,12 +263,13 @@ export default function ProfilePage() {
             </Box>
           </Box>
 
-          <Box sx={{ pb: { sm: 1 }, alignSelf: { xs: 'stretch', sm: 'auto' } }}>
+          <Box sx={{ pt: { xs: 0, md: 2 }, alignSelf: { xs: 'stretch', sm: 'auto' } }}>
             <Button
               variant="contained"
               color="primary"
               startIcon={<EditOutlinedIcon />}
               onClick={handleOpenEditModal}
+              sx={{ px: 2.5, py: 1 }}
             >
               Editar perfil
             </Button>
