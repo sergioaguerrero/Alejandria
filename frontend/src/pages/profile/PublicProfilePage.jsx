@@ -2,9 +2,8 @@
  * @file PublicProfilePage.jsx
  * @description View 16 — Public profile (FE-13, endpoint BE-14).
  *
- * Shows the @username and the repositories of that user with the same cards of
- * the home view. The email and the full name are never exposed. The visitor can
- * report the profile with the shared report dialog.
+ * Shows the public academic profile of a student with the institutional banner layout,
+ * overlapping avatar, public repositories, and uploaded documents.
  */
 
 import { useEffect, useState } from 'react';
@@ -17,49 +16,76 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
+  Grid,
+  Paper,
   Skeleton,
   Snackbar,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
-import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ReportDialog from '../../components/common/ReportDialog.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import { useAuth } from '../../context/authContext.js';
-import { getPublicProfile, getRepositoriesByUser } from '../../services/index.js';
-import { initials } from '../../utils/users.js';
+import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
+import {
+  getDocumentsByUser,
+  getPublicProfile,
+  getRepositoriesByUser,
+} from '../../services/index.js';
 
-/** Grid shared by the cards and the loading skeletons, as in the home view. */
-const GRID_SX = {
-  display: 'grid',
-  gridTemplateColumns: {
-    xs: '1fr',
-    sm: 'repeat(2, 1fr)',
-    lg: 'repeat(3, 1fr)',
-  },
-  gap: 2.5,
-};
+function materialTypeLabel(type) {
+  return MATERIAL_TYPES.find((m) => m.value === type)?.label ?? type;
+}
+
+function termLabel(term) {
+  return TERMS.find((t) => t.value === term)?.label ?? `Corte ${term}`;
+}
 
 export default function PublicProfilePage() {
   const { username } = useParams();
   const { user } = useAuth();
 
-  const [loaded, setLoaded] = useState({ key: null, profile: null, repositories: [], error: '' });
+  const [loaded, setLoaded] = useState({
+    key: null,
+    profile: null,
+    repositories: [],
+    documents: [],
+    error: '',
+  });
+  const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [reportOpen, setReportOpen] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  // Loads the public data and the repositories together. The `key` lets the
-  // render know whether the data belongs to the username of the URL.
   useEffect(() => {
     let active = true;
 
-    Promise.all([getPublicProfile(username), getRepositoriesByUser(username)])
-      .then(([profile, repositories]) => {
-        if (active) setLoaded({ key: username, profile, repositories, error: '' });
+    Promise.all([
+      getPublicProfile(username),
+      getRepositoriesByUser(username),
+      getDocumentsByUser(username),
+    ])
+      .then(([profile, repositories, documents]) => {
+        if (!active) return;
+        setLoaded({
+          key: username,
+          profile,
+          repositories,
+          documents,
+          error: '',
+        });
       })
       .catch((serviceError) => {
         if (!active) return;
@@ -67,6 +93,7 @@ export default function PublicProfilePage() {
           key: username,
           profile: null,
           repositories: [],
+          documents: [],
           error: serviceError?.message ?? 'No se pudo cargar el perfil.',
         });
       });
@@ -87,128 +114,325 @@ export default function PublicProfilePage() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <Box>
-        <Skeleton variant="rounded" height={140} sx={{ mb: 3 }} />
-        <Skeleton variant="rounded" height={32} width={240} sx={{ mb: 2 }} />
-        <Box sx={GRID_SX}>
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} variant="rounded" height={180} />
-          ))}
-        </Box>
-      </Box>
-    );
-  }
-
-  if (loaded.error) {
-    return (
-      <Box>
-        <Button
-          component={RouterLink}
-          to="/"
-          variant="text"
-          startIcon={<ArrowBackIcon />}
-          sx={{ mb: 2, px: 0 }}
-        >
-          Volver a explorar
-        </Button>
-
-        <Alert
-          severity="error"
-          action={
-            <Button color="inherit" size="small" component={RouterLink} to="/">
-              Ir al inicio
-            </Button>
-          }
-        >
-          {loaded.error}
-        </Alert>
-      </Box>
-    );
-  }
-
-  const profile = loaded.profile;
-  const repositories = loaded.repositories;
+  const totalLikes = loaded.documents.reduce((acc, doc) => acc + (doc.likes || 0), 0);
 
   return (
-    <Box>
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2.5}
-            sx={{ alignItems: { sm: 'center' } }}
-          >
-            <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: 24 }}>
-              {initials(profile)}
-            </Avatar>
+    <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
+      <Button
+        component={RouterLink}
+        to="/"
+        variant="text"
+        startIcon={<ArrowBackIcon />}
+        sx={{ mb: 2, px: 0 }}
+      >
+        Volver a explorar
+      </Button>
 
-            <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
-              <Typography variant="overline" color="text.secondary">
-                Perfil público
-              </Typography>
-              <Typography variant="h4" component="h1" fontWeight={700}>
-                {`@${profile.username}`}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {`${repositories.length} ${repositories.length === 1 ? 'repositorio' : 'repositorios'}`}
-              </Typography>
-            </Stack>
-
-            {!isOwnProfile && (
-              <Button
-                variant="outlined"
-                startIcon={<FlagOutlinedIcon />}
-                onClick={() => setReportOpen(true)}
-              >
-                Reportar perfil
-              </Button>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
-
-      <Typography variant="h5" component="h2" fontWeight={600} sx={{ mb: 2 }}>
-        Repositorios
-      </Typography>
-
-      {repositories.length === 0 ? (
-        <EmptyState
-          icon={FolderOpenIcon}
-          title="Este usuario todavía no tiene repositorios"
-          description="Cuando publique material de estudio aparecerá aquí."
-        />
-      ) : (
-        <Box sx={GRID_SX}>
-          {repositories.map((repository) => (
-            <RepositoryCard key={repository.id} repository={repository} />
-          ))}
-        </Box>
+      {/* Loading State */}
+      {isLoading && (
+        <Stack spacing={3}>
+          <Skeleton variant="rounded" height={180} />
+          <Skeleton variant="rounded" height={48} width="50%" />
+          <Grid container spacing={2.5}>
+            {[1, 2, 3].map((key) => (
+              <Grid key={key} size={{ xs: 12, sm: 6, md: 4 }}>
+                <Skeleton variant="rounded" height={180} />
+              </Grid>
+            ))}
+          </Grid>
+        </Stack>
       )}
 
-      <ReportDialog
-        open={reportOpen}
-        targetType="profile"
-        targetId={profile.username}
-        targetLabel={`@${profile.username}`}
-        onClose={() => setReportOpen(false)}
-        onReported={handleReported}
-      />
+      {/* Error State */}
+      {!isLoading && loaded.error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {loaded.error}
+        </Alert>
+      )}
+
+      {/* Content */}
+      {!isLoading && !loaded.error && loaded.profile && (
+        <>
+          {/* Banner with project palette gradient */}
+          <Box
+            sx={{
+              width: '100%',
+              height: { xs: 150, sm: 200, md: 230 },
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #0B1220 0%, #152944 35%, #1D3557 70%, #2563EB 100%)',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: 'inset 0 0 50px rgba(0,0,0,0.6)',
+              border: '1px solid',
+              borderColor: 'divider',
+            }}
+          />
+
+          {/* Profile Header Information */}
+          <Box sx={{ px: { xs: 2, sm: 3 }, position: 'relative', mb: 3 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'flex-end' },
+                justifyContent: 'space-between',
+                gap: 2,
+                mt: { xs: -6, sm: -7, md: -8 },
+                mb: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2.5, flexWrap: 'wrap' }}>
+                <Avatar
+                  sx={{
+                    width: { xs: 88, sm: 108, md: 120 },
+                    height: { xs: 88, sm: 108, md: 120 },
+                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                    fontWeight: 700,
+                    bgcolor: '#F59E0B',
+                    color: '#0B1220',
+                    border: '4px solid',
+                    borderColor: 'background.paper',
+                    boxShadow: 3,
+                  }}
+                >
+                  {loaded.profile.username.slice(0, 2).toUpperCase()}
+                </Avatar>
+
+                <Box sx={{ pb: { sm: 0.5 } }}>
+                  <Typography variant="h4" component="h1" fontWeight={700}>
+                    @{loaded.profile.username}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Estudiante de Ingeniería de Sistemas · Universidad Popular del Cesar
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ pb: { sm: 1 }, alignSelf: { xs: 'stretch', sm: 'auto' } }}>
+                {isOwnProfile ? (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<EditOutlinedIcon />}
+                    component={RouterLink}
+                    to="/profile"
+                  >
+                    Editar mi perfil
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<FlagOutlinedIcon />}
+                    onClick={() => setReportOpen(true)}
+                  >
+                    Reportar perfil
+                  </Button>
+                )}
+              </Box>
+            </Box>
+
+            {/* Counters Row */}
+            <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  {loaded.repositories.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {loaded.repositories.length === 1 ? 'repositorio' : 'repositorios'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  {loaded.documents.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {loaded.documents.length === 1 ? 'documento' : 'documentos'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  {totalLikes}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  me gusta
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+
+          {/* Tabs */}
+          <Paper sx={{ mb: 3 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_e, val) => setActiveTab(val)}
+              aria-label="Pestañas de contenidos del perfil público"
+            >
+              <Tab
+                value="repositories"
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <span>Repositorios</span>
+                    <Chip size="small" label={loaded.repositories.length} />
+                  </Box>
+                }
+              />
+              <Tab
+                value="documents"
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <span>Documentos</span>
+                    <Chip size="small" label={loaded.documents.length} />
+                  </Box>
+                }
+              />
+            </Tabs>
+          </Paper>
+
+          {/* Repositories Tab */}
+          {activeTab === 'repositories' && (
+            <>
+              {loaded.repositories.length === 0 ? (
+                <Card variant="outlined">
+                  <CardContent>
+                    <EmptyState
+                      icon={FolderOutlinedIcon}
+                      title="Este usuario aún no tiene repositorios públicos"
+                      description="Cuando cree y comparta repositorios de estudio, aparecerán en este espacio."
+                    />
+                  </CardContent>
+                </Card>
+              ) : (
+                <Grid container spacing={2.5}>
+                  {loaded.repositories.map((repo) => (
+                    <Grid key={repo.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                      <RepositoryCard repository={repo} />
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </>
+          )}
+
+          {/* Documents Tab */}
+          {activeTab === 'documents' && (
+            <>
+              {loaded.documents.length === 0 ? (
+                <Card variant="outlined">
+                  <CardContent>
+                    <EmptyState
+                      icon={DescriptionOutlinedIcon}
+                      title="Este usuario no ha subido documentos aún"
+                      description="El material académico aportado por el estudiante se listará aquí."
+                    />
+                  </CardContent>
+                </Card>
+              ) : (
+                <Stack spacing={2}>
+                  {loaded.documents.map((doc) => (
+                    <Card
+                      key={doc.id}
+                      variant="outlined"
+                      sx={{
+                        transition: 'box-shadow 0.2s',
+                        '&:hover': { boxShadow: 2 },
+                      }}
+                    >
+                      <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            justifyContent: 'space-between',
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            gap: 1.5,
+                          }}
+                        >
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.75 }}>
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                label={doc.subject?.name ?? 'Sin materia'}
+                              />
+                              <Chip size="small" label={materialTypeLabel(doc.type)} />
+                              <Chip size="small" variant="outlined" label={termLabel(doc.term)} />
+                            </Box>
+
+                            <Typography
+                              component={RouterLink}
+                              to={`/documents/${doc.id}`}
+                              variant="subtitle1"
+                              fontWeight={600}
+                              sx={{
+                                color: 'text.primary',
+                                textDecoration: 'none',
+                                '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                              }}
+                            >
+                              {doc.title}
+                            </Typography>
+
+                            {doc.description && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  mt: 0.5,
+                                }}
+                              >
+                                {doc.description}
+                              </Typography>
+                            )}
+                          </Box>
+
+                          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <VisibilityOutlinedIcon fontSize="small" />
+                              <Typography variant="caption">{doc.views || 0}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <DownloadOutlinedIcon fontSize="small" />
+                              <Typography variant="caption">{doc.downloads || 0}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <FavoriteBorderIcon fontSize="small" />
+                              <Typography variant="caption">{doc.likes || 0}</Typography>
+                            </Box>
+                          </Stack>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </>
+          )}
+
+          <ReportDialog
+            open={reportOpen}
+            targetType="profile"
+            targetId={loaded.profile.username}
+            targetLabel={`@${loaded.profile.username}`}
+            onClose={() => setReportOpen(false)}
+            onReported={handleReported}
+          />
+        </>
+      )}
 
       <Snackbar
         open={Boolean(notice)}
         autoHideDuration={4000}
         onClose={() => setNotice(null)}
-      >
-        <Alert
-          severity={notice?.severity ?? 'success'}
-          variant="filled"
-          onClose={() => setNotice(null)}
-        >
-          {notice?.message}
-        </Alert>
-      </Snackbar>
+        message={notice?.message}
+      />
     </Box>
   );
 }
