@@ -47,4 +47,5 @@ export {
   getSubjects,
   groupBySemester,
   getSubjectsOfInterest,
+  updateSubjectsOfInterest,
 } from './subjectService.js';

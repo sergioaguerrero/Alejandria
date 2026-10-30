@@ -4,7 +4,9 @@
  */
 
 import { USE_MOCK, waitForMock } from './config.js';
+import { ApiError } from './errors.js';
 import http from './http.js';
+import { currentUser } from './authService.js';
 import { store } from '../mocks/store.js';
 
 /**
@@ -59,4 +61,28 @@ export async function getSubjectsOfInterest() {
   await waitForMock(200);
 
   return [...store.subjectsOfInterest];
+}
+
+/**
+ * Saves the subjects of interest of the session user (FE-06).
+ * @param {number[]} subjectIds
+ * @returns {Promise<void>}
+ */
+export async function updateSubjectsOfInterest(subjectIds) {
+  if (!USE_MOCK) {
+    await http.put('/users/me/subjects', { subjectIds });
+    return;
+  }
+
+  await waitForMock();
+
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Debes iniciar sesión para guardar tus materias.', { status: 401 });
+  }
+
+  const catalogIds = new Set(store.subjects.map((subject) => subject.id));
+  store.subjectsOfInterest = [...new Set(subjectIds.map(Number))].filter((id) =>
+    catalogIds.has(id),
+  );
 }
