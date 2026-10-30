@@ -52,3 +52,5 @@ export {
 } from './subjectService.js';
 
 export { getMyStatistics } from './statisticsService.js';
+
+export { createReport } from './reportService.js';

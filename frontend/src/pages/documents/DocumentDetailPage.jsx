@@ -22,7 +22,6 @@ import {
   Skeleton,
   Snackbar,
   Stack,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -36,6 +35,7 @@ import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
+import ReportDialog from '../../components/common/ReportDialog.jsx';
 import DocumentPreview from '../../components/documents/DocumentPreview.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
@@ -58,6 +58,7 @@ export default function DocumentDetailPage() {
   const [isLiking, setIsLiking] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [notice, setNotice] = useState(null);
   const [deleted, setDeleted] = useState(false);
@@ -151,6 +152,14 @@ export default function DocumentDetailPage() {
     if (deleted) {
       navigate(`/repositories/${documentData.repositoryId}`, { replace: true });
     }
+  };
+
+  const handleReported = () => {
+    setReportOpen(false);
+    setNotice({
+      severity: 'success',
+      message: 'Gracias por tu reporte. El equipo de administración lo revisará.',
+    });
   };
 
   if (isLoading) {
@@ -344,14 +353,16 @@ export default function DocumentDetailPage() {
               {`Me gusta (${documentData.likes ?? 0})`}
             </Button>
 
-            {/* TODO(FE-23): the report dialog (view 10) lands in Sprint 3. */}
-            <Tooltip title="Disponible en el Sprint 3">
-              <span>
-                <Button variant="outlined" startIcon={<FlagOutlinedIcon />} disabled fullWidth>
-                  Reportar
-                </Button>
-              </span>
-            </Tooltip>
+            {!isAuthor && (
+              <Button
+                variant="outlined"
+                startIcon={<FlagOutlinedIcon />}
+                onClick={() => setReportOpen(true)}
+                fullWidth
+              >
+                Reportar
+              </Button>
+            )}
 
             {isAuthor && (
               <>
@@ -395,6 +406,15 @@ export default function DocumentDetailPage() {
         isBusy={isDeleting}
         onConfirm={handleDelete}
         onClose={() => setConfirmOpen(false)}
+      />
+
+      <ReportDialog
+        open={reportOpen}
+        targetType="document"
+        targetId={documentData.id}
+        targetLabel={documentData.title}
+        onClose={() => setReportOpen(false)}
+        onReported={handleReported}
       />
 
       <Snackbar open={Boolean(notice)} autoHideDuration={4000} onClose={handleNoticeClose}>
