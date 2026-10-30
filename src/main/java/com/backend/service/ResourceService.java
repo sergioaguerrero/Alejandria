@@ -45,10 +45,6 @@ public class ResourceService {
         // se llama al repository para que lo guarde
         return resourceRepository.save(resourceData);
 
-
-
-
-
         //conceptos
         //MultipartFile file: Es la interfaz de Spring Boot que representa el archivo físico (el PDF, Word, etc.) que Sergio enviará desde el frontend en React. Te permite acceder al peso (getSize()), al tipo de archivo (getContentType()) y al contenido crudo (getBytes()).
         //throws IOException: Al manipular archivos físicos o extraer bytes, siempre existe el riesgo de que el archivo esté corrupto o la lectura falle. Esta instrucción le avisa a Java que este método podría fallar por un error de entrada/salida (I/O)
