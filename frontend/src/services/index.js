@@ -54,3 +54,5 @@ export {
 export { getMyStatistics } from './statisticsService.js';
 
 export { createReport } from './reportService.js';
+
+export { getPublicProfile } from './userService.js';

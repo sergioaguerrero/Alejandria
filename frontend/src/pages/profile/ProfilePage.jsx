@@ -27,6 +27,7 @@ import {
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PersonIcon from '@mui/icons-material/Person';
 import SaveIcon from '@mui/icons-material/Save';
 
 import { useAuth } from '../../context/authContext.js';
@@ -356,6 +357,15 @@ export default function ProfilePage() {
                 startIcon={<BookmarkBorderOutlinedIcon />}
               >
                 Mis materias de interés
+              </Button>
+
+              <Button
+                component={RouterLink}
+                to={`/users/${user?.username ?? ''}`}
+                variant="text"
+                startIcon={<PersonIcon />}
+              >
+                Ver mi perfil público
               </Button>
             </Stack>
           </CardContent>
