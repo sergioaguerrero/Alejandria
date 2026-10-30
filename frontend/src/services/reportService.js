@@ -133,3 +133,162 @@ export async function getReports(filters = {}) {
   const response = await http.get('/api/admin/reports', { params: filters });
   return response.data;
 }
+
+/**
+ * Returns a report by its id with enriched target data and author.
+ * @param {string} id
+ * @returns {Promise<object>}
+ */
+export async function getReportById(id) {
+  const user = currentUser();
+  if (!user || user.role !== 'admin') {
+    throw new ApiError('Solo los administradores pueden consultar el detalle de un reporte.', {
+      status: 403,
+    });
+  }
+
+  if (USE_MOCK) {
+    await waitForMock();
+    const report = store.reports.find((r) => r.id === id);
+    if (!report) {
+      throw new ApiError('Reporte no encontrado.', { status: 404 });
+    }
+
+    let targetData = null;
+    let author = null;
+
+    if (report.targetType === 'document') {
+      const doc = store.documents.find((d) => d.id === report.targetId);
+      if (doc) {
+        targetData = { ...doc };
+        author = store.users.find((u) => u.username === doc.authorUsername) || null;
+      }
+    } else if (report.targetType === 'repository') {
+      const repo = store.repositories.find((r) => r.id === report.targetId);
+      if (repo) {
+        targetData = { ...repo };
+        author = store.users.find((u) => u.username === repo.authorUsername) || null;
+      }
+    } else if (report.targetType === 'profile') {
+      const profileUser = store.users.find((u) => u.username === report.targetId);
+      if (profileUser) {
+        targetData = { ...profileUser };
+        author = profileUser;
+      }
+    }
+
+    return {
+      ...report,
+      targetData,
+      author: author
+        ? {
+            id: author.id,
+            username: author.username,
+            name: author.name,
+            email: author.email,
+            suspended: Boolean(author.suspended),
+          }
+        : null,
+    };
+  }
+
+  const response = await http.get(`/api/admin/reports/${encodeURIComponent(id)}`);
+  return response.data;
+}
+
+/**
+ * Resolves a report with an action and note.
+ * @param {string} id
+ * @param {{ action: 'descartado'|'ocultado'|'eliminado'|'advertencia'|'suspension', note?: string }} resolution
+ * @returns {Promise<object>}
+ */
+export async function resolveReport(id, { action, note = '' }) {
+  const admin = currentUser();
+  if (!admin || admin.role !== 'admin') {
+    throw new ApiError('Solo los administradores pueden resolver reportes.', { status: 403 });
+  }
+
+  const validActions = ['descartado', 'ocultado', 'eliminado', 'advertencia', 'suspension'];
+  if (!validActions.includes(action)) {
+    throw new ApiError('Acción de resolución inválida.', { status: 400 });
+  }
+
+  if (USE_MOCK) {
+    await waitForMock();
+    const report = store.reports.find((r) => r.id === id);
+    if (!report) {
+      throw new ApiError('Reporte no encontrado.', { status: 404 });
+    }
+
+    report.status = 'resuelto';
+    report.resolution = action;
+    report.note = String(note || '').trim() || null;
+    report.resolvedAt = new Date().toISOString();
+
+    let authorUsername = '';
+    if (report.targetType === 'document') {
+      const doc = store.documents.find((d) => d.id === report.targetId);
+      if (doc) {
+        authorUsername = doc.authorUsername;
+        if (action === 'ocultado') {
+          doc.hidden = true;
+        } else if (action === 'eliminado') {
+          doc.deleted = true;
+          const idx = store.documents.findIndex((d) => d.id === report.targetId);
+          if (idx !== -1) store.documents.splice(idx, 1);
+        }
+      }
+    } else if (report.targetType === 'repository') {
+      const repo = store.repositories.find((r) => r.id === report.targetId);
+      if (repo) {
+        authorUsername = repo.authorUsername;
+        if (action === 'eliminado') {
+          const idx = store.repositories.findIndex((r) => r.id === report.targetId);
+          if (idx !== -1) store.repositories.splice(idx, 1);
+        }
+      }
+    } else if (report.targetType === 'profile') {
+      authorUsername = report.targetId;
+    }
+
+    const authorUser = store.users.find((u) => u.username === authorUsername);
+
+    if (authorUser && (action === 'advertencia' || action === 'suspension')) {
+      store.counters.sanction += 1;
+      const sanctionEntry = {
+        id: `sanc-${String(store.counters.sanction).padStart(3, '0')}`,
+        userId: authorUser.id,
+        type: action,
+        reason: `Reporte ${report.id}: ${report.reason}`,
+        note: String(note || '').trim(),
+        adminUsername: admin.username,
+        createdAt: new Date().toISOString(),
+      };
+      store.sanctions.unshift(sanctionEntry);
+
+      if (action === 'suspension') {
+        authorUser.suspended = true;
+      }
+
+      store.counters.notification += 1;
+      store.notifications.unshift({
+        id: `notif-${String(store.counters.notification).padStart(3, '0')}`,
+        userId: authorUser.id,
+        type: action === 'suspension' ? 'sanction' : 'warning',
+        title: action === 'suspension' ? 'Cuenta suspendida' : 'Advertencia de moderación',
+        message: note || `Se ha aplicado una medida de ${action} sobre tu contenido reportado.`,
+        targetUrl: '/terms',
+        read: false,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    return { ...report };
+  }
+
+  const response = await http.post(`/api/admin/reports/${encodeURIComponent(id)}/resolve`, {
+    action,
+    note,
+  });
+  return response.data;
+}

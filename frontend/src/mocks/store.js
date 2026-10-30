@@ -39,12 +39,25 @@ function createInitialState() {
     reports: clone(REPORTS),
     /** Notifications for the users (FE-18, FE-19). */
     notifications: clone(NOTIFICATIONS),
+    /** Sanctions and warnings issued to users (FE-24, BE-28). */
+    sanctions: [
+      {
+        id: 'sanc-001',
+        userId: 'usr-005',
+        type: 'advertencia',
+        reason: 'Contenido inapropiado reportado en perfil',
+        note: 'Se solicita al estudiante remover enlaces externos no académicos.',
+        adminUsername: 'admin',
+        createdAt: '2026-10-25T14:00:00.000Z',
+      },
+    ],
     counters: {
       repository: REPOSITORIES.length,
       document: DOCUMENTS.length,
       user: USERS.length,
       report: REPORTS.length,
       notification: NOTIFICATIONS.length,
+      sanction: 1,
     },
   };
 }
