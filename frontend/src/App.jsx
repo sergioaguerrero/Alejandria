@@ -29,6 +29,7 @@ import PublicProfilePage from './pages/profile/PublicProfilePage.jsx';
 import ReportInboxPage from './pages/admin/ReportInboxPage.jsx';
 import ReportDetailPage from './pages/admin/ReportDetailPage.jsx';
 import AdminUserPage from './pages/admin/AdminUserPage.jsx';
+import GlobalStatisticsPage from './pages/admin/GlobalStatisticsPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -86,7 +87,7 @@ export default function App() {
 
               <Route
                 path="/admin/statistics"
-                element={<ErrorPage code={404} fullHeight={false} />}
+                element={<GlobalStatisticsPage />}
               />
             </Route>
           </Route>

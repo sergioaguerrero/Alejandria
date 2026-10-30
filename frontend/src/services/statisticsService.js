@@ -1,6 +1,6 @@
 /**
  * @file statisticsService.js
- * @description User personal statistics (FE-25, RF-60, RF-61, endpoint BE-22).
+ * @description User personal and global platform statistics (FE-25, FE-26, FE-27, RF-60, RF-61, RF-62, RF-63).
  */
 
 import { USE_MOCK, waitForMock } from './config.js';
@@ -92,5 +92,124 @@ export async function getMyStatistics(period = 'week') {
       likes: doc.likes || 0,
       createdAt: doc.createdAt,
     })),
+  };
+}
+
+/**
+ * Gets global platform analytics for administrators (FE-26, BE-23).
+ * @returns {Promise<object>}
+ */
+export async function getGlobalStatistics() {
+  const user = currentUser();
+  if (!user || user.role !== 'admin') {
+    throw new ApiError('Solo los administradores pueden consultar las estadísticas globales.', {
+      status: 403,
+    });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.get('/api/admin/statistics');
+    return data;
+  }
+
+  await waitForMock(300);
+
+  const activeStudents = store.users.filter((u) => u.role === 'estudiante' && !u.suspended).length;
+  const totalRepositories = store.repositories.length;
+  const totalDocuments = store.documents.length;
+  const pendingReports = store.reports.filter((r) => r.status === 'pendiente').length;
+  const resolvedReports = store.reports.filter((r) => r.status === 'resuelto').length;
+
+  const subjectViewsMap = new Map();
+  for (const doc of store.documents) {
+    const subjectName = doc.subject?.name || 'Otras';
+    subjectViewsMap.set(subjectName, (subjectViewsMap.get(subjectName) || 0) + (doc.views || 0));
+  }
+  const topSubjects = Array.from(subjectViewsMap.entries())
+    .map(([subject, vistas]) => ({ subject, vistas }))
+    .sort((a, b) => b.vistas - a.vistas)
+    .slice(0, 5);
+
+  const topicCounts = new Map();
+  for (const doc of store.documents) {
+    if (doc.topic) {
+      topicCounts.set(doc.topic, (topicCounts.get(doc.topic) || 0) + 1);
+    }
+  }
+  const topTopics = Array.from(topicCounts.entries())
+    .map(([tema, documentos]) => ({ tema, documentos }))
+    .sort((a, b) => b.documentos - a.documentos)
+    .slice(0, 5);
+
+  const semesterMap = new Map();
+  for (let s = 1; s <= 10; s += 1) {
+    semesterMap.set(s, 0);
+  }
+  for (const u of store.users) {
+    if (u.role === 'estudiante' && u.semester && semesterMap.has(u.semester)) {
+      semesterMap.set(u.semester, semesterMap.get(u.semester) + 1);
+    }
+  }
+  const studentsBySemester = Array.from(semesterMap.entries())
+    .map(([semestre, estudiantes]) => ({
+      semestre: `Sem ${semestre}`,
+      estudiantes,
+    }))
+    .filter((entry) => entry.estudiantes > 0 || Number(entry.semestre.split(' ')[1]) <= 6);
+
+  const docsBySubjectMap = new Map();
+  for (const doc of store.documents) {
+    const name = doc.subject?.name || 'Sin materia';
+    docsBySubjectMap.set(name, (docsBySubjectMap.get(name) || 0) + 1);
+  }
+  const documentsBySubject = Array.from(docsBySubjectMap.entries())
+    .map(([materia, documentos]) => ({ materia, documentos }))
+    .sort((a, b) => b.documentos - a.documentos);
+
+  const topDocuments = [...store.documents]
+    .sort((a, b) => (b.views || 0) - (a.views || 0))
+    .slice(0, 6)
+    .map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      subjectName: doc.subject?.name || '—',
+      views: doc.views || 0,
+      downloads: doc.downloads || 0,
+      likes: doc.likes || 0,
+    }));
+
+  const reasonsSummary = [
+    {
+      reason: 'Mal etiquetado',
+      pendientes: store.reports.filter((r) => r.reason === 'mal-etiquetado' && r.status === 'pendiente').length,
+      resueltos: store.reports.filter((r) => r.reason === 'mal-etiquetado' && r.status === 'resuelto').length,
+    },
+    {
+      reason: 'Contenido duplicado',
+      pendientes: store.reports.filter((r) => r.reason === 'duplicado' && r.status === 'pendiente').length,
+      resueltos: store.reports.filter((r) => r.reason === 'duplicado' && r.status === 'resuelto').length,
+    },
+    {
+      reason: 'Contenido inapropiado',
+      pendientes: store.reports.filter((r) => r.reason === 'inapropiado' && r.status === 'pendiente').length,
+      resueltos: store.reports.filter((r) => r.reason === 'inapropiado' && r.status === 'resuelto').length,
+    },
+  ];
+
+  return {
+    totals: {
+      repositories: totalRepositories,
+      documents: totalDocuments,
+      activeStudents,
+      totalReports: store.reports.length,
+      pendingReports,
+      resolvedReports,
+    },
+    topSubjects,
+    topTopics,
+    studentsBySemester,
+    documentsBySubject,
+    topDocuments,
+    reasonsSummary,
   };
 }
