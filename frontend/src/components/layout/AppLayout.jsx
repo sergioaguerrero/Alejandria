@@ -51,8 +51,12 @@ import PersonIcon from '@mui/icons-material/Person';
 import SearchIcon from '@mui/icons-material/Search';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SchoolIcon from '@mui/icons-material/School';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 
 import { useAuth } from '../../context/authContext.js';
+import { useThemeMode } from '../../context/themeContext.js';
+import LighthouseMark from '../brand/LighthouseMark.jsx';
 import NotificationBell from '../common/NotificationBell.jsx';
 import { initials, usernameLabel } from '../../utils/users.js';
 
@@ -175,6 +179,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, logout } = useAuth();
+  const { mode, toggleThemeMode } = useThemeMode();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [userAnchor, setUserAnchor] = useState(null);
@@ -229,20 +234,31 @@ export default function AppLayout() {
             </IconButton>
           )}
 
-          <Typography
+          <Box
             component={RouterLink}
             to="/"
-            variant="h6"
-            noWrap
             sx={{
-              flexGrow: { xs: 1, md: 0 },
-              mr: { md: 2 },
-              color: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
               textDecoration: 'none',
+              color: 'inherit',
+              mr: { md: 2 },
+              flexGrow: { xs: 1, md: 0 },
             }}
           >
-            Alejandría UPC
-          </Typography>
+            <LighthouseMark size={18} sx={{ p: '5px', borderRadius: '7px' }} />
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Alejandría
+            </Typography>
+          </Box>
 
           {isDesktop ? (
             <Box
@@ -292,6 +308,16 @@ export default function AppLayout() {
               <SearchIcon />
             </IconButton>
           )}
+
+          <Tooltip title={mode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+            <IconButton
+              color="inherit"
+              onClick={toggleThemeMode}
+              aria-label={mode === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'}
+            >
+              {mode === 'dark' ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+            </IconButton>
+          </Tooltip>
 
           <NotificationBell />
 
@@ -343,7 +369,7 @@ export default function AppLayout() {
           sx={{ mt: 6, pt: 2, borderTop: '1px solid', borderColor: 'divider', textAlign: 'center' }}
         >
           <Typography variant="caption" color="text.secondary">
-            {`© ${new Date().getFullYear()} Alejandría UPC · `}
+            {`© ${new Date().getFullYear()} Alejandría · `}
             <Link component={RouterLink} to="/terms" color="inherit">
               Normas de uso
             </Link>

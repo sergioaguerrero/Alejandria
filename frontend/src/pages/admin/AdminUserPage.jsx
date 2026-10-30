@@ -368,7 +368,7 @@ export default function AdminUserPage() {
           <DialogContentText sx={{ mb: 2 }}>
             {userData?.suspended
               ? 'El usuario volverá a tener acceso completo para iniciar sesión, explorar y publicar contenidos.'
-              : 'El usuario no podrá iniciar sesión ni publicar materiales en Alejandría UPC hasta que un administrador reactive su cuenta.'}
+              : 'El usuario no podrá iniciar sesión ni publicar materiales en Alejandría hasta que un administrador reactive su cuenta.'}
           </DialogContentText>
           <TextField
             label="Motivo o justificación (opcional)"

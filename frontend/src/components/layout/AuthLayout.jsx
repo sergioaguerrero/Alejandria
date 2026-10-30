@@ -53,7 +53,7 @@ export default function AuthLayout() {
 
           <Stack spacing={1.5} sx={{ alignItems: 'center' }}>
             <Typography variant="h2" component="p">
-              Alejandría UPC
+              Alejandría
             </Typography>
             <Typography variant="subtitle1">Repositorio virtual académico UPC</Typography>
           </Stack>
@@ -82,7 +82,7 @@ export default function AuthLayout() {
             }}
           >
             <LighthouseMark size={30} />
-            <Typography variant="h5">Alejandría UPC</Typography>
+            <Typography variant="h5">Alejandría</Typography>
           </Stack>
 
           <Paper sx={{ width: '100%', p: { xs: 3, sm: 4 } }}>

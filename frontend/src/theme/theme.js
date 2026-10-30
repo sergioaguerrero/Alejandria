@@ -1,6 +1,6 @@
 /**
  * @file theme.js
- * @description Global design system theme — Alejandría UPC
+ * @description Global design system theme — Alejandría
  *
  * Official palette:
  *   Main background  → #0B1220
@@ -16,7 +16,7 @@ import { createTheme, alpha } from '@mui/material/styles';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────
 
-const COLORS = {
+export const DARK_COLORS = {
   bgMain:     '#0B1220',  // global background
   surface:    '#111C30',  // cards, panels, forms
   secondary:  '#1D3557',  // differentiated sections, active nav
@@ -29,12 +29,28 @@ const COLORS = {
   divider:    'rgba(96, 165, 250, 0.12)',
 };
 
+export const LIGHT_COLORS = {
+  bgMain:     '#F8FAFC',  // global background
+  surface:    '#FFFFFF',  // cards, panels, forms
+  secondary:  '#F1F5F9',  // differentiated sections, active nav
+  accent:     '#2563EB',  // primary buttons, links, interactive details
+  textMain:   '#0F172A',  // main text, headings
+  textMuted:  '#64748B',  // secondary text / metadata
+  error:      '#DC2626',  // error states
+  warning:    '#D97706',  // warning states
+  success:    '#059669',  // success states
+  divider:    'rgba(15, 23, 42, 0.10)',
+};
+
 // ─── MUI Theme ────────────────────────────────────────────────────────────────
 
-const theme = createTheme({
+export function getAppTheme(mode = 'dark') {
+  const COLORS = mode === 'light' ? LIGHT_COLORS : DARK_COLORS;
+
+  return createTheme({
   // 1. Palette
   palette: {
-    mode: 'dark',
+    mode,
 
     background: {
       default: COLORS.bgMain,
@@ -45,7 +61,7 @@ const theme = createTheme({
       main:         COLORS.accent,
       dark:         '#3B82F6',
       light:        '#93C5FD',
-      contrastText: '#0B1220', // dark text on bright blue → AAA contrast
+      contrastText: mode === 'light' ? '#FFFFFF' : '#0B1220',
     },
 
     secondary: {
@@ -920,6 +936,10 @@ const theme = createTheme({
     },
   },
 });
+}
+
+const theme = getAppTheme('dark');
+const COLORS = DARK_COLORS;
 
 export { COLORS };
 export default theme;
