@@ -71,14 +71,15 @@ export default function AiStudyPage() {
     if (!user) return undefined;
     let active = true;
 
-    Promise.all([getRepositories(), getDailyAiQuota()])
-      .then(([repos, quotaData]) => {
+    Promise.all([getRepositories({ size: 100 }), getDailyAiQuota()])
+      .then(([reposData, quotaData]) => {
         if (!active) return;
-        setRepositories(repos);
+        const repoList = Array.isArray(reposData) ? reposData : (reposData?.items ?? []);
+        setRepositories(repoList);
         setQuota(quotaData);
 
         if (preselectedRepoId) {
-          const found = repos.find((r) => r.id === preselectedRepoId);
+          const found = repoList.find((r) => r.id === preselectedRepoId);
           if (found) setSelectedRepo(found);
         }
       })
@@ -259,11 +260,15 @@ export default function AiStudyPage() {
                         1. Selecciona el repositorio de estudio
                       </Typography>
                       <Autocomplete
-                        options={repositories}
+                        options={Array.isArray(repositories) ? repositories : []}
                         value={selectedRepo}
                         onChange={(_e, val) => setSelectedRepo(val)}
-                        getOptionLabel={(option) => `${option.name} (${option.subject?.name ?? 'Materia'})`}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        getOptionLabel={(option) => {
+                          if (!option) return '';
+                          if (typeof option === 'string') return option;
+                          return `${option.name ?? ''} (${option.subject?.name ?? 'Materia'})`;
+                        }}
+                        isOptionEqualToValue={(option, value) => !value || option?.id === value?.id}
                         renderInput={(params) => (
                           <TextField
                             {...params}
