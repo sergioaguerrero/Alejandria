@@ -55,6 +55,7 @@ function enrich(repository) {
     author: withoutPassword(author),
     documentCount,
     liked: username ? store.likedRepositories.has(likeKey(repository.id, username)) : false,
+    followed: username ? (store.followedRepositories?.has(likeKey(repository.id, username)) ?? false) : false,
   };
 }
 
@@ -337,4 +338,70 @@ export async function toggleRepositoryLike(id) {
   }
 
   return { liked: store.likedRepositories.has(key), likes: repository.likes };
+}
+
+/**
+ * Follows or unfollows a repository for the session user.
+ * @param {string} id
+ * @returns {Promise<{ followed: boolean }>}
+ */
+export async function toggleFollowRepository(id) {
+  if (!USE_MOCK) {
+    const { data } = await http.post(`/repositories/${encodeURIComponent(id)}/follow`);
+    return data;
+  }
+
+  await waitForMock(200);
+
+  const repository = store.repositories.find((item) => item.id === id);
+  if (!repository) {
+    throw new ApiError('El repositorio no existe o fue eliminado.', { status: 404 });
+  }
+
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para seguir este repositorio.', { status: 401 });
+  }
+
+  const key = likeKey(id, user.username);
+  if (!store.followedRepositories) {
+    store.followedRepositories = new Set();
+  }
+
+  const wasFollowed = store.followedRepositories.has(key);
+  if (wasFollowed) {
+    store.followedRepositories.delete(key);
+  } else {
+    store.followedRepositories.add(key);
+  }
+
+  return { followed: !wasFollowed };
+}
+
+/**
+ * Returns all repositories followed by the current user.
+ * @returns {Promise<object[]>}
+ */
+export async function getFollowedRepositories() {
+  const user = currentUser();
+  if (!user) {
+    return [];
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.get('/repositories/followed');
+    return data;
+  }
+
+  await waitForMock(150);
+
+  if (!store.followedRepositories) {
+    store.followedRepositories = new Set();
+  }
+
+  const list = store.repositories
+    .filter((repo) => store.followedRepositories.has(likeKey(repo.id, user.username)))
+    .map(enrich);
+
+  return list;
 }

@@ -2,16 +2,16 @@
  * @file AiStudyPage.jsx
  * @description View 19 — AI Study Generator (FE-20, BE-35).
  *
- * Generates automated academic quizzes from repositories and custom scopes.
- * Tracks daily quota, handles progress states and permanent disclaimer notices.
+ * Generates automated academic quizzes from followed study repositories.
+ * Students only see their followed and owned repositories by default, avoiding
+ * searching through thousands of unrelated courses, with an optional catalog search.
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -33,14 +33,21 @@ import {
   Typography,
 } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 
+import EmptyState from '../../components/common/EmptyState.jsx';
 import { useAuth } from '../../context/authContext.js';
 import {
   generateQuiz,
   getDailyAiQuota,
-  getRepositories,
+  getFollowedRepositories,
+  getRepositoriesByUser,
 } from '../../services/index.js';
 
 export default function AiStudyPage() {
@@ -49,7 +56,8 @@ export default function AiStudyPage() {
   const preselectedRepoId = searchParams.get('repositoryId');
   const { user } = useAuth();
 
-  const [repositories, setRepositories] = useState([]);
+  // Repository states
+  const [followedRepos, setFollowedRepos] = useState([]);
   const [selectedRepo, setSelectedRepo] = useState(null);
   const [quota, setQuota] = useState({ total: 5, used: 0, remaining: 5 });
 
@@ -71,20 +79,37 @@ export default function AiStudyPage() {
     if (!user) return undefined;
     let active = true;
 
-    Promise.all([getRepositories({ size: 100 }), getDailyAiQuota()])
-      .then(([reposData, quotaData]) => {
+    Promise.all([
+      getFollowedRepositories(),
+      getRepositoriesByUser(user.username),
+      getDailyAiQuota(),
+    ])
+      .then(([followedList, userRepos, quotaData]) => {
         if (!active) return;
-        const repoList = Array.isArray(reposData) ? reposData : (reposData?.items ?? []);
-        setRepositories(repoList);
+
+        // Merge followed and authored repositories (deduplicating by id)
+        const repoMap = new Map();
+        [...followedList, ...userRepos].forEach((repo) => {
+          if (repo && repo.id) repoMap.set(repo.id, repo);
+        });
+        const myStudyList = Array.from(repoMap.values());
+        setFollowedRepos(myStudyList);
         setQuota(quotaData);
 
+        // Pre-selection strategy
         if (preselectedRepoId) {
-          const found = repoList.find((r) => r.id === preselectedRepoId);
-          if (found) setSelectedRepo(found);
+          const found = myStudyList.find((r) => r.id === preselectedRepoId);
+          if (found) {
+            setSelectedRepo(found);
+          }
+        } else if (myStudyList.length > 0) {
+          // Select first followed repo by default for instant 1-click readiness
+          setSelectedRepo(myStudyList[0]);
         }
       })
       .catch((err) => {
-        if (active) setGeneralError(err?.message || 'Error al cargar los datos.');
+        if (!active) return;
+        setGeneralError(err?.message || 'Error al cargar los datos de estudio.');
       })
       .finally(() => {
         if (active) setLoadedKey(user.username);
@@ -156,6 +181,7 @@ export default function AiStudyPage() {
 
   return (
     <Box sx={{ maxWidth: 860, mx: 'auto' }}>
+      {/* Title */}
       <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
           <SmartToyOutlinedIcon color="primary" sx={{ fontSize: 36 }} />
@@ -164,7 +190,7 @@ export default function AiStudyPage() {
           </Typography>
         </Box>
         <Typography variant="body2" color="text.secondary">
-          Genera cuestionarios de autoevaluación personalizados a partir de los apuntes y documentos de tus materias.
+          Genera cuestionarios de autoevaluación personalizados a partir de los apuntes y documentos de tus materias seguidas.
         </Typography>
       </Box>
 
@@ -172,21 +198,21 @@ export default function AiStudyPage() {
       <Alert
         severity="info"
         icon={<InfoOutlinedIcon />}
-        sx={{ mb: 3, border: '1px solid', borderColor: 'primary.dark' }}
+        sx={{ mb: 3, border: 1, borderColor: 'primary.dark' }}
       >
         <Typography variant="subtitle2" fontWeight={600}>
           Aviso sobre el uso de Inteligencia Artificial
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-          Las preguntas y explicaciones son generadas de forma automática por modelos de IA con fines de práctica y autoevaluación. Pueden contener errores o imprecisiones conceptuales.
+          Las preguntas y explicaciones son generadas de forma automática por modelos de IA con fines de práctica y autoevaluación. Pueden contener imprecisiones conceptuales.
         </Typography>
       </Alert>
 
       {/* Loading State */}
       {isLoading && (
         <Stack spacing={3}>
-          <Skeleton variant="rectangular" height={100} />
-          <Skeleton variant="rectangular" height={280} />
+          <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 2 }} />
+          <Skeleton variant="rectangular" height={280} sx={{ borderRadius: 2 }} />
         </Stack>
       )}
 
@@ -253,37 +279,132 @@ export default function AiStudyPage() {
                 </Box>
               ) : (
                 <Box component="form" onSubmit={handleGenerate} noValidate>
-                  <Stack spacing={3}>
-                    {/* Repository Selector */}
+                  <Stack spacing={3.5}>
+                    {/* 1. Repository Selector — Option A: Followed Study Repositories */}
                     <Box>
-                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                        1. Selecciona el repositorio de estudio
-                      </Typography>
-                      <Autocomplete
-                        options={Array.isArray(repositories) ? repositories : []}
-                        value={selectedRepo}
-                        onChange={(_e, val) => setSelectedRepo(val)}
-                        getOptionLabel={(option) => {
-                          if (!option) return '';
-                          if (typeof option === 'string') return option;
-                          return `${option.name ?? ''} (${option.subject?.name ?? 'Materia'})`;
-                        }}
-                        isOptionEqualToValue={(option, value) => !value || option?.id === value?.id}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Buscar repositorio..."
-                            placeholder="Escribe el nombre de la materia o del repositorio"
-                            required
-                          />
-                        )}
-                        noOptionsText="No se encontraron repositorios"
-                      />
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          1. Repositorios de estudio que sigues
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Selecciona una de las materias que estás cursando para autoevaluarte en 1 clic.
+                        </Typography>
+                      </Box>
+
+                      {followedRepos.length > 0 ? (
+                        <Grid container spacing={2}>
+                          {followedRepos.map((repo) => {
+                            const isSelected = selectedRepo?.id === repo.id;
+                            const isOwner = repo.authorUsername === user?.username;
+
+                            return (
+                              <Grid key={repo.id} size={{ xs: 12, sm: 6 }}>
+                                <Box
+                                  onClick={() => setSelectedRepo(repo)}
+                                  sx={{
+                                    p: 2,
+                                    borderRadius: 2,
+                                    cursor: 'pointer',
+                                    border: 2,
+                                    borderColor: isSelected ? 'primary.main' : 'divider',
+                                    bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                                    transition: 'all 0.15s ease-in-out',
+                                    '&:hover': {
+                                      borderColor: 'primary.main',
+                                      bgcolor: isSelected ? 'action.selected' : 'action.hover',
+                                      transform: 'translateY(-2px)',
+                                    },
+                                  }}
+                                >
+                                  <Stack
+                                    direction="row"
+                                    sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
+                                  >
+                                    <Chip
+                                      size="small"
+                                      color="primary"
+                                      variant={isSelected ? 'filled' : 'outlined'}
+                                      label={repo.subject?.name ?? 'Materia'}
+                                      sx={{ maxWidth: 220 }}
+                                    />
+                                    {isSelected ? (
+                                      <CheckCircleIcon color="primary" fontSize="small" />
+                                    ) : (
+                                      <Chip
+                                        size="small"
+                                        variant="outlined"
+                                        icon={<BookmarkAddedIcon fontSize="small" />}
+                                        label={isOwner ? 'Creado por ti' : 'Siguiendo'}
+                                        sx={{ fontSize: '0.75rem', height: 22 }}
+                                      />
+                                    )}
+                                  </Stack>
+
+                                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+                                    {repo.name}
+                                  </Typography>
+
+                                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                    <FolderOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                    <Typography variant="caption" color="text.secondary">
+                                      {repo.documentCount ?? 0} documentos • @{repo.authorUsername}
+                                    </Typography>
+                                  </Stack>
+                                </Box>
+                              </Grid>
+                            );
+                          })}
+                        </Grid>
+                      ) : (
+                        <EmptyState
+                          icon={BookmarkAddOutlinedIcon}
+                          title="Aún no sigues ningún repositorio de estudio"
+                          description="Sigue los repositorios de las materias que estás cursando para tenerlos aquí siempre a mano y generar evaluaciones automáticas en 1 clic."
+                          action={
+                            <Button
+                              component={RouterLink}
+                              to="/search"
+                              variant="contained"
+                              startIcon={<ExploreOutlinedIcon />}
+                            >
+                              Explorar repositorios
+                            </Button>
+                          }
+                        />
+                      )}
+
+
                     </Box>
 
-                    {/* Scope Selector */}
+                    {/* Selected Repository Confirmation pill */}
+                    {selectedRepo && (
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 1.5,
+                          border: 1,
+                          borderColor: 'primary.dark',
+                          bgcolor: 'action.selected',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: 1,
+                        }}
+                      >
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <AutoAwesomeIcon color="primary" fontSize="small" />
+                          <Typography variant="body2">
+                            Materia seleccionada: <strong>{selectedRepo.name}</strong> ({selectedRepo.subject?.name ?? 'General'})
+                          </Typography>
+                        </Stack>
+                        <Chip size="small" color="primary" label="Listo para evaluar" />
+                      </Box>
+                    )}
+
+                    {/* 2. Scope Selector */}
                     <Box>
-                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      <Typography variant="subtitle1" fontWeight={700} gutterBottom>
                         2. Alcance del cuestionario
                       </Typography>
                       <FormControl component="fieldset" fullWidth>

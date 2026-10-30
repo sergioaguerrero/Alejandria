@@ -32,6 +32,8 @@ function createInitialState() {
     subjects: clone(SUBJECTS),
     /** Keys with format `repositoryId::username`. */
     likedRepositories: new Set(),
+    /** Keys with format `repositoryId::username` for followed/subscribed repositories. */
+    followedRepositories: new Set(['repo-001::sergioaguerrero', 'repo-002::sergioaguerrero']),
     /** Keys with format `documentId::username`. */
     likedDocuments: new Set(),
     /** Ids of the subjects marked by the user (FE-06). */
