@@ -51,8 +51,11 @@ import PersonIcon from '@mui/icons-material/Person';
 import SearchIcon from '@mui/icons-material/Search';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SchoolIcon from '@mui/icons-material/School';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 
 import { useAuth } from '../../context/authContext.js';
+import { useThemeMode } from '../../context/themeContext.js';
 import NotificationBell from '../common/NotificationBell.jsx';
 import { initials, usernameLabel } from '../../utils/users.js';
 
@@ -175,6 +178,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, logout } = useAuth();
+  const { mode, toggleThemeMode } = useThemeMode();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [userAnchor, setUserAnchor] = useState(null);
@@ -292,6 +296,16 @@ export default function AppLayout() {
               <SearchIcon />
             </IconButton>
           )}
+
+          <Tooltip title={mode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+            <IconButton
+              color="inherit"
+              onClick={toggleThemeMode}
+              aria-label={mode === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'}
+            >
+              {mode === 'dark' ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+            </IconButton>
+          </Tooltip>
 
           <NotificationBell />
 
