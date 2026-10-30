@@ -51,6 +51,37 @@ function asList(data) {
   return data?.items ?? data?.content ?? [];
 }
 
+/**
+ * Normalizes the response of a backend paginated listing.
+ * @param {any} data
+ * @param {number} page
+ * @param {number} size
+ */
+function normalizePage(data, page, size) {
+  if (Array.isArray(data)) {
+    return { items: data, total: data.length, page, size, totalPages: 1 };
+  }
+
+  const items = data?.items ?? data?.content ?? [];
+  const total = data?.total ?? items.length;
+
+  return {
+    items,
+    total,
+    page: data?.page ?? page,
+    size: data?.size ?? size,
+    totalPages: data?.totalPages ?? Math.max(1, Math.ceil(total / size)),
+  };
+}
+
+/** Trims the text to compare without uppercase or accents. */
+function normalize(text) {
+  return String(text ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 // ── Queries ────────────────────────────────────────────────────────────────
 
 /**
@@ -78,6 +109,113 @@ export async function listByRepository(repositoryId, { term = null } = {}) {
     .filter((document) => !term || Number(document.term) === Number(term))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .map(enrich);
+}
+
+/**
+ * @typedef {object} DocumentFilters
+ * @property {string} [search]  Text of the title, topic, tags or repository.
+ * @property {number|string|null} [subjectId]
+ * @property {number|string|null} [semester]
+ * @property {number|string|null} [term]
+ * @property {string|null} [type]  Material type (apunte, guia, resumen, proyecto).
+ * @property {string} [topic]
+ * @property {'recent'|'popular'|'liked'} [order]
+ * @property {number} [page]
+ * @property {number} [size]
+ */
+
+/**
+ * Searches documents with filters and pagination (view 11).
+ * @param {DocumentFilters} [filters]
+ * @returns {Promise<{ items: object[], total: number, page: number, size: number, totalPages: number }>}
+ */
+export async function getDocuments(filters = {}) {
+  const {
+    search = '',
+    subjectId = null,
+    semester = null,
+    term = null,
+    type = null,
+    topic = '',
+    order = 'recent',
+    page = 1,
+    size = 8,
+  } = filters;
+
+  if (!USE_MOCK) {
+    const { data } = await http.get('/documents', {
+      params: {
+        q: search,
+        subjectId,
+        semester,
+        term,
+        type,
+        topic,
+        order,
+        page,
+        size,
+      },
+    });
+    return normalizePage(data, page, size);
+  }
+
+  await waitForMock();
+
+  const text = normalize(search);
+  const topicText = normalize(topic);
+
+  /** Subject of the repository the document belongs to. */
+  const subjectOf = (document) => {
+    const repository = store.repositories.find((item) => item.id === document.repositoryId);
+    return repository
+      ? store.subjects.find((subject) => subject.id === Number(repository.subjectId)) ?? null
+      : null;
+  };
+
+  const list = store.documents
+    .filter((document) => {
+      const repository = store.repositories.find((item) => item.id === document.repositoryId);
+      const subject = subjectOf(document);
+
+      if (subjectId && Number(repository?.subjectId) !== Number(subjectId)) return false;
+      if (semester && subject?.semester !== Number(semester)) return false;
+      if (term && Number(document.term) !== Number(term)) return false;
+      if (type && document.type !== type) return false;
+      if (topicText && !normalize(document.topic).includes(topicText)) return false;
+
+      if (text) {
+        const haystack = normalize(
+          [
+            document.title,
+            document.description,
+            document.topic,
+            ...(document.tags ?? []),
+            repository?.name,
+          ].join(' '),
+        );
+        if (!haystack.includes(text)) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (order === 'popular') {
+        return (b.views ?? 0) + (b.downloads ?? 0) - ((a.views ?? 0) + (a.downloads ?? 0));
+      }
+      if (order === 'liked') return (b.likes ?? 0) - (a.likes ?? 0);
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+  const total = list.length;
+  const start = (page - 1) * size;
+
+  return {
+    items: list.slice(start, start + size).map(enrich),
+    total,
+    page,
+    size,
+    totalPages: Math.max(1, Math.ceil(total / size)),
+  };
 }
 
 /**
