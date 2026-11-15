@@ -89,14 +89,27 @@ const ADMIN_LINKS = [
 ];
 
 /**
- * Indicates if the link matches the current route.
- * Home only matches exactly; the rest also match their child routes.
+ * Indicates if the link is the active side menu entry for the current route.
+ * Home only matches exactly; the rest match only the most specific prefix.
  * @param {string} pathname
  * @param {string} path
  * @returns {boolean}
  */
 function isActive(pathname, path) {
-  return path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`);
+  const links = [...MAIN_LINKS, ...ADMIN_LINKS];
+  let activePath = null;
+
+  for (const link of links) {
+    const matches =
+      link.path === '/'
+        ? pathname === '/'
+        : pathname === link.path || pathname.startsWith(`${link.path}/`);
+    if (matches && (!activePath || link.path.length > activePath.length)) {
+      activePath = link.path;
+    }
+  }
+
+  return activePath === path;
 }
 
 /**
