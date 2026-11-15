@@ -59,6 +59,11 @@ export function isAcceptedCollaborator(repositoryId, username) {
   );
 }
 
+function countRepositoryFollowers(repositoryId) {
+  const prefix = `${repositoryId}::`;
+  return [...(store.followedRepositories ?? [])].filter((key) => key.startsWith(prefix)).length;
+}
+
 function enrich(repository) {
   const subject = store.subjects.find((item) => item.id === Number(repository.subjectId)) ?? null;
   const author = store.users.find((user) => user.username === repository.authorUsername);
@@ -74,6 +79,7 @@ function enrich(repository) {
     documentCount,
     liked: username ? store.likedRepositories.has(likeKey(repository.id, username)) : false,
     followed: username ? (store.followedRepositories?.has(likeKey(repository.id, username)) ?? false) : false,
+    followersCount: countRepositoryFollowers(repository.id),
     collaboratorStatus: username
       ? (getCollaboratorRecords(repository.id).find((c) => c.username === username)?.status ?? null)
       : null,
@@ -423,7 +429,7 @@ export async function toggleFollowRepository(id) {
     store.followedRepositories.add(key);
   }
 
-  return { followed: !wasFollowed };
+  return { followed: !wasFollowed, followersCount: countRepositoryFollowers(id) };
 }
 
 /**

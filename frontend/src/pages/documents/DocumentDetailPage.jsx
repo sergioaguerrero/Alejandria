@@ -39,7 +39,7 @@ import ReportDialog from '../../components/common/ReportDialog.jsx';
 import DocumentPreview from '../../components/documents/DocumentPreview.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
-import { isPreviewable } from '../../utils/fileTypes.js';
+import { isPreviewable, triggerFileDownload } from '../../utils/fileTypes.js';
 import {
   deleteDocument,
   downloadDocument,
@@ -108,12 +108,7 @@ export default function DocumentDetailPage() {
     try {
       const { url, name } = await downloadDocument(documentData.id);
 
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      triggerFileDownload(url, name);
 
       // The service already registered the download; the counter is refreshed
       // so the screen does not stay behind.

@@ -34,7 +34,15 @@ function createInitialState() {
     /** Keys with format `repositoryId::username`. */
     likedRepositories: new Set(),
     /** Keys with format `repositoryId::username` for followed/subscribed repositories. */
-    followedRepositories: new Set(['repo-001::sergioaguerrero', 'repo-002::sergioaguerrero']),
+    followedRepositories: new Set([
+      'repository-001::lauramartinez',
+      'repository-001::valentinarojas',
+      'repository-001::andrespineda',
+      'repository-002::sergioaguerrero',
+      'repository-002::andrespineda',
+      'repository-002::camilodaza',
+      'repository-002::valentinarojas',
+    ]),
     /** Keys with format `documentId::username`. */
     likedDocuments: new Set(),
     /** Keys with format `followerUsername::targetUsername` (FE-32). */
