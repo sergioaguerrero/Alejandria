@@ -181,7 +181,7 @@ export default function AiMaterialPage() {
         <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
           <Chip
             size="small"
-            color="secondary"
+            color={typeMeta.colorKey}
             icon={<AiTypeIcon type={material.contentType} fontSize="small" />}
             label={typeMeta.label}
           />
