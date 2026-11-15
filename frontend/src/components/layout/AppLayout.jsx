@@ -47,6 +47,7 @@ import InsightsIcon from '@mui/icons-material/Insights';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import PersonIcon from '@mui/icons-material/Person';
 import SearchIcon from '@mui/icons-material/Search';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -75,6 +76,7 @@ const MAIN_LINKS = [
   { label: 'Notificaciones', path: '/notifications', icon: NotificationsIcon },
   { label: 'Estudio con IA', path: '/ai', icon: SmartToyIcon },
   { label: 'Mi estudio', path: '/ai/my-study', icon: SchoolIcon },
+  { label: 'Amigos', path: '/friends', icon: PeopleOutlinedIcon },
   { label: 'Mi perfil', path: '/profile', icon: PersonIcon },
 ];
 

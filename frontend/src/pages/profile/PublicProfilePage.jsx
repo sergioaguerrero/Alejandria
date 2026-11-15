@@ -31,7 +31,10 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import CheckIcon from '@mui/icons-material/Check';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 
@@ -44,6 +47,7 @@ import {
   getDocumentsByUser,
   getPublicProfile,
   getRepositoriesByUser,
+  toggleFollowUser,
 } from '../../services/index.js';
 
 function materialTypeLabel(type) {
@@ -67,6 +71,7 @@ export default function PublicProfilePage() {
   });
   const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [reportOpen, setReportOpen] = useState(false);
+  const [isFollowingBusy, setIsFollowingBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
@@ -115,6 +120,30 @@ export default function PublicProfilePage() {
   };
 
   const totalLikes = loaded.documents.reduce((acc, doc) => acc + (doc.likes || 0), 0);
+
+  const handleToggleFollow = async () => {
+    if (!loaded.profile) return;
+    setIsFollowingBusy(true);
+    try {
+      const updatedProfile = await toggleFollowUser(loaded.profile.username);
+      setLoaded((prev) => ({ ...prev, profile: updatedProfile }));
+      setNotice({
+        severity: 'success',
+        message: updatedProfile.isFriend
+          ? `Ahora tú y @${updatedProfile.username} son amigos (seguimiento mutuo).`
+          : updatedProfile.isFollowing
+            ? `Ahora sigues a @${updatedProfile.username}.`
+            : `Dejaste de seguir a @${updatedProfile.username}.`,
+      });
+    } catch (serviceError) {
+      setNotice({
+        severity: 'error',
+        message: serviceError?.message ?? 'No se pudo actualizar el seguimiento.',
+      });
+    } finally {
+      setIsFollowingBusy(false);
+    }
+  };
 
   return (
     <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
@@ -210,13 +239,53 @@ export default function PublicProfilePage() {
                   <Typography variant="h4" component="h1" fontWeight={700} sx={{ lineHeight: 1.2 }}>
                     @{loaded.profile.username}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    Estudiante de Ingeniería de Sistemas · Universidad Popular del Cesar
+                  <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {loaded.profile.semester
+                      ? `Ingeniería de Sistemas · Semestre ${loaded.profile.semester} · Universidad Popular del Cesar`
+                      : 'Estudiante de Ingeniería de Sistemas · Universidad Popular del Cesar'}
+                    {!isOwnProfile && (loaded.profile.isFriend || loaded.profile.followsMe) && (
+                      <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
+                        {loaded.profile.isFriend ? (
+                          <Chip
+                            size="small"
+                            color="success"
+                            icon={<HandshakeOutlinedIcon />}
+                            label="Amigo (seguimiento mutuo)"
+                          />
+                        ) : (
+                          <Chip size="small" color="info" variant="outlined" label="Te sigue" />
+                        )}
+                      </Stack>
+                    )}
                   </Typography>
                 </Box>
               </Box>
 
-              <Box sx={{ pt: { xs: 0, md: 2 }, alignSelf: { xs: 'stretch', sm: 'auto' } }}>
+              <Box
+                sx={{
+                  pt: { xs: 0, md: 2 },
+                  alignSelf: { xs: 'stretch', sm: 'auto' },
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 1.5,
+                }}
+              >
+                {!isOwnProfile && (
+                  <Button
+                    variant={loaded.profile.isFollowing ? 'outlined' : 'contained'}
+                    color={loaded.profile.isFollowing ? 'inherit' : 'primary'}
+                    startIcon={loaded.profile.isFollowing ? <CheckIcon /> : <PersonAddOutlinedIcon />}
+                    disabled={isFollowingBusy}
+                    onClick={handleToggleFollow}
+                    sx={{ px: 2.5, py: 1 }}
+                  >
+                    {loaded.profile.isFollowing
+                      ? 'Siguiendo'
+                      : loaded.profile.followsMe
+                        ? 'Seguir también'
+                        : 'Seguir'}
+                  </Button>
+                )}
                 {isOwnProfile ? (
                   <Button
                     variant="contained"
@@ -243,7 +312,24 @@ export default function PublicProfilePage() {
             </Box>
 
             {/* Counters Row */}
-            <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center' }}>
+            <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  {loaded.profile.followersCount ?? 0}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {(loaded.profile.followersCount ?? 0) === 1 ? 'seguidor' : 'seguidores'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  {loaded.profile.followingCount ?? 0}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  siguiendo
+                </Typography>
+              </Box>
               <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
                 <Typography variant="subtitle1" fontWeight={700}>
                   {loaded.repositories.length}

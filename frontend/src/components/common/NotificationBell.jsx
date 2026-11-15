@@ -1,6 +1,6 @@
 /**
  * @file NotificationBell.jsx
- * @description Notification bell with unread badge and dropdown menu (FE-18, FE-19).
+ * @description Notification bell with unread badge and dropdown menu (FE-18, FE-19, FE-32).
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -21,13 +21,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined';
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 
+import NotificationTypeIcon from './NotificationTypeIcon.jsx';
 import {
   getNotifications,
   getUnreadNotificationsCount,
@@ -35,28 +31,6 @@ import {
   markNotificationAsRead,
 } from '../../services/index.js';
 import { formatRelativeDate } from '../../utils/formatDate.js';
-
-/**
- * Returns an icon corresponding to the notification type.
- * @param {string} type
- */
-function NotificationIcon({ type }) {
-  switch (type) {
-    case 'warning':
-    case 'content_hidden':
-      return <WarningAmberOutlinedIcon color="warning" fontSize="small" />;
-    case 'sanction':
-    case 'content_deleted':
-    case 'report_pending':
-      return <ReportProblemOutlinedIcon color="error" fontSize="small" />;
-    case 'like':
-      return <ThumbUpOutlinedIcon color="primary" fontSize="small" />;
-    case 'new_content':
-      return <DescriptionOutlinedIcon color="action" fontSize="small" />;
-    default:
-      return <FolderOutlinedIcon color="action" fontSize="small" />;
-  }
-}
 
 export default function NotificationBell() {
   const navigate = useNavigate();
@@ -221,7 +195,7 @@ export default function NotificationBell() {
                 }}
               >
                 <ListItemAvatar sx={{ minWidth: 32, mt: 0.5 }}>
-                  <NotificationIcon type={notification.type} />
+                  <NotificationTypeIcon type={notification.type} fontSize="small" />
                 </ListItemAvatar>
                 <ListItemText
                   primary={

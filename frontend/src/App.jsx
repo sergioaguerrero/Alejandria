@@ -28,6 +28,7 @@ import MyStatisticsPage from './pages/statistics/MyStatisticsPage.jsx';
 import ProfilePage from './pages/profile/ProfilePage.jsx';
 import NotificationsPage from './pages/notifications/NotificationsPage.jsx';
 import PublicProfilePage from './pages/profile/PublicProfilePage.jsx';
+import FriendsPage from './pages/friends/FriendsPage.jsx';
 import ReportInboxPage from './pages/admin/ReportInboxPage.jsx';
 import ReportDetailPage from './pages/admin/ReportDetailPage.jsx';
 import AdminUserPage from './pages/admin/AdminUserPage.jsx';
@@ -88,6 +89,7 @@ export default function App() {
               <Route path="/ia/cuestionario/:id" element={<QuizPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/users/:username" element={<PublicProfilePage />} />
+              <Route path="/friends" element={<FriendsPage />} />
             </Route>
           </Route>
 

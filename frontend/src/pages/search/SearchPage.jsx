@@ -1,10 +1,10 @@
 /**
  * @file SearchPage.jsx
- * @description View 11 — Search & Filters (FE-17, RF-33, RF-34, RF-35, RF-36).
+ * @description View 11 — Search & Filters (FE-17, FE-32, RF-33, RF-34, RF-35, RF-36).
  *
  * Search bar with text parameter (?q=), filters by subject, topic, semester,
  * term and material type, sort orders (recent, popular, liked), and tabs for
- * Documents and Repositories with pagination.
+ * Documents, Repositories and Users with pagination.
  */
 
 import { useEffect, useState } from 'react';
@@ -16,12 +16,14 @@ import {
   Card,
   CardContent,
   FormControl,
+  Grid,
   InputLabel,
   ListSubheader,
   MenuItem,
   Pagination,
   Select,
   Skeleton,
+  Snackbar,
   Stack,
   Tab,
   Tabs,
@@ -30,16 +32,20 @@ import {
 } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
 import DocumentItem from '../../components/documents/DocumentItem.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
+import UserCard from '../../components/users/UserCard.jsx';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
 import {
   getDocuments,
   getRepositories,
   getSubjects,
   groupBySemester,
+  searchUsers,
+  toggleFollowUser,
 } from '../../services/index.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 
@@ -47,7 +53,7 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const queryParam = searchParams.get('q') ?? '';
-  const [activeTab, setActiveTab] = useState('documents'); // 'documents' | 'repositories'
+  const [activeTab, setActiveTab] = useState('documents'); // 'documents' | 'repositories' | 'users'
   const [subjects, setSubjects] = useState([]);
 
   // Filters
@@ -63,6 +69,9 @@ export default function SearchPage() {
   // Results state
   const [docResults, setDocResults] = useState({ items: [], total: 0, totalPages: 1 });
   const [repoResults, setRepoResults] = useState({ items: [], total: 0, totalPages: 1 });
+  const [userResults, setUserResults] = useState([]);
+  const [busyUsername, setBusyUsername] = useState('');
+  const [notice, setNotice] = useState('');
   const [page, setPage] = useState(1);
   const [loadedKey, setLoadedKey] = useState('');
   const [error, setError] = useState('');
@@ -130,20 +139,23 @@ export default function SearchPage() {
             page,
             size: 8,
           })
-        : getRepositories({
-            search,
-            subjectId,
-            semester,
-            order: order === 'liked' ? 'popular' : order,
-            page,
-            size: 9,
-          });
+        : activeTab === 'repositories'
+          ? getRepositories({
+              search,
+              subjectId,
+              semester,
+              order: order === 'liked' ? 'popular' : order,
+              page,
+              size: 9,
+            })
+          : searchUsers(search);
 
     fetchPromise
       .then((result) => {
         if (!active) return;
         if (activeTab === 'documents') setDocResults(result);
-        else setRepoResults(result);
+        else if (activeTab === 'repositories') setRepoResults(result);
+        else setUserResults(result);
         setError('');
       })
       .catch((serviceError) => {
@@ -158,11 +170,34 @@ export default function SearchPage() {
     };
   }, [requestKey, activeTab, search, subjectId, semester, term, materialType, topic, order, page]);
 
+  const handleToggleFollow = async (targetProfile) => {
+    setBusyUsername(targetProfile.username);
+    try {
+      const updated = await toggleFollowUser(targetProfile.username);
+      setUserResults((prev) =>
+        prev.map((item) => (item.username === updated.username ? updated : item)),
+      );
+      setNotice(
+        updated.isFriend
+          ? `Ahora tú y @${updated.username} son amigos (seguimiento mutuo).`
+          : updated.isFollowing
+            ? `Ahora sigues a @${updated.username}.`
+            : `Dejaste de seguir a @${updated.username}.`,
+      );
+    } catch (serviceError) {
+      setNotice(serviceError?.message ?? 'No se pudo actualizar el seguimiento.');
+    } finally {
+      setBusyUsername('');
+    }
+  };
+
   const semesters = [...new Set(subjects.map((s) => s.semester))].sort((a, b) => a - b);
   const visibleSubjects =
     semester === '' ? subjects : subjects.filter((s) => s.semester === Number(semester));
 
   const currentResult = activeTab === 'documents' ? docResults : repoResults;
+  const hasResults =
+    activeTab === 'users' ? userResults.length > 0 : currentResult.items.length > 0;
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
@@ -171,7 +206,7 @@ export default function SearchPage() {
           Explorar y buscar contenido
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Filtra por materia, corte, tipo o tema para encontrar exactamente lo que necesitas.
+          Filtra por materia, corte, tipo o tema, o busca compañeros para seguirlos.
         </Typography>
       </Stack>
 
@@ -183,7 +218,11 @@ export default function SearchPage() {
               <TextField
                 size="small"
                 label="Texto de búsqueda"
-                placeholder="Título, tema o palabras clave…"
+                placeholder={
+                  activeTab === 'users'
+                    ? 'Buscar estudiante por @usuario o semestre…'
+                    : 'Título, tema o palabras clave…'
+                }
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -193,138 +232,142 @@ export default function SearchPage() {
                 sx={{ flex: 2 }}
               />
 
-              <FormControl size="small" sx={{ flex: 1, minWidth: 160 }}>
-                <InputLabel id="order-label">Ordenar por</InputLabel>
-                <Select
-                  labelId="order-label"
-                  label="Ordenar por"
-                  value={order}
-                  onChange={(e) => {
-                    setOrder(e.target.value);
-                    updateUrlParams({ order: e.target.value === 'recent' ? '' : e.target.value });
-                    setPage(1);
-                  }}
-                  MenuProps={SELECT_MENU_PROPS}
-                >
-                  <MenuItem value="recent">Más recientes</MenuItem>
-                  <MenuItem value="popular">Más vistos y descargados</MenuItem>
-                  <MenuItem value="liked">Mejor valorados</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ flexWrap: 'wrap' }}>
-              <FormControl size="small" sx={{ minWidth: 160, flex: 1 }}>
-                <InputLabel id="search-sem-label">Semestre</InputLabel>
-                <Select
-                  labelId="search-sem-label"
-                  label="Semestre"
-                  value={semester}
-                  onChange={(e) => {
-                    setSemester(e.target.value);
-                    setSubjectId('');
-                    updateUrlParams({ sem: e.target.value, subject: '' });
-                    setPage(1);
-                  }}
-                  MenuProps={SELECT_MENU_PROPS}
-                >
-                  <MenuItem value="">Todos los semestres</MenuItem>
-                  {semesters.map((s) => (
-                    <MenuItem key={s} value={s}>
-                      {`Semestre ${s}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 200, flex: 2 }}>
-                <InputLabel id="search-sub-label">Materia</InputLabel>
-                <Select
-                  labelId="search-sub-label"
-                  label="Materia"
-                  value={subjectId}
-                  onChange={(e) => {
-                    setSubjectId(e.target.value);
-                    updateUrlParams({ subject: e.target.value });
-                    setPage(1);
-                  }}
-                  MenuProps={SELECT_MENU_PROPS}
-                >
-                  <MenuItem value="">Todas las materias</MenuItem>
-                  {groupBySemester(visibleSubjects).flatMap((group) => [
-                    <ListSubheader key={`s-${group.semester}`}>
-                      {`Semestre ${group.semester}`}
-                    </ListSubheader>,
-                    ...group.subjects.map((sub) => (
-                      <MenuItem key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </MenuItem>
-                    )),
-                  ])}
-                </Select>
-              </FormControl>
-
-              {activeTab === 'documents' && (
-                <>
-                  <TextField
-                    size="small"
-                    label="Tema"
-                    placeholder="Ej. recursividad"
-                    value={topic}
+              {activeTab !== 'users' && (
+                <FormControl size="small" sx={{ flex: 1, minWidth: 160 }}>
+                  <InputLabel id="order-label">Ordenar por</InputLabel>
+                  <Select
+                    labelId="order-label"
+                    label="Ordenar por"
+                    value={order}
                     onChange={(e) => {
-                      setTopic(e.target.value);
-                      updateUrlParams({ topic: e.target.value });
+                      setOrder(e.target.value);
+                      updateUrlParams({ order: e.target.value === 'recent' ? '' : e.target.value });
                       setPage(1);
                     }}
-                    sx={{ minWidth: 160, flex: 1 }}
-                  />
-
-                  <FormControl size="small" sx={{ minWidth: 140, flex: 1 }}>
-                    <InputLabel id="search-term-label">Corte</InputLabel>
-                    <Select
-                      labelId="search-term-label"
-                      label="Corte"
-                      value={term}
-                      onChange={(e) => {
-                        setTerm(e.target.value);
-                        updateUrlParams({ term: e.target.value });
-                        setPage(1);
-                      }}
-                      MenuProps={SELECT_MENU_PROPS}
-                    >
-                      <MenuItem value="">Todos</MenuItem>
-                      {TERMS.map((t) => (
-                        <MenuItem key={t.value} value={t.value}>
-                          {t.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  <FormControl size="small" sx={{ minWidth: 150, flex: 1 }}>
-                    <InputLabel id="search-type-label">Tipo de material</InputLabel>
-                    <Select
-                      labelId="search-type-label"
-                      label="Tipo de material"
-                      value={materialType}
-                      onChange={(e) => {
-                        setMaterialType(e.target.value);
-                        updateUrlParams({ type: e.target.value });
-                        setPage(1);
-                      }}
-                      MenuProps={SELECT_MENU_PROPS}
-                    >
-                      <MenuItem value="">Todos los tipos</MenuItem>
-                      {MATERIAL_TYPES.map((mt) => (
-                        <MenuItem key={mt.value} value={mt.value}>
-                          {mt.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </>
+                    MenuProps={SELECT_MENU_PROPS}
+                  >
+                    <MenuItem value="recent">Más recientes</MenuItem>
+                    <MenuItem value="popular">Más vistos y descargados</MenuItem>
+                    <MenuItem value="liked">Mejor valorados</MenuItem>
+                  </Select>
+                </FormControl>
               )}
             </Stack>
+
+            {activeTab !== 'users' && (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ flexWrap: 'wrap' }}>
+                <FormControl size="small" sx={{ minWidth: 160, flex: 1 }}>
+                  <InputLabel id="search-sem-label">Semestre</InputLabel>
+                  <Select
+                    labelId="search-sem-label"
+                    label="Semestre"
+                    value={semester}
+                    onChange={(e) => {
+                      setSemester(e.target.value);
+                      setSubjectId('');
+                      updateUrlParams({ sem: e.target.value, subject: '' });
+                      setPage(1);
+                    }}
+                    MenuProps={SELECT_MENU_PROPS}
+                  >
+                    <MenuItem value="">Todos los semestres</MenuItem>
+                    {semesters.map((s) => (
+                      <MenuItem key={s} value={s}>
+                        {`Semestre ${s}`}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 200, flex: 2 }}>
+                  <InputLabel id="search-sub-label">Materia</InputLabel>
+                  <Select
+                    labelId="search-sub-label"
+                    label="Materia"
+                    value={subjectId}
+                    onChange={(e) => {
+                      setSubjectId(e.target.value);
+                      updateUrlParams({ subject: e.target.value });
+                      setPage(1);
+                    }}
+                    MenuProps={SELECT_MENU_PROPS}
+                  >
+                    <MenuItem value="">Todas las materias</MenuItem>
+                    {groupBySemester(visibleSubjects).flatMap((group) => [
+                      <ListSubheader key={`s-${group.semester}`}>
+                        {`Semestre ${group.semester}`}
+                      </ListSubheader>,
+                      ...group.subjects.map((sub) => (
+                        <MenuItem key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </MenuItem>
+                      )),
+                    ])}
+                  </Select>
+                </FormControl>
+
+                {activeTab === 'documents' && (
+                  <>
+                    <TextField
+                      size="small"
+                      label="Tema"
+                      placeholder="Ej. recursividad"
+                      value={topic}
+                      onChange={(e) => {
+                        setTopic(e.target.value);
+                        updateUrlParams({ topic: e.target.value });
+                        setPage(1);
+                      }}
+                      sx={{ minWidth: 160, flex: 1 }}
+                    />
+
+                    <FormControl size="small" sx={{ minWidth: 140, flex: 1 }}>
+                      <InputLabel id="search-term-label">Corte</InputLabel>
+                      <Select
+                        labelId="search-term-label"
+                        label="Corte"
+                        value={term}
+                        onChange={(e) => {
+                          setTerm(e.target.value);
+                          updateUrlParams({ term: e.target.value });
+                          setPage(1);
+                        }}
+                        MenuProps={SELECT_MENU_PROPS}
+                      >
+                        <MenuItem value="">Todos</MenuItem>
+                        {TERMS.map((t) => (
+                          <MenuItem key={t.value} value={t.value}>
+                            {t.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 150, flex: 1 }}>
+                      <InputLabel id="search-type-label">Tipo de material</InputLabel>
+                      <Select
+                        labelId="search-type-label"
+                        label="Tipo de material"
+                        value={materialType}
+                        onChange={(e) => {
+                          setMaterialType(e.target.value);
+                          updateUrlParams({ type: e.target.value });
+                          setPage(1);
+                        }}
+                        MenuProps={SELECT_MENU_PROPS}
+                      >
+                        <MenuItem value="">Todos los tipos</MenuItem>
+                        {MATERIAL_TYPES.map((mt) => (
+                          <MenuItem key={mt.value} value={mt.value}>
+                            {mt.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </>
+                )}
+              </Stack>
+            )}
           </Stack>
         </CardContent>
       </Card>
@@ -332,10 +375,12 @@ export default function SearchPage() {
       {/* Tabs */}
       <Tabs
         value={activeTab}
-        onChange={(e, val) => {
+        onChange={(_e, val) => {
           setActiveTab(val);
           setPage(1);
         }}
+        variant="scrollable"
+        scrollButtons="auto"
         sx={{ mb: 3 }}
       >
         <Tab
@@ -349,6 +394,12 @@ export default function SearchPage() {
           icon={<FolderOpenIcon />}
           iconPosition="start"
           label={`Repositorios (${repoResults.total || 0})`}
+        />
+        <Tab
+          value="users"
+          icon={<PeopleOutlinedIcon />}
+          iconPosition="start"
+          label={`Usuarios (${userResults.length || 0})`}
         />
       </Tabs>
 
@@ -365,10 +416,22 @@ export default function SearchPage() {
             <Skeleton key={i} variant="rounded" height={85} />
           ))}
         </Stack>
-      ) : currentResult.items.length === 0 ? (
+      ) : !hasResults ? (
         <EmptyState
-          icon={activeTab === 'documents' ? DescriptionOutlinedIcon : FolderOpenIcon}
-          title={`No encontramos ${activeTab === 'documents' ? 'documentos' : 'repositorios'}`}
+          icon={
+            activeTab === 'documents'
+              ? DescriptionOutlinedIcon
+              : activeTab === 'repositories'
+                ? FolderOpenIcon
+                : PeopleOutlinedIcon
+          }
+          title={`No encontramos ${
+            activeTab === 'documents'
+              ? 'documentos'
+              : activeTab === 'repositories'
+                ? 'repositorios'
+                : 'usuarios'
+          }`}
           description="Intenta ajustando el término de búsqueda o cambiando los filtros seleccionados."
         />
       ) : activeTab === 'documents' ? (
@@ -377,7 +440,7 @@ export default function SearchPage() {
             <DocumentItem key={doc.id} document={doc} />
           ))}
         </Stack>
-      ) : (
+      ) : activeTab === 'repositories' ? (
         <Box
           sx={{
             display: 'grid',
@@ -389,18 +452,37 @@ export default function SearchPage() {
             <RepositoryCard key={repo.id} repository={repo} />
           ))}
         </Box>
+      ) : (
+        <Grid container spacing={2.5}>
+          {userResults.map((profile) => (
+            <Grid key={profile.username} size={{ xs: 12, sm: 6, md: 4 }}>
+              <UserCard
+                profile={profile}
+                isBusy={busyUsername === profile.username}
+                onToggleFollow={handleToggleFollow}
+              />
+            </Grid>
+          ))}
+        </Grid>
       )}
 
-      {currentResult.totalPages > 1 && (
+      {activeTab !== 'users' && currentResult.totalPages > 1 && (
         <Stack sx={{ mt: 4, alignItems: 'center' }}>
           <Pagination
             count={currentResult.totalPages}
             page={page}
-            onChange={(e, v) => setPage(v)}
+            onChange={(_e, v) => setPage(v)}
             color="primary"
           />
         </Stack>
       )}
+
+      <Snackbar
+        open={Boolean(notice)}
+        autoHideDuration={4000}
+        onClose={() => setNotice('')}
+        message={notice}
+      />
     </Box>
   );
 }

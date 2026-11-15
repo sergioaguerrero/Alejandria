@@ -47,7 +47,12 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
-import { getDocumentsByUser, getRepositoriesByUser } from '../../services/index.js';
+import {
+  getDocumentsByUser,
+  getFriends,
+  getPublicProfile,
+  getRepositoriesByUser,
+} from '../../services/index.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 import { initials } from '../../utils/users.js';
 
@@ -74,6 +79,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [repositories, setRepositories] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [socialStats, setSocialStats] = useState({ followers: 0, following: 0, friends: 0 });
   const [loadedKey, setLoadedKey] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -108,11 +114,18 @@ export default function ProfilePage() {
     Promise.all([
       getRepositoriesByUser(user.username),
       getDocumentsByUser(user.username),
+      getPublicProfile(user.username).catch(() => null),
+      getFriends().catch(() => []),
     ])
-      .then(([userRepos, userDocs]) => {
+      .then(([userRepos, userDocs, publicProfile, friendsList]) => {
         if (!active) return;
         setRepositories(userRepos);
         setDocuments(userDocs);
+        setSocialStats({
+          followers: publicProfile?.followersCount ?? 0,
+          following: publicProfile?.followingCount ?? 0,
+          friends: Array.isArray(friendsList) ? friendsList.length : 0,
+        });
       })
       .catch(() => {})
       .finally(() => {
@@ -277,7 +290,45 @@ export default function ProfilePage() {
         </Box>
 
         {/* Counters Row */}
-        <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center' }}>
+        <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
+          <Box
+            component={RouterLink}
+            to="/friends"
+            sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              {socialStats.friends}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {socialStats.friends === 1 ? 'amigo' : 'amigos'}
+            </Typography>
+          </Box>
+
+          <Box
+            component={RouterLink}
+            to="/friends"
+            sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              {socialStats.followers}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {socialStats.followers === 1 ? 'seguidor' : 'seguidores'}
+            </Typography>
+          </Box>
+
+          <Box
+            component={RouterLink}
+            to="/friends"
+            sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              {socialStats.following}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              siguiendo
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
             <Typography variant="subtitle1" fontWeight={700}>
               {repositories.length}

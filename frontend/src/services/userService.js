@@ -11,6 +11,54 @@ import { ApiError } from './errors.js';
 import http from './http.js';
 import { store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
+import { emitMockNotification } from './notificationService.js';
+
+const followKey = (followerUsername, targetUsername) => `${followerUsername}::${targetUsername}`;
+
+function isFollowingUser(followerUsername, targetUsername) {
+  if (!followerUsername || !targetUsername || !store.userFollows) return false;
+  return store.userFollows.has(followKey(followerUsername, targetUsername));
+}
+
+/**
+ * Builds a public user representation without exposing private fields (email/full name),
+ * enriched with follow counts and mutual friendship flags (FE-32).
+ * @param {object} targetUser
+ * @param {string|null|undefined} viewerUsername
+ */
+function buildPublicUserProfile(targetUser, viewerUsername) {
+  const follows = store.userFollows ?? new Set();
+  const followerSuffix = `::${targetUser.username}`;
+  const followingPrefix = `${targetUser.username}::`;
+
+  let followersCount = 0;
+  let followingCount = 0;
+  for (const key of follows) {
+    if (key.endsWith(followerSuffix)) followersCount += 1;
+    if (key.startsWith(followingPrefix)) followingCount += 1;
+  }
+
+  const isSelf = Boolean(viewerUsername && viewerUsername === targetUser.username);
+  const isFollowing = Boolean(
+    viewerUsername && !isSelf && isFollowingUser(viewerUsername, targetUser.username),
+  );
+  const followsMe = Boolean(
+    viewerUsername && !isSelf && isFollowingUser(targetUser.username, viewerUsername),
+  );
+
+  return {
+    id: targetUser.id,
+    username: targetUser.username,
+    semester: targetUser.semester ?? null,
+    role: targetUser.role,
+    isSelf,
+    followersCount,
+    followingCount,
+    isFollowing,
+    followsMe,
+    isFriend: isFollowing && followsMe,
+  };
+}
 
 /**
  * @typedef {object} PublicProfile
@@ -43,7 +91,7 @@ export async function getPublicProfile(username) {
     throw new ApiError('El usuario no existe.', { status: 404 });
   }
 
-  return { username: user.username };
+  return buildPublicUserProfile(user, currentUser()?.username);
 }
 
 /**
@@ -152,4 +200,153 @@ export async function toggleUserSuspension(userId, { reason = '' } = {}) {
     reason,
   });
   return response.data;
+}
+
+
+/**
+ * Follows or unfollows another user (FE-32, BE-33).
+ * Emits a follower or mutual-friend notification in mock mode.
+ * @param {string} username
+ * @returns {Promise<object>}
+ */
+export async function toggleFollowUser(username) {
+  const viewer = currentUser();
+  if (!viewer) {
+    throw new ApiError('Debes iniciar sesión para seguir a otros usuarios.', { status: 401 });
+  }
+
+  const cleanUsername = String(username ?? '').trim().toLowerCase();
+  if (!cleanUsername) {
+    throw new ApiError('Usuario no válido.', { status: 400 });
+  }
+
+  if (cleanUsername === viewer.username) {
+    throw new ApiError('No puedes seguirte a ti mismo.', { status: 400 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post(`/users/${encodeURIComponent(cleanUsername)}/follow`);
+    return data;
+  }
+
+  await waitForMock(200);
+
+  const targetUser = store.users.find(
+    (candidate) => candidate.username === cleanUsername && !candidate.suspended,
+  );
+  if (!targetUser) {
+    throw new ApiError('El usuario no existe o no está disponible.', { status: 404 });
+  }
+
+  if (!store.userFollows) {
+    store.userFollows = new Set();
+  }
+
+  const key = followKey(viewer.username, cleanUsername);
+  const wasFollowing = store.userFollows.has(key);
+
+  if (wasFollowing) {
+    store.userFollows.delete(key);
+  } else {
+    store.userFollows.add(key);
+    const mutual = isFollowingUser(cleanUsername, viewer.username);
+
+    emitMockNotification({
+      recipientUsername: cleanUsername,
+      type: mutual ? 'friend_match' : 'new_follower',
+      title: mutual ? '¡Nuevo amigo en Alejandría!' : 'Nuevo seguidor',
+      message: mutual
+        ? `@${viewer.username} también comenzó a seguirte. Ahora tienen seguimiento mutuo.`
+        : `@${viewer.username} comenzó a seguirte.`,
+      targetUrl: `/users/${viewer.username}`,
+    });
+  }
+
+  return buildPublicUserProfile(targetUser, viewer.username);
+}
+
+/**
+ * Shared query helper for listing friends, following, or followers (FE-32, BE-33).
+ * @param {'friends'|'following'|'followers'} relation
+ * @param {string} endpoint
+ * @returns {Promise<object[]>}
+ */
+async function listUserConnections(relation, endpoint) {
+  const viewer = currentUser();
+  if (!viewer) {
+    throw new ApiError('Debes iniciar sesión para consultar tu red de amigos.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.get(endpoint);
+    return Array.isArray(data) ? data : (data?.items ?? data?.content ?? []);
+  }
+
+  await waitForMock(180);
+
+  return store.users
+    .filter((candidate) => {
+      if (candidate.suspended || candidate.username === viewer.username) return false;
+      const iFollow = isFollowingUser(viewer.username, candidate.username);
+      const followsMe = isFollowingUser(candidate.username, viewer.username);
+      if (relation === 'friends') return iFollow && followsMe;
+      if (relation === 'following') return iFollow;
+      return followsMe;
+    })
+    .sort((a, b) => a.username.localeCompare(b.username, 'es'))
+    .map((candidate) => buildPublicUserProfile(candidate, viewer.username));
+}
+
+/**
+ * Lists mutual friends of the current user (FE-32, BE-33).
+ * @returns {Promise<object[]>}
+ */
+export function getFriends() {
+  return listUserConnections('friends', '/users/me/friends');
+}
+
+/**
+ * Lists users the current user follows (FE-32, BE-33).
+ * @returns {Promise<object[]>}
+ */
+export function getFollowingUsers() {
+  return listUserConnections('following', '/users/me/following');
+}
+
+/**
+ * Lists users following the current user (FE-32, BE-33).
+ * @returns {Promise<object[]>}
+ */
+export function getFollowerUsers() {
+  return listUserConnections('followers', '/users/me/followers');
+}
+
+/**
+ * Searches active student profiles by username or semester (FE-32).
+ * @param {string} [query]
+ * @returns {Promise<object[]>}
+ */
+export async function searchUsers(query = '') {
+  const cleanQuery = String(query ?? '').trim().toLowerCase();
+
+  if (!USE_MOCK) {
+    const { data } = await http.get('/users', { params: { q: cleanQuery } });
+    return Array.isArray(data) ? data : (data?.items ?? data?.content ?? []);
+  }
+
+  await waitForMock(180);
+
+  const viewer = currentUser();
+  return store.users
+    .filter((candidate) => {
+      if (candidate.suspended || candidate.role === 'admin') return false;
+      if (!cleanQuery) return true;
+      const semesterText = candidate.semester ? `semestre ${candidate.semester}` : '';
+      return (
+        candidate.username.toLowerCase().includes(cleanQuery) ||
+        semesterText.includes(cleanQuery)
+      );
+    })
+    .sort((a, b) => a.username.localeCompare(b.username, 'es'))
+    .map((candidate) => buildPublicUserProfile(candidate, viewer?.username));
 }
