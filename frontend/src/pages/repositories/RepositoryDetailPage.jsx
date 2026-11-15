@@ -48,8 +48,10 @@ import ReportDialog from '../../components/common/ReportDialog.jsx';
 import DocumentItem from '../../components/documents/DocumentItem.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { TERMS } from '../../mocks/catalogs.js';
+import { triggerFileDownload } from '../../utils/fileTypes.js';
 import {
   deleteRepository,
+  downloadDocument,
   getRepository,
   listByRepository,
   toggleRepositoryLike,
@@ -85,6 +87,7 @@ export default function RepositoryDetailPage() {
   const [tab, setTab] = useState(1);
   const [isLiking, setIsLiking] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [downloadingDocId, setDownloadingDocId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -183,6 +186,28 @@ export default function RepositoryDetailPage() {
       });
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const handleDownloadDocument = async (documentItem) => {
+    setDownloadingDocId(documentItem.id);
+
+    try {
+      const { url, name } = await downloadDocument(documentItem.id);
+      triggerFileDownload(url, name);
+      setDocuments((current) =>
+        current.map((doc) =>
+          doc.id === documentItem.id ? { ...doc, downloads: (doc.downloads ?? 0) + 1 } : doc,
+        ),
+      );
+      setNotice({ severity: 'success', message: `Descargando "${documentItem.title}".` });
+    } catch (serviceError) {
+      setNotice({
+        severity: 'error',
+        message: serviceError?.message ?? 'No se pudo descargar el documento.',
+      });
+    } finally {
+      setDownloadingDocId(null);
     }
   };
 
@@ -526,7 +551,12 @@ export default function RepositoryDetailPage() {
           ) : (
             <Stack spacing={2}>
               {currentDocuments.map((document) => (
-                <DocumentItem key={document.id} document={document} />
+                <DocumentItem
+                  key={document.id}
+                  document={document}
+                  onDownload={handleDownloadDocument}
+                  isDownloading={downloadingDocId === document.id}
+                />
               ))}
             </Stack>
           )}

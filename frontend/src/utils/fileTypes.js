@@ -44,3 +44,21 @@ export function fileTypeInfo(extension) {
 
   return GROUPS.find((group) => group.extensions.includes(value)) ?? FALLBACK;
 }
+
+/**
+ * Triggers a browser file download from a URL or blob object URL.
+ * @param {string} url
+ * @param {string} [name]
+ */
+export function triggerFileDownload(url, name = 'documento') {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
