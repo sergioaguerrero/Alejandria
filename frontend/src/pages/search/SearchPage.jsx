@@ -49,6 +49,31 @@ import {
 } from '../../services/index.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 
+function startTabFetch({ tab, key, fetcher, onSuccess, setLoadedKeys, setTabErrors }) {
+  let active = true;
+
+  fetcher()
+    .then((result) => {
+      if (!active) return;
+      onSuccess(result);
+      setTabErrors((prev) => (prev[tab] ? { ...prev, [tab]: '' } : prev));
+    })
+    .catch((serviceError) => {
+      if (!active) return;
+      const message = serviceError?.message ?? 'No se pudo buscar el contenido.';
+      setTabErrors((prev) => ({ ...prev, [tab]: message }));
+    })
+    .finally(() => {
+      if (active) {
+        setLoadedKeys((prev) => ({ ...prev, [tab]: key }));
+      }
+    });
+
+  return () => {
+    active = false;
+  };
+}
+
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -66,22 +91,30 @@ export default function SearchPage() {
   const [topic, setTopic] = useState(searchParams.get('topic') ?? '');
   const [order, setOrder] = useState(searchParams.get('order') ?? 'recent');
 
-  // Results state
+  // Results state per tab so all 3 counters stay up to date before switching tabs
   const [docResults, setDocResults] = useState({ items: [], total: 0, totalPages: 1 });
   const [repoResults, setRepoResults] = useState({ items: [], total: 0, totalPages: 1 });
   const [userResults, setUserResults] = useState([]);
   const [busyUsername, setBusyUsername] = useState('');
   const [notice, setNotice] = useState('');
-  const [page, setPage] = useState(1);
-  const [loadedKey, setLoadedKey] = useState('');
-  const [error, setError] = useState('');
+  const [pages, setPages] = useState({ documents: 1, repositories: 1 });
+  const [loadedKeys, setLoadedKeys] = useState({
+    documents: null,
+    repositories: null,
+    users: null,
+  });
+  const [tabErrors, setTabErrors] = useState({
+    documents: '',
+    repositories: '',
+    users: '',
+  });
 
   // The search bar of the app bar changes ?q=. Instead of syncing it in an
   // effect, the state is adjusted during the render where the URL changed.
   if (queryParam !== syncedQuery) {
     setSyncedQuery(queryParam);
     setSearch(queryParam);
-    setPage(1);
+    setPages({ documents: 1, repositories: 1 });
   }
 
   // Load subject list
@@ -107,8 +140,11 @@ export default function SearchPage() {
     setSearchParams(updated, { replace: true });
   };
 
-  const requestKey = [
-    activeTab,
+  const docPage = pages.documents;
+  const repoPage = pages.repositories;
+  const repoOrder = order === 'liked' ? 'popular' : order;
+
+  const docKey = [
     search,
     subjectId,
     semester,
@@ -116,19 +152,25 @@ export default function SearchPage() {
     materialType,
     topic,
     order,
-    page,
+    docPage,
   ].join('|');
+  const repoKey = [search, subjectId, semester, repoOrder, repoPage].join('|');
+  const usersKey = search;
 
-  const isLoading = loadedKey !== requestKey;
+  const currentKey =
+    activeTab === 'documents' ? docKey : activeTab === 'repositories' ? repoKey : usersKey;
+  const isLoading = loadedKeys[activeTab] !== currentKey;
+  const error = tabErrors[activeTab];
 
-  // Fetch search results. The flags only change from the asynchronous
-  // callbacks, and a change of filters makes `isLoading` true again.
-  useEffect(() => {
-    let active = true;
-
-    const fetchPromise =
-      activeTab === 'documents'
-        ? getDocuments({
+  // Fetch matching documents, repositories and users in parallel so every tab
+  // counter reflects real results immediately on entry and filter updates.
+  useEffect(
+    () =>
+      startTabFetch({
+        tab: 'documents',
+        key: docKey,
+        fetcher: () =>
+          getDocuments({
             search,
             subjectId,
             semester,
@@ -136,39 +178,49 @@ export default function SearchPage() {
             type: materialType,
             topic,
             order,
-            page,
+            page: docPage,
             size: 8,
-          })
-        : activeTab === 'repositories'
-          ? getRepositories({
-              search,
-              subjectId,
-              semester,
-              order: order === 'liked' ? 'popular' : order,
-              page,
-              size: 9,
-            })
-          : searchUsers(search);
+          }),
+        onSuccess: setDocResults,
+        setLoadedKeys,
+        setTabErrors,
+      }),
+    [docKey, search, subjectId, semester, term, materialType, topic, order, docPage],
+  );
 
-    fetchPromise
-      .then((result) => {
-        if (!active) return;
-        if (activeTab === 'documents') setDocResults(result);
-        else if (activeTab === 'repositories') setRepoResults(result);
-        else setUserResults(result);
-        setError('');
-      })
-      .catch((serviceError) => {
-        if (active) setError(serviceError?.message ?? 'No se pudo buscar el contenido.');
-      })
-      .finally(() => {
-        if (active) setLoadedKey(requestKey);
-      });
+  useEffect(
+    () =>
+      startTabFetch({
+        tab: 'repositories',
+        key: repoKey,
+        fetcher: () =>
+          getRepositories({
+            search,
+            subjectId,
+            semester,
+            order: repoOrder,
+            page: repoPage,
+            size: 9,
+          }),
+        onSuccess: setRepoResults,
+        setLoadedKeys,
+        setTabErrors,
+      }),
+    [repoKey, search, subjectId, semester, repoOrder, repoPage],
+  );
 
-    return () => {
-      active = false;
-    };
-  }, [requestKey, activeTab, search, subjectId, semester, term, materialType, topic, order, page]);
+  useEffect(
+    () =>
+      startTabFetch({
+        tab: 'users',
+        key: usersKey,
+        fetcher: () => searchUsers(search),
+        onSuccess: setUserResults,
+        setLoadedKeys,
+        setTabErrors,
+      }),
+    [usersKey, search],
+  );
 
   const handleToggleFollow = async (targetProfile) => {
     setBusyUsername(targetProfile.username);
@@ -227,7 +279,7 @@ export default function SearchPage() {
                 onChange={(e) => {
                   setSearch(e.target.value);
                   updateUrlParams({ q: e.target.value });
-                  setPage(1);
+                  setPages({ documents: 1, repositories: 1 });
                 }}
                 sx={{ flex: 2 }}
               />
@@ -242,7 +294,7 @@ export default function SearchPage() {
                     onChange={(e) => {
                       setOrder(e.target.value);
                       updateUrlParams({ order: e.target.value === 'recent' ? '' : e.target.value });
-                      setPage(1);
+                      setPages({ documents: 1, repositories: 1 });
                     }}
                     MenuProps={SELECT_MENU_PROPS}
                   >
@@ -266,7 +318,7 @@ export default function SearchPage() {
                       setSemester(e.target.value);
                       setSubjectId('');
                       updateUrlParams({ sem: e.target.value, subject: '' });
-                      setPage(1);
+                      setPages({ documents: 1, repositories: 1 });
                     }}
                     MenuProps={SELECT_MENU_PROPS}
                   >
@@ -288,7 +340,7 @@ export default function SearchPage() {
                     onChange={(e) => {
                       setSubjectId(e.target.value);
                       updateUrlParams({ subject: e.target.value });
-                      setPage(1);
+                      setPages({ documents: 1, repositories: 1 });
                     }}
                     MenuProps={SELECT_MENU_PROPS}
                   >
@@ -316,7 +368,7 @@ export default function SearchPage() {
                       onChange={(e) => {
                         setTopic(e.target.value);
                         updateUrlParams({ topic: e.target.value });
-                        setPage(1);
+                        setPages({ documents: 1, repositories: 1 });
                       }}
                       sx={{ minWidth: 160, flex: 1 }}
                     />
@@ -330,7 +382,7 @@ export default function SearchPage() {
                         onChange={(e) => {
                           setTerm(e.target.value);
                           updateUrlParams({ term: e.target.value });
-                          setPage(1);
+                          setPages({ documents: 1, repositories: 1 });
                         }}
                         MenuProps={SELECT_MENU_PROPS}
                       >
@@ -352,7 +404,7 @@ export default function SearchPage() {
                         onChange={(e) => {
                           setMaterialType(e.target.value);
                           updateUrlParams({ type: e.target.value });
-                          setPage(1);
+                          setPages({ documents: 1, repositories: 1 });
                         }}
                         MenuProps={SELECT_MENU_PROPS}
                       >
@@ -375,10 +427,7 @@ export default function SearchPage() {
       {/* Tabs */}
       <Tabs
         value={activeTab}
-        onChange={(_e, val) => {
-          setActiveTab(val);
-          setPage(1);
-        }}
+        onChange={(_e, val) => setActiveTab(val)}
         variant="scrollable"
         scrollButtons="auto"
         sx={{ mb: 3 }}
@@ -470,8 +519,8 @@ export default function SearchPage() {
         <Stack sx={{ mt: 4, alignItems: 'center' }}>
           <Pagination
             count={currentResult.totalPages}
-            page={page}
-            onChange={(_e, v) => setPage(v)}
+            page={activeTab === 'documents' ? docPage : repoPage}
+            onChange={(_e, v) => setPages((prev) => ({ ...prev, [activeTab]: v }))}
             color="primary"
           />
         </Stack>
