@@ -276,7 +276,7 @@ export default function MyStudyPage() {
                     >
                       <Chip
                         size="small"
-                        color="secondary"
+                        color={typeMeta.colorKey}
                         variant="outlined"
                         icon={<AiTypeIcon type={contentType} fontSize="small" />}
                         label={typeMeta.shortLabel}
