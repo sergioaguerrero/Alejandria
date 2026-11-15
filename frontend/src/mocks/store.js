@@ -11,6 +11,7 @@
 
 import { DOCUMENTS } from './documents.js';
 import { NOTIFICATIONS } from './notifications.js';
+import { AI_MATERIALS } from './aiMaterials.js';
 import { QUIZZES } from './quizzes.js';
 import { REPORTS } from './reports.js';
 import { SUBJECTS } from './subjects.js';
@@ -55,6 +56,8 @@ function createInitialState() {
     resetTokens: new Map(),
     /** AI-generated quizzes (FE-20, FE-21, FE-22, BE-35, BE-36). */
     quizzes: clone(QUIZZES),
+    /** AI-generated summaries, study guides, and presentation slides (FE-34, BE-37). */
+    aiMaterials: clone(AI_MATERIALS),
     /** AI materials shared exclusively between mutual friends (FE-33, BE-38). */
     aiShares: [
       {
@@ -92,6 +95,7 @@ function createInitialState() {
       notification: NOTIFICATIONS.length,
       sanction: 1,
       quiz: QUIZZES.length,
+      aiMaterial: AI_MATERIALS.length,
       aiShare: 1,
     },
   };
