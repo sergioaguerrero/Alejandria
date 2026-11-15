@@ -2,9 +2,8 @@
  * @file RepositoryDetailPage.jsx
  * @description View 7 — Repository detail (FE-12, endpoints BE-12, BE-13 and BE-20).
  *
- * Header with the repository data, the like button and the owner actions, and a
- * tab per term with the documents of each one. It shows skeletons while loading,
- * an empty state per tab and an Alert when the repository does not exist.
+ * Compact header with repository metadata, role-aware action buttons, a term
+ * tabs list with documents on the left, and the collaborators card on the right.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -27,17 +26,20 @@ import {
   Tabs,
   Typography,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
+import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
+import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
-import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
-import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 
 import CollaboratorsSection from '../../components/repositories/CollaboratorsSection.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -54,6 +56,23 @@ import {
   toggleFollowRepository,
 } from '../../services/index.js';
 
+/**
+ * Formats an ISO timestamp for the repository footer metadata.
+ * @param {string | undefined} value
+ * @returns {string}
+ */
+function formatUpdatedDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
 export default function RepositoryDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -65,6 +84,7 @@ export default function RepositoryDetailPage() {
   const [error, setError] = useState('');
   const [tab, setTab] = useState(1);
   const [isLiking, setIsLiking] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -120,8 +140,6 @@ export default function RepositoryDetailPage() {
       // Keep current repository state if silent reload fails
     }
   };
-
-  const [isFollowing, setIsFollowing] = useState(false);
 
   const handleFollow = async () => {
     setIsFollowing(true);
@@ -245,6 +263,8 @@ export default function RepositoryDetailPage() {
 
   const subject = repository.subject;
   const currentDocuments = documentsByTerm.get(tab) ?? [];
+  const followersCount = repository.followersCount ?? repository.followers ?? null;
+  const updatedLabel = formatUpdatedDate(repository.updatedAt);
 
   return (
     <Box>
@@ -260,46 +280,46 @@ export default function RepositoryDetailPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <Chip
-                label={subject?.name ?? 'Sin materia'}
-                color="primary"
-                variant="outlined"
-                size="small"
-              />
-              {subject?.semester && (
-                <Typography variant="caption" color="text.secondary">
-                  {`Semestre ${subject.semester}`}
-                </Typography>
-              )}
+        <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2.5}
+            sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'flex-start' } }}
+          >
+            <Stack spacing={1.25} sx={{ flex: 1, minWidth: 0 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <Chip
+                  label={subject?.name ?? 'Sin materia'}
+                  color="primary"
+                  variant="outlined"
+                  size="small"
+                />
+                {subject?.semester && (
+                  <Typography variant="caption" color="text.secondary">
+                    {`Semestre ${subject.semester}`}
+                  </Typography>
+                )}
+              </Stack>
+
+              <Typography variant="h3" component="h1">
+                {repository.name}
+              </Typography>
+
+              <Typography variant="body1" color="text.secondary">
+                {repository.description}
+              </Typography>
             </Stack>
 
-            <Typography variant="h3" component="h1">
-              {repository.name}
-            </Typography>
-
-            <Typography variant="body1" color="text.secondary">
-              {repository.description}
-            </Typography>
-
-            <Divider />
-
             <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={2}
-              sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+              spacing={1.25}
+              sx={{ flexShrink: 0, alignItems: { xs: 'flex-start', md: 'flex-end' } }}
             >
-              <Link
-                component={RouterLink}
-                to={`/users/${repository.authorUsername}`}
-                variant="body2"
+              <Stack
+                direction="row"
+                useFlexGap
+                spacing={1.25}
+                sx={{ flexWrap: 'wrap', justifyContent: { md: 'flex-end' } }}
               >
-                {`@${repository.authorUsername}`}
-              </Link>
-
-              <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
                 <Button
                   variant={repository.liked ? 'contained' : 'outlined'}
                   onClick={handleLike}
@@ -322,17 +342,69 @@ export default function RepositoryDetailPage() {
                   </Button>
                 )}
 
+                {canUpload && (
+                  <Button
+                    component={RouterLink}
+                    to={`/repositories/${repository.id}/upload`}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<CloudUploadOutlinedIcon />}
+                  >
+                    Subir documento
+                  </Button>
+                )}
+
                 <Button
                   component={RouterLink}
                   to={`/ai?repositoryId=${repository.id}`}
-                  variant="outlined"
-                  color="primary"
+                  variant="contained"
                   startIcon={<AutoAwesomeIcon />}
+                  sx={{
+                    bgcolor: '#4F46E5',
+                    color: '#FFFFFF',
+                    '&:hover': {
+                      bgcolor: '#4338CA',
+                    },
+                  }}
                 >
                   Estudiar con IA
                 </Button>
+              </Stack>
 
-                {!isOwner && (
+              <Stack
+                direction="row"
+                useFlexGap
+                spacing={1.25}
+                sx={{ flexWrap: 'wrap', justifyContent: { md: 'flex-end' } }}
+              >
+                {isOwner ? (
+                  <>
+                    <Button
+                      component={RouterLink}
+                      to={`/repositories/${repository.id}/edit`}
+                      variant="outlined"
+                      startIcon={<EditOutlinedIcon />}
+                    >
+                      Editar
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      startIcon={<DeleteOutlinedIcon />}
+                      onClick={() => setConfirmOpen(true)}
+                      sx={{
+                        color: 'error.main',
+                        borderColor: 'error.main',
+                        '&:hover': {
+                          borderColor: 'error.main',
+                          backgroundColor: 'rgba(248, 113, 113, 0.08)',
+                        },
+                      }}
+                    >
+                      Eliminar
+                    </Button>
+                  </>
+                ) : (
                   <Button
                     variant="outlined"
                     startIcon={<FlagOutlinedIcon />}
@@ -343,58 +415,68 @@ export default function RepositoryDetailPage() {
                 )}
               </Stack>
             </Stack>
+          </Stack>
 
-            {!isOwner && canUpload && (
-              <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
-                <Button
+          <Divider sx={{ my: 2 }} />
+
+          <Stack
+            direction="row"
+            useFlexGap
+            spacing={2.5}
+            sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
+          >
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={2.5}
+              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+            >
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                <PersonOutlinedIcon fontSize="small" color="primary" />
+                <Link
                   component={RouterLink}
-                  to={`/repositories/${repository.id}/upload`}
-                  startIcon={<AddIcon />}
+                  to={`/users/${repository.authorUsername}`}
+                  variant="body2"
+                  fontWeight={600}
                 >
-                  Subir documento
-                </Button>
+                  {`@${repository.authorUsername}`}
+                </Link>
               </Stack>
-            )}
 
-            {/* Owner actions live on their own row so they never wrap out of place. */}
-            {isOwner && (
               <Stack
                 direction="row"
-                spacing={1.5}
-                sx={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}
+                spacing={0.75}
+                sx={{
+                  alignItems: 'center',
+                  color: repository.liked ? 'primary.main' : 'text.secondary',
+                }}
               >
-                <Button
-                  component={RouterLink}
-                  to={`/repositories/${repository.id}/upload`}
-                  startIcon={<AddIcon />}
-                >
-                  Subir documento
-                </Button>
+                {repository.liked ? (
+                  <FavoriteIcon fontSize="small" />
+                ) : (
+                  <FavoriteBorderIcon fontSize="small" />
+                )}
+                <Typography variant="body2" color="inherit">
+                  {repository.likes}
+                </Typography>
+              </Stack>
 
-                <Button
-                  component={RouterLink}
-                  to={`/repositories/${repository.id}/edit`}
-                  variant="outlined"
-                  startIcon={<EditOutlinedIcon />}
-                >
-                  Editar
-                </Button>
+              {followersCount != null && (
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                  <PeopleOutlinedIcon fontSize="small" />
+                  <Typography variant="body2" color="inherit">
+                    {`${followersCount} ${followersCount === 1 ? 'Seguidor' : 'Seguidores'}`}
+                  </Typography>
+                </Stack>
+              )}
+            </Stack>
 
-                <Button
-                  variant="outlined"
-                  startIcon={<DeleteOutlinedIcon />}
-                  onClick={() => setConfirmOpen(true)}
-                  sx={{
-                    color: 'error.main',
-                    borderColor: 'error.main',
-                    '&:hover': {
-                      borderColor: 'error.main',
-                      backgroundColor: 'rgba(248, 113, 113, 0.08)',
-                    },
-                  }}
-                >
-                  Eliminar
-                </Button>
+            {updatedLabel && (
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                <CalendarTodayOutlinedIcon sx={{ fontSize: 16 }} />
+                <Typography variant="body2" color="inherit">
+                  {`Actualizado el ${updatedLabel}`}
+                </Typography>
               </Stack>
             )}
           </Stack>
@@ -434,7 +516,7 @@ export default function RepositoryDetailPage() {
                   <Button
                     component={RouterLink}
                     to={`/repositories/${repository.id}/upload`}
-                    startIcon={<AddIcon />}
+                    startIcon={<CloudUploadOutlinedIcon />}
                   >
                     Subir documento
                   </Button>
