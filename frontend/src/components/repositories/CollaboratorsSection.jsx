@@ -170,77 +170,89 @@ export default function CollaboratorsSection({
   const acceptedCount = collaborators.filter((c) => c.status === 'aceptado').length;
 
   return (
-    <Card variant="outlined" sx={{ mb: 3, borderRadius: 2 }}>
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: 2,
+        position: { lg: 'sticky' },
+        top: { lg: 84 },
+      }}
+    >
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1, mb: 2 }}
+          direction="row"
+          useFlexGap
+          spacing={1}
+          sx={{
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            mb: 2,
+          }}
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <PeopleOutlinedIcon color="primary" fontSize="small" />
             <Typography variant="subtitle1" fontWeight={700}>
-              Colaboradores de la ruta de estudio
+              Colaboradores
             </Typography>
-            <Chip
-              size="small"
-              color="primary"
-              variant="outlined"
-              label={`${acceptedCount} activo${acceptedCount === 1 ? '' : 's'}`}
-            />
           </Stack>
-
-          {!isOwner && repository.isCollaborator && (
-            <Button
-              size="small"
-              variant="outlined"
-              color="inherit"
-              disabled={isSubmitting}
-              onClick={() => handleRemove(currentUsername)}
-            >
-              Salir del equipo
-            </Button>
-          )}
+          <Chip
+            size="small"
+            color="primary"
+            variant="outlined"
+            label={`${acceptedCount} activo${acceptedCount === 1 ? '' : 's'}`}
+          />
         </Stack>
+
+        {!isOwner && repository.isCollaborator && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            fullWidth
+            disabled={isSubmitting}
+            onClick={() => handleRemove(currentUsername)}
+            sx={{ mb: 2 }}
+          >
+            Salir del equipo
+          </Button>
+        )}
 
         {/* Banner when viewer has a pending invite */}
         {!isOwner && repository.collaboratorStatus === 'pendiente' && (
-          <Alert
-            severity="info"
-            sx={{ mb: 2, borderRadius: 1.5 }}
-            action={
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="success"
-                  startIcon={<CheckCircleOutlinedIcon />}
-                  disabled={isSubmitting}
-                  onClick={() => handleRespond(true)}
-                >
-                  Aceptar
-                </Button>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="error"
-                  startIcon={<CancelOutlinedIcon />}
-                  disabled={isSubmitting}
-                  onClick={() => handleRespond(false)}
-                >
-                  Rechazar
-                </Button>
-              </Stack>
-            }
-          >
-            Tienes una invitación pendiente para colaborar en este repositorio. Al aceptar podrás
-            subir documentos junto con @{repository.authorUsername}.
+          <Alert severity="info" sx={{ mb: 2, borderRadius: 1.5 }}>
+            <Typography variant="body2">
+              Tienes una invitación pendiente para colaborar con @{repository.authorUsername}.
+            </Typography>
+            <Stack direction="row" useFlexGap spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<CheckCircleOutlinedIcon />}
+                disabled={isSubmitting}
+                onClick={() => handleRespond(true)}
+              >
+                Aceptar
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={<CancelOutlinedIcon />}
+                disabled={isSubmitting}
+                onClick={() => handleRespond(false)}
+              >
+                Rechazar
+              </Button>
+            </Stack>
           </Alert>
         )}
 
         {/* Active contributor notice */}
         {!isOwner && repository.isCollaborator && (
           <Alert severity="success" sx={{ mb: 2, borderRadius: 1.5 }}>
-            Eres colaborador aceptado en este repositorio: puedes subir tus propios apuntes y guías.
+            Eres colaborador aceptado: puedes subir documentos a este repositorio.
           </Alert>
         )}
 
@@ -249,14 +261,14 @@ export default function CollaboratorsSection({
           <Stack
             component="form"
             onSubmit={handleInvite}
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1.5}
-            sx={{ mb: 2.5, alignItems: { sm: 'center' } }}
+            direction="column"
+            spacing={1.25}
+            sx={{ mb: 2.5 }}
           >
             <Autocomplete
               freeSolo
               size="small"
-              sx={{ flex: 1 }}
+              fullWidth
               options={availableStudents}
               value={inviteValue}
               inputValue={inviteInput}
@@ -270,7 +282,7 @@ export default function CollaboratorsSection({
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Invitar colaborador por @usuario"
+                  label="Invitar por @usuario"
                   placeholder="Busca o escribe un estudiante..."
                 />
               )}
@@ -278,10 +290,10 @@ export default function CollaboratorsSection({
             <Button
               type="submit"
               variant="contained"
-              size="medium"
+              size="small"
+              fullWidth
               startIcon={<GroupAddOutlinedIcon />}
               disabled={isSubmitting || (!inviteValue && !inviteInput.trim())}
-              sx={{ whiteSpace: 'nowrap' }}
             >
               Invitar colaborador
             </Button>
@@ -290,7 +302,7 @@ export default function CollaboratorsSection({
 
         {/* Collaborator roster */}
         {isLoading ? (
-          <Skeleton variant="rounded" height={56} />
+          <Skeleton variant="rounded" height={64} />
         ) : collaborators.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
             {isOwner
@@ -298,7 +310,7 @@ export default function CollaboratorsSection({
               : 'Este repositorio aún no cuenta con colaboradores adicionales.'}
           </Typography>
         ) : (
-          <Stack spacing={1}>
+          <Stack spacing={1.25}>
             {collaborators.map((collab) => {
               const isPending = collab.status === 'pendiente';
               return (
@@ -312,59 +324,69 @@ export default function CollaboratorsSection({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 1.5,
+                    gap: 1,
                   }}
                 >
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
                     <Avatar
-                      sx={{ width: 34, height: 34, fontSize: 13, fontWeight: 700, bgcolor: 'primary.main' }}
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        flexShrink: 0,
+                      }}
                     >
                       {initials({ username: collab.username })}
                     </Avatar>
-                    <Box>
+                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                       <Link
                         component={RouterLink}
                         to={`/users/${collab.username}`}
                         variant="subtitle2"
                         fontWeight={600}
                         underline="hover"
+                        noWrap
+                        sx={{ display: 'block' }}
                       >
                         @{collab.username}
                       </Link>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Semestre {collab.user?.semester ?? 1}
-                      </Typography>
-                    </Box>
+                      <Stack direction="row" useFlexGap spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Semestre {collab.user?.semester ?? 1}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          color={isPending ? 'warning' : 'success'}
+                          variant="outlined"
+                          label={isPending ? 'Pendiente' : 'Activo'}
+                          sx={{ height: 20, fontSize: '0.7rem' }}
+                        />
+                      </Stack>
+                    </Stack>
                   </Stack>
 
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <Chip
-                      size="small"
-                      color={isPending ? 'warning' : 'success'}
-                      variant="outlined"
-                      label={isPending ? 'Pendiente' : 'Colaborador activo'}
-                    />
-                    {isOwner && (
-                      <Tooltip title={isPending ? 'Cancelar invitación' : 'Quitar colaborador'}>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          disabled={isSubmitting}
-                          aria-label={`Quitar a @${collab.username}`}
-                          onClick={() => {
-                            if (isPending) {
-                              handleRemove(collab.username);
-                            } else {
-                              setRemoveTarget(collab.username);
-                            }
-                          }}
-                        >
-                          <DeleteOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </Stack>
+                  {isOwner && (
+                    <Tooltip title={isPending ? 'Cancelar invitación' : 'Quitar colaborador'}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        disabled={isSubmitting}
+                        aria-label={`Quitar a @${collab.username}`}
+                        onClick={() => {
+                          if (isPending) {
+                            handleRemove(collab.username);
+                          } else {
+                            setRemoveTarget(collab.username);
+                          }
+                        }}
+                      >
+                        <DeleteOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </Box>
               );
             })}
