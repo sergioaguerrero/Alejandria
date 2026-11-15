@@ -40,6 +40,8 @@ export const REPORT_REASONS = [
   { value: 'mal-etiquetado', label: 'Mal etiquetado' },
   { value: 'duplicado', label: 'Contenido duplicado' },
   { value: 'inapropiado', label: 'Contenido inapropiado' },
+  { value: 'examen-vigente', label: 'Examen vigente' },
+  { value: 'plagio', label: 'Plagio' },
 ];
 
 /** System roles. */

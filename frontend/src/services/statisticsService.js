@@ -8,6 +8,7 @@ import { ApiError } from './errors.js';
 import http from './http.js';
 import { store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
+import { REPORT_REASONS } from '../mocks/catalogs.js';
 import { AI_CONTENT_TYPES, getAiContentMeta } from '../utils/aiContentMeta.js';
 
 /**
@@ -397,23 +398,11 @@ export async function getGlobalStatistics() {
       likes: doc.likes || 0,
     }));
 
-  const reasonsSummary = [
-    {
-      reason: 'Mal etiquetado',
-      pendientes: store.reports.filter((r) => r.reason === 'mal-etiquetado' && r.status === 'pendiente').length,
-      resueltos: store.reports.filter((r) => r.reason === 'mal-etiquetado' && r.status === 'resuelto').length,
-    },
-    {
-      reason: 'Contenido duplicado',
-      pendientes: store.reports.filter((r) => r.reason === 'duplicado' && r.status === 'pendiente').length,
-      resueltos: store.reports.filter((r) => r.reason === 'duplicado' && r.status === 'resuelto').length,
-    },
-    {
-      reason: 'Contenido inapropiado',
-      pendientes: store.reports.filter((r) => r.reason === 'inapropiado' && r.status === 'pendiente').length,
-      resueltos: store.reports.filter((r) => r.reason === 'inapropiado' && r.status === 'resuelto').length,
-    },
-  ];
+  const reasonsSummary = REPORT_REASONS.map(({ value, label }) => ({
+    reason: label,
+    pendientes: store.reports.filter((r) => r.reason === value && r.status === 'pendiente').length,
+    resueltos: store.reports.filter((r) => r.reason === value && r.status === 'resuelto').length,
+  }));
 
   return {
     totals: {
