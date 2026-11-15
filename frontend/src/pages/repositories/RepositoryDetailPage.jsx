@@ -127,7 +127,15 @@ export default function RepositoryDetailPage() {
     setIsFollowing(true);
     try {
       const result = await toggleFollowRepository(repository.id);
-      setRepository((current) => ({ ...current, followed: result.followed }));
+      setRepository((current) => ({
+        ...current,
+        followed: result.followed,
+        followersCount:
+          result.followersCount ??
+          (current.followersCount != null
+            ? Math.max(0, current.followersCount + (result.followed ? 1 : -1))
+            : current.followersCount),
+      }));
       setNotice({
         severity: 'success',
         message: result.followed
@@ -153,7 +161,7 @@ export default function RepositoryDetailPage() {
     } catch (serviceError) {
       setNotice({
         severity: 'error',
-        message: serviceError?.message ?? 'No se pudo actualizar el me gusta.',
+        message: serviceError?.message ?? 'No se pudo actualizar tu reacción.',
       });
     } finally {
       setIsLiking(false);
@@ -297,20 +305,22 @@ export default function RepositoryDetailPage() {
                   onClick={handleLike}
                   disabled={isLiking}
                   startIcon={repository.liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                  aria-label="Me gusta"
+                  aria-label={repository.liked ? 'Quitar corazón' : 'Dar corazón'}
                 >
                   {repository.likes}
                 </Button>
 
-                <Button
-                  variant={repository.followed ? 'contained' : 'outlined'}
-                  color={repository.followed ? 'primary' : 'inherit'}
-                  onClick={handleFollow}
-                  disabled={isFollowing}
-                  startIcon={repository.followed ? <BookmarkAddedIcon /> : <BookmarkAddOutlinedIcon />}
-                >
-                  {repository.followed ? 'Siguiendo' : 'Seguir repositorio'}
-                </Button>
+                {!isOwner && (
+                  <Button
+                    variant={repository.followed ? 'contained' : 'outlined'}
+                    color={repository.followed ? 'primary' : 'inherit'}
+                    onClick={handleFollow}
+                    disabled={isFollowing}
+                    startIcon={repository.followed ? <BookmarkAddedIcon /> : <BookmarkAddOutlinedIcon />}
+                  >
+                    {repository.followed ? 'Siguiendo' : 'Seguir repositorio'}
+                  </Button>
+                )}
 
                 <Button
                   component={RouterLink}
@@ -394,51 +404,50 @@ export default function RepositoryDetailPage() {
       <Grid container spacing={3} sx={{ alignItems: 'flex-start' }}>
         <Grid size={{ xs: 12, lg: 8 }}>
           {/* ── Documents by term ──────────────────────────────────────────── */}
-      <Tabs
-        value={tab}
-        onChange={(event, value) => setTab(value)}
-        variant="scrollable"
-        allowScrollButtonsMobile
-        sx={{ mb: 3 }}
-      >
-        {TERMS.map(({ value, label }) => (
-          <Tab
-            key={value}
-            value={value}
-            label={`${label} (${documentsByTerm.get(value)?.length ?? 0})`}
-          />
-        ))}
-      </Tabs>
+          <Tabs
+            value={tab}
+            onChange={(event, value) => setTab(value)}
+            variant="scrollable"
+            allowScrollButtonsMobile
+            sx={{ mb: 3 }}
+          >
+            {TERMS.map(({ value, label }) => (
+              <Tab
+                key={value}
+                value={value}
+                label={`${label} (${documentsByTerm.get(value)?.length ?? 0})`}
+              />
+            ))}
+          </Tabs>
 
-      {currentDocuments.length === 0 ? (
-        <EmptyState
-          icon={FolderOpenIcon}
-          title="Todavía no hay documentos en este corte"
-          description={
-            isOwner
-              ? 'Sube el material que quieras compartir con tus compañeros.'
-              : 'Cuando el autor suba material de este corte aparecerá aquí.'
-          }
-          action={
-            canUpload ? (
-              <Button
-                component={RouterLink}
-                to={`/repositories/${repository.id}/upload`}
-                startIcon={<AddIcon />}
-              >
-                Subir documento
-              </Button>
-            ) : null
-          }
-        />
-      ) : (
-        <Stack spacing={2}>
-          {currentDocuments.map((document) => (
-            <DocumentItem key={document.id} document={document} />
-          ))}
-        </Stack>
-      )}
-
+          {currentDocuments.length === 0 ? (
+            <EmptyState
+              icon={FolderOpenIcon}
+              title="Todavía no hay documentos en este corte"
+              description={
+                isOwner
+                  ? 'Sube el material que quieras compartir con tus compañeros.'
+                  : 'Cuando el autor suba material de este corte aparecerá aquí.'
+              }
+              action={
+                canUpload ? (
+                  <Button
+                    component={RouterLink}
+                    to={`/repositories/${repository.id}/upload`}
+                    startIcon={<AddIcon />}
+                  >
+                    Subir documento
+                  </Button>
+                ) : null
+              }
+            />
+          ) : (
+            <Stack spacing={2}>
+              {currentDocuments.map((document) => (
+                <DocumentItem key={document.id} document={document} />
+              ))}
+            </Stack>
+          )}
         </Grid>
 
         <Grid size={{ xs: 12, lg: 4 }}>
