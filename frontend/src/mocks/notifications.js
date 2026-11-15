@@ -7,7 +7,7 @@
  * @typedef {object} Notification
  * @property {string} id
  * @property {string} userId
- * @property {'new_content'|'warning'|'content_hidden'|'content_deleted'|'sanction'|'like'|'system'|'report_pending'|'new_follower'|'friend_match'} type
+ * @property {'new_content'|'warning'|'content_hidden'|'content_deleted'|'sanction'|'like'|'system'|'report_pending'|'new_follower'|'friend_match'|'ai_shared'} type
  * @property {string} title
  * @property {string} message
  * @property {string|null} targetUrl
@@ -96,5 +96,15 @@ export const NOTIFICATIONS = [
     targetUrl: '/repositories/repository-001',
     read: false,
     createdAt: '2026-10-29T12:15:00.000Z',
+  },
+  {
+    id: 'notif-009',
+    userId: 'usr-001',
+    type: 'ai_shared',
+    title: 'Contenido de IA compartido',
+    message: '@lauramartinez compartió contigo "Cuestionario IA: Base de Datos — SQL y Normalización".',
+    targetUrl: '/ai/quiz/quiz-002',
+    read: false,
+    createdAt: '2026-10-29T13:00:00.000Z',
   },
 ];
