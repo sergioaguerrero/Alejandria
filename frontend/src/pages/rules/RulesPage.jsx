@@ -173,6 +173,14 @@ export default function RulesPage() {
                   <strong>Inapropiado u ofensivo:</strong> vulnera el respeto o las normas
                   académicas.
                 </li>
+                <li>
+                  <strong>Examen vigente:</strong> evaluaciones en curso o pruebas académicas
+                  con restricción activa de divulgación.
+                </li>
+                <li>
+                  <strong>Plagio:</strong> copia total o parcial de material de terceros sin
+                  atribución al autor original.
+                </li>
               </Box>
               <Divider sx={{ my: 2 }} />
               <Typography variant="caption" color="text.secondary">
