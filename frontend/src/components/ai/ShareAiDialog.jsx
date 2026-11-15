@@ -101,7 +101,8 @@ export default function ShareAiDialog({ open, material, onClose, onShared }) {
     try {
       const result = await shareAiContentWithFriends(material.id, selected, note);
       setLoadedKey('');
-      onShared(result);
+      onShared?.(result);
+      onClose?.();
     } catch (serviceError) {
       setError(serviceError?.message ?? 'No se pudo compartir el contenido.');
     } finally {
