@@ -3,10 +3,10 @@
  * @description View 15 — Mis materias de interés (FE-06, RF-08, RF-39).
  *
  * Allows students to choose their subjects of interest grouped by semester
- * using collapsible semester accordions.
+ * in collapsible accordions with a semester-wide checkbox and automatic saving.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   Accordion,
@@ -14,9 +14,9 @@ import {
   AccordionSummary,
   Alert,
   Box,
-  Button,
   Checkbox,
   Chip,
+  CircularProgress,
   Divider,
   FormControlLabel,
   Grid,
@@ -26,8 +26,8 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import SaveIcon from '@mui/icons-material/Save';
 
 import { useAuth } from '../../context/authContext.js';
 import {
@@ -68,13 +68,20 @@ export default function MySubjectsPage() {
   const [subjects, setSubjects] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [expandedSemesters, setExpandedSemesters] = useState(new Set());
+  const [semesterStatus, setSemesterStatus] = useState({});
   const [loaded, setLoaded] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
 
+  const selectedIdsRef = useRef(new Set());
+  const confirmedIdsRef = useRef(new Set());
+  const saveRequestIdRef = useRef(0);
+  const saveQueueRef = useRef(Promise.resolve());
+  const isMountedRef = useRef(true);
+
   useEffect(() => {
     let active = true;
+    isMountedRef.current = true;
 
     Promise.all([getSubjects(), getSubjectsOfInterest()])
       .then(([allSubjects, savedIds]) => {
@@ -90,8 +97,13 @@ export default function MySubjectsPage() {
             .forEach((subject) => initialSet.add(subject.id));
         }
 
+        selectedIdsRef.current = initialSet;
+        confirmedIdsRef.current = new Set(initialSet);
         setSelectedIds(initialSet);
-        setExpandedSemesters(resolveInitialExpandedSemesters(allSubjects, initialSet, user?.semester));
+        setSemesterStatus({});
+        setExpandedSemesters(
+          resolveInitialExpandedSemesters(allSubjects, initialSet, user?.semester),
+        );
       })
       .catch((serviceError) => {
         if (active) setError(serviceError?.message ?? 'No se pudieron cargar las materias.');
@@ -102,8 +114,46 @@ export default function MySubjectsPage() {
 
     return () => {
       active = false;
+      isMountedRef.current = false;
     };
   }, [user]);
+
+  const persistSelection = (nextIds, semester, successMessage) => {
+    const requestId = ++saveRequestIdRef.current;
+
+    setError('');
+    setSemesterStatus((prev) => ({ ...prev, [semester]: 'saving' }));
+
+    saveQueueRef.current = saveQueueRef.current.then(async () => {
+      try {
+        await updateSubjectsOfInterest([...nextIds]);
+        confirmedIdsRef.current = new Set(nextIds);
+        if (!isMountedRef.current) return;
+
+        setSemesterStatus((prev) => ({ ...prev, [semester]: 'saved' }));
+        if (requestId === saveRequestIdRef.current && successMessage) {
+          setNotice(successMessage);
+        }
+      } catch (serviceError) {
+        if (!isMountedRef.current) return;
+
+        const isLatest = requestId === saveRequestIdRef.current;
+        if (isLatest) {
+          const fallback = new Set(confirmedIdsRef.current);
+          selectedIdsRef.current = fallback;
+          setSelectedIds(fallback);
+          setError(serviceError?.message ?? 'No se pudieron guardar las materias.');
+        }
+
+        setSemesterStatus((prev) => {
+          if (!isLatest && prev[semester] !== 'saving') return prev;
+          const nextStatus = { ...prev };
+          delete nextStatus[semester];
+          return nextStatus;
+        });
+      }
+    });
+  };
 
   const toggleAccordion = (semester) => {
     setExpandedSemesters((prev) => {
@@ -114,39 +164,36 @@ export default function MySubjectsPage() {
     });
   };
 
-  const toggleSubject = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleSubject = (subject) => {
+    const next = new Set(selectedIdsRef.current);
+    if (next.has(subject.id)) next.delete(subject.id);
+    else next.add(subject.id);
+
+    selectedIdsRef.current = next;
+    setSelectedIds(next);
+    persistSelection(next, subject.semester, `Semestre ${subject.semester} guardado automáticamente.`);
   };
 
-  const toggleSemester = (semesterSubjects) => {
-    const allSelected = semesterSubjects.every((s) => selectedIds.has(s.id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      semesterSubjects.forEach((s) => {
-        if (allSelected) next.delete(s.id);
-        else next.add(s.id);
-      });
-      return next;
+  const toggleSemester = (group) => {
+    const current = selectedIdsRef.current;
+    const allSelected =
+      group.subjects.length > 0 && group.subjects.every((subject) => current.has(subject.id));
+    const next = new Set(current);
+
+    group.subjects.forEach((subject) => {
+      if (allSelected) next.delete(subject.id);
+      else next.add(subject.id);
     });
-  };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setError('');
-
-    try {
-      await updateSubjectsOfInterest([...selectedIds]);
-      setNotice('Materias de interés guardadas.');
-    } catch (serviceError) {
-      setError(serviceError?.message ?? 'No se pudieron guardar las materias.');
-    } finally {
-      setIsSaving(false);
-    }
+    selectedIdsRef.current = next;
+    setSelectedIds(next);
+    persistSelection(
+      next,
+      group.semester,
+      allSelected
+        ? `Semestre ${group.semester} deseleccionado y guardado.`
+        : `Semestre ${group.semester} seleccionado y guardado.`,
+    );
   };
 
   const groups = groupBySemester(subjects);
@@ -168,7 +215,7 @@ export default function MySubjectsPage() {
           Mis materias de interés
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Selecciona las asignaturas que estás cursando o que deseas seguir para recibir novedades.
+          Marca materias individuales o usa la casilla de cada semestre para cubrir todas; los cambios se guardan automáticamente.
         </Typography>
       </Stack>
 
@@ -187,6 +234,7 @@ export default function MySubjectsPage() {
             group.subjects.length > 0 && selectedCount === group.subjects.length;
           const someInSemester = selectedCount > 0 && selectedCount < group.subjects.length;
           const isExpanded = expandedSemesters.has(group.semester);
+          const status = semesterStatus[group.semester];
 
           return (
             <Accordion
@@ -242,7 +290,7 @@ export default function MySubjectsPage() {
                         size="small"
                         checked={allInSemester}
                         indeterminate={someInSemester}
-                        onChange={() => toggleSemester(group.subjects)}
+                        onChange={() => toggleSemester(group)}
                         slotProps={{
                           input: {
                             'aria-label': `Seleccionar todas las materias del Semestre ${group.semester}`,
@@ -261,6 +309,26 @@ export default function MySubjectsPage() {
                     variant={selectedCount > 0 ? 'filled' : 'outlined'}
                   />
                 </Stack>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', minHeight: 24 }}>
+                  {status === 'saving' && (
+                    <Chip
+                      size="small"
+                      icon={<CircularProgress size={12} color="inherit" />}
+                      label="Guardando…"
+                      variant="outlined"
+                    />
+                  )}
+                  {status === 'saved' && (
+                    <Chip
+                      size="small"
+                      icon={<CheckCircleOutlinedIcon />}
+                      label="Guardado"
+                      color="success"
+                      variant="outlined"
+                    />
+                  )}
+                </Box>
               </AccordionSummary>
 
               <AccordionDetails sx={{ pt: 0 }}>
@@ -275,7 +343,7 @@ export default function MySubjectsPage() {
                           control={
                             <Checkbox
                               checked={isChecked}
-                              onChange={() => toggleSubject(subject.id)}
+                              onChange={() => toggleSubject(subject)}
                             />
                           }
                           label={
@@ -294,21 +362,9 @@ export default function MySubjectsPage() {
         })}
       </Stack>
 
-      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button
-          variant="contained"
-          size="large"
-          startIcon={<SaveIcon />}
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Guardando…' : 'Guardar materias de interés'}
-        </Button>
-      </Box>
-
       <Snackbar
         open={Boolean(notice)}
-        autoHideDuration={4000}
+        autoHideDuration={3000}
         onClose={() => setNotice(null)}
       >
         <Alert severity="success" variant="filled" onClose={() => setNotice(null)}>
