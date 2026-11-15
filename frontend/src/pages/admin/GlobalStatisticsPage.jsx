@@ -43,9 +43,10 @@ import {
   YAxis,
 } from 'recharts';
 
+import AdvancedAnalyticsSection from '../../components/admin/AdvancedAnalyticsSection.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import { useAuth } from '../../context/authContext.js';
-import { getGlobalStatistics } from '../../services/index.js';
+import { getAdvancedAdminStatistics, getGlobalStatistics } from '../../services/index.js';
 
 function SummaryCard({ title, value, subtitle, icon: Icon, color = 'primary.main' }) {
   return (
@@ -92,6 +93,9 @@ export default function GlobalStatisticsPage() {
   const [loadedKey, setLoadedKey] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(null);
+  const [period, setPeriod] = useState('week');
+  const [advancedData, setAdvancedData] = useState(null);
+  const [loadedAdvKey, setLoadedAdvKey] = useState('');
 
   const loading = !user || loadedKey !== `${user.username}:${reloadKey}`;
 
@@ -117,6 +121,32 @@ export default function GlobalStatisticsPage() {
       active = false;
     };
   }, [user, reloadKey]);
+
+  const advTargetKey = user ? `${user.username}:${period}:${reloadKey}` : '';
+  const isAdvancedLoading = Boolean(advTargetKey && loadedAdvKey !== advTargetKey);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    let active = true;
+    const reqKey = `${user.username}:${period}:${reloadKey}`;
+
+    getAdvancedAdminStatistics(period)
+      .then((adv) => {
+        if (!active) return;
+        setAdvancedData(adv);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAdvancedData(null);
+      })
+      .finally(() => {
+        if (active) setLoadedAdvKey(reqKey);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user, period, reloadKey]);
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
@@ -402,6 +432,18 @@ export default function GlobalStatisticsPage() {
             </CardContent>
           </Card>
         </Stack>
+      )}
+
+      {/* FE-37: Advanced Activity Analytics */}
+      {!loading && !error && data && (
+        <Box sx={{ mt: 3 }}>
+          <AdvancedAnalyticsSection
+            period={period}
+            onPeriodChange={setPeriod}
+            data={advancedData}
+            isLoading={isAdvancedLoading}
+          />
+        </Box>
       )}
 
       {/* Empty State */}

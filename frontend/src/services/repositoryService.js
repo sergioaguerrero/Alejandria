@@ -10,7 +10,7 @@
 import { USE_MOCK, waitForMock } from './config.js';
 import { ApiError } from './errors.js';
 import http from './http.js';
-import { nextId, store } from '../mocks/store.js';
+import { nextId, recordMockSearchTerm, store } from '../mocks/store.js';
 import { withoutPassword } from '../utils/users.js';
 import { currentUser } from './authService.js';
 import { emitMockNotification, notifyFollowersOfNewContent } from './notificationService.js';
@@ -142,6 +142,8 @@ export async function getRepositories(filters = {}) {
   /** Finds the subject of a repository, to read its semester. */
   const subjectOf = (repository) =>
     store.subjects.find((item) => item.id === Number(repository.subjectId)) ?? null;
+
+  recordMockSearchTerm(search);
 
   let list = store.repositories.filter((repository) => {
     const subjectMatches = !subjectId || Number(repository.subjectId) === Number(subjectId);

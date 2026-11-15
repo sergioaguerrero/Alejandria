@@ -60,7 +60,11 @@ export {
   updateSubjectsOfInterest,
 } from './subjectService.js';
 
-export { getMyStatistics, getGlobalStatistics } from './statisticsService.js';
+export {
+  getMyStatistics,
+  getGlobalStatistics,
+  getAdvancedAdminStatistics,
+} from './statisticsService.js';
 
 export { createReport, getReports, getReportById, resolveReport } from './reportService.js';
 

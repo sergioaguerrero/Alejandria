@@ -115,6 +115,31 @@ function createInitialState() {
         createdAt: '2026-10-25T14:00:00.000Z',
       },
     ],
+    /** Municipal-free search query logs for admin analytics (FE-37, BE-25). */
+    searchLogs: [
+      { term: 'árboles avl', count: 64, lastSearchedAt: '2026-10-29T16:20:00.000Z' },
+      { term: 'normalización 3fn', count: 52, lastSearchedAt: '2026-10-29T14:10:00.000Z' },
+      { term: 'grafos bfs', count: 47, lastSearchedAt: '2026-10-29T11:30:00.000Z' },
+      { term: 'cálculo integral', count: 39, lastSearchedAt: '2026-10-28T19:05:00.000Z' },
+      { term: 'sql joins', count: 35, lastSearchedAt: '2026-10-28T15:40:00.000Z' },
+      { term: 'patrones de diseño', count: 29, lastSearchedAt: '2026-10-27T17:15:00.000Z' },
+      { term: 'ecuaciones diferenciales', count: 24, lastSearchedAt: '2026-10-26T10:50:00.000Z' },
+      { term: 'programación dinámica', count: 21, lastSearchedAt: '2026-10-25T20:00:00.000Z' },
+    ],
+    /** Historical and live AI generation events for admin analytics (FE-37, BE-25). */
+    aiUsageLogs: [
+      { id: 'ailog-01', username: 'sergioaguerrero', repositoryId: 'repository-001', contentType: 'quiz', scope: 'all', periodBucket: 'day', createdAt: '2026-10-29T10:15:00.000Z' },
+      { id: 'ailog-02', username: 'lauramartinez', repositoryId: 'repository-002', contentType: 'slides', scope: 'topic', periodBucket: 'day', createdAt: '2026-10-29T11:45:00.000Z' },
+      { id: 'ailog-03', username: 'valentinarojas', repositoryId: 'repository-001', contentType: 'summary', scope: 'term', periodBucket: 'day', createdAt: '2026-10-29T13:20:00.000Z' },
+      { id: 'ailog-04', username: 'andrespineda', repositoryId: 'repository-002', contentType: 'guide', scope: 'all', periodBucket: 'week', createdAt: '2026-10-27T09:10:00.000Z' },
+      { id: 'ailog-05', username: 'sergioaguerrero', repositoryId: 'repository-001', contentType: 'summary', scope: 'all', periodBucket: 'week', createdAt: '2026-10-26T18:30:00.000Z' },
+      { id: 'ailog-06', username: 'danielaospino', repositoryId: 'repository-003', contentType: 'quiz', scope: 'term', periodBucket: 'week', createdAt: '2026-10-25T16:00:00.000Z' },
+      { id: 'ailog-07', username: 'lauramartinez', repositoryId: 'repository-002', contentType: 'quiz', scope: 'all', periodBucket: 'week', createdAt: '2026-10-24T12:15:00.000Z' },
+      { id: 'ailog-08', username: 'camilodaza', repositoryId: 'repository-001', contentType: 'guide', scope: 'tag', periodBucket: 'month', createdAt: '2026-10-18T14:40:00.000Z' },
+      { id: 'ailog-09', username: 'valentinarojas', repositoryId: 'repository-003', contentType: 'slides', scope: 'topic', periodBucket: 'month', createdAt: '2026-10-15T19:20:00.000Z' },
+      { id: 'ailog-10', username: 'andrespineda', repositoryId: 'repository-002', contentType: 'summary', scope: 'all', periodBucket: 'month', createdAt: '2026-10-12T10:05:00.000Z' },
+    ],
+    _lastRecordedSearch: { term: '', ts: 0 },
     counters: {
       repository: REPOSITORIES.length,
       document: DOCUMENTS.length,
@@ -132,6 +157,31 @@ function createInitialState() {
 
 /** Mutable state shared by all services in mock mode. */
 export const store = createInitialState();
+
+/** Records a normalized search term into in-memory analytics (debounced for paired queries). */
+export function recordMockSearchTerm(rawQuery) {
+  const clean = String(rawQuery || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (clean.length < 2) return;
+
+  const now = Date.now();
+  if (store._lastRecordedSearch?.term === clean && now - store._lastRecordedSearch.ts < 1200) {
+    return;
+  }
+  store._lastRecordedSearch = { term: clean, ts: now };
+
+  store.searchLogs = store.searchLogs || [];
+  const existing = store.searchLogs.find((item) => item.term.toLowerCase() === clean);
+  if (existing) {
+    existing.count += 1;
+    existing.lastSearchedAt = new Date().toISOString();
+  } else {
+    store.searchLogs.unshift({
+      term: clean,
+      count: 1,
+      lastSearchedAt: new Date().toISOString(),
+    });
+  }
+}
 
 /** Returns the state to the original data. */
 export function resetStore() {

@@ -9,7 +9,7 @@
 import { USE_MOCK, waitForMock } from './config.js';
 import { ApiError } from './errors.js';
 import http from './http.js';
-import { nextId, store } from '../mocks/store.js';
+import { nextId, recordMockSearchTerm, store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
 import { emitMockNotification, notifyFollowersOfNewContent } from './notificationService.js';
 import { isAcceptedCollaborator } from './repositoryService.js';
@@ -162,6 +162,8 @@ export async function getDocuments(filters = {}) {
   }
 
   await waitForMock();
+
+  recordMockSearchTerm(search);
 
   const text = normalize(search);
   const topicText = normalize(topic);

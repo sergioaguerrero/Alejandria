@@ -378,6 +378,16 @@ export async function generateQuiz({ repositoryId, contentType = 'quiz', scope =
 
   // Consume 1 quota
   store.aiGenerationsToday.set(user.id, currentUsed + 1);
+  store.aiUsageLogs = store.aiUsageLogs || [];
+  store.aiUsageLogs.unshift({
+    id: `ailog-${Date.now()}`,
+    username: user.username,
+    repositoryId: repository.id,
+    contentType,
+    scope,
+    periodBucket: 'day',
+    createdAt: new Date().toISOString(),
+  });
 
   // Generate quiz questions tailored to the repository
   const questions = QUESTION_TEMPLATES.map((tmpl, idx) => ({

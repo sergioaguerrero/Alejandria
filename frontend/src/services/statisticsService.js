@@ -8,6 +8,7 @@ import { ApiError } from './errors.js';
 import http from './http.js';
 import { store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
+import { AI_CONTENT_TYPES, getAiContentMeta } from '../utils/aiContentMeta.js';
 
 /**
  * Gets personal statistics for the logged-in user.
@@ -164,6 +165,159 @@ export async function getMyStatistics(period = 'week') {
  * Gets global platform analytics for administrators (FE-26, BE-23).
  * @returns {Promise<object>}
  */
+/**
+ * Gets advanced admin activity analytics filtered by period (FE-37, RF-64, RF-65, BE-25).
+ * @param {'day'|'week'|'month'} [period='week']
+ * @returns {Promise<object>}
+ */
+export async function getAdvancedAdminStatistics(period = 'week') {
+  const user = currentUser();
+  if (!user || user.role !== 'admin') {
+    throw new ApiError('No tienes permisos de administrador.', { status: 403 });
+  }
+
+  const activePeriod = ['day', 'week', 'month'].includes(period) ? period : 'week';
+
+  if (!USE_MOCK) {
+    const { data } = await http.get('/admin/statistics/advanced', {
+      params: { period: activePeriod },
+    });
+    return data;
+  }
+
+  await waitForMock(200);
+
+  const students = store.users.filter((u) => u.role !== 'admin');
+  const totalStudents = students.length;
+
+  const periodBuckets =
+    activePeriod === 'day'
+      ? ['day']
+      : activePeriod === 'week'
+        ? ['day', 'week']
+        : ['day', 'week', 'month'];
+
+  const allAiLogs = store.aiUsageLogs || [];
+  const periodAiLogs = allAiLogs.filter((entry) => periodBuckets.includes(entry.periodBucket));
+
+  // Active users per period baseline + live AI contributors
+  const activeRatio = activePeriod === 'day' ? 0.5 : activePeriod === 'week' ? 0.84 : 1;
+  const baselineActive = Math.min(totalStudents, Math.max(1, Math.round(totalStudents * activeRatio)));
+  const activeTimelines = {
+    day: [
+      { label: '08:00', activos: 2, sesiones: 5 },
+      { label: '11:00', activos: 3, sesiones: 9 },
+      { label: '14:00', activos: 4, sesiones: 12 },
+      { label: '17:00', activos: 3, sesiones: 10 },
+      { label: '20:00', activos: 4, sesiones: 14 },
+      { label: '23:00', activos: 2, sesiones: 6 },
+    ],
+    week: [
+      { label: 'Lun', activos: 4, sesiones: 16 },
+      { label: 'Mar', activos: 5, sesiones: 21 },
+      { label: 'Mié', activos: 5, sesiones: 24 },
+      { label: 'Jue', activos: 4, sesiones: 19 },
+      { label: 'Vie', activos: 5, sesiones: 22 },
+      { label: 'Sáb', activos: 3, sesiones: 11 },
+      { label: 'Dom', activos: 4, sesiones: 15 },
+    ],
+    month: [
+      { label: 'Sem 1', activos: 5, sesiones: 64 },
+      { label: 'Sem 2', activos: 6, sesiones: 78 },
+      { label: 'Sem 3', activos: 5, sesiones: 71 },
+      { label: 'Sem 4', activos: 6, sesiones: 89 },
+    ],
+  };
+
+  // Search terms ranking
+  const sortedSearchTerms = [...(store.searchLogs || [])]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+  const maxSearchCount = sortedSearchTerms[0]?.count || 1;
+  const topSearchTerms = sortedSearchTerms.map((item) => ({
+    term: item.term,
+    count: item.count,
+    sharePercent: Math.round((item.count / maxSearchCount) * 100),
+  }));
+
+  // AI usage stats by content type, repository, and timeline
+  const typeCountsMap = new Map(AI_CONTENT_TYPES.map((t) => [t.value, 0]));
+  const repoCountsMap = new Map();
+
+  for (const log of periodAiLogs) {
+    const tKey = typeCountsMap.has(log.contentType) ? log.contentType : 'quiz';
+    typeCountsMap.set(tKey, (typeCountsMap.get(tKey) || 0) + 1);
+    repoCountsMap.set(log.repositoryId, (repoCountsMap.get(log.repositoryId) || 0) + 1);
+  }
+
+  const byType = AI_CONTENT_TYPES.map((t) => ({
+    contentType: t.value,
+    label: getAiContentMeta(t.value).shortLabel,
+    count: typeCountsMap.get(t.value) || 0,
+  }));
+
+  const topRepositories = Array.from(repoCountsMap.entries())
+    .map(([repoId, count]) => {
+      const repo = store.repositories.find((r) => r.id === repoId);
+      return {
+        repositoryId: repoId,
+        repositoryName: repo?.name ?? 'Repositorio eliminado',
+        subjectName: repo?.subject?.name ?? 'Materia',
+        count,
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const liveTodayBoost = Math.max(0, periodAiLogs.length - allAiLogs.filter((e) => e.id.startsWith('ailog-0') || e.id === 'ailog-10').filter((e) => periodBuckets.includes(e.periodBucket)).length);
+
+  const aiTimelines = {
+    day: [
+      { label: '08:00', generaciones: 1 },
+      { label: '11:00', generaciones: 2 + liveTodayBoost },
+      { label: '14:00', generaciones: 1 },
+      { label: '17:00', generaciones: 2 },
+      { label: '20:00', generaciones: 3 },
+      { label: '23:00', generaciones: 1 },
+    ],
+    week: [
+      { label: 'Lun', generaciones: 3 },
+      { label: 'Mar', generaciones: 4 },
+      { label: 'Mié', generaciones: 6 + liveTodayBoost },
+      { label: 'Jue', generaciones: 3 },
+      { label: 'Vie', generaciones: 5 },
+      { label: 'Sáb', generaciones: 2 },
+      { label: 'Dom', generaciones: 3 },
+    ],
+    month: [
+      { label: 'Sem 1', generaciones: 14 },
+      { label: 'Sem 2', generaciones: 19 },
+      { label: 'Sem 3', generaciones: 16 },
+      { label: 'Sem 4', generaciones: 24 + liveTodayBoost },
+    ],
+  };
+
+  return {
+    period: activePeriod,
+    activeUsers: {
+      totalActive: baselineActive,
+      totalStudents,
+      engagementRate: totalStudents > 0 ? Math.round((baselineActive / totalStudents) * 100) : 0,
+      deltaLabel: activePeriod === 'day' ? '+8% vs. ayer' : activePeriod === 'week' ? '+14% vs. sem. anterior' : '+22% vs. mes anterior',
+      timeline: activeTimelines[activePeriod],
+    },
+    topSearchTerms,
+    aiUsage: {
+      periodGenerations: periodAiLogs.length,
+      totalGenerations: allAiLogs.length,
+      sharedWithFriends: (store.aiShares || []).length,
+      byType,
+      topRepositories,
+      timeline: aiTimelines[activePeriod],
+    },
+  };
+}
+
 export async function getGlobalStatistics() {
   const user = currentUser();
   if (!user || user.role !== 'admin') {
