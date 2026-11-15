@@ -18,6 +18,7 @@ import {
   CardContent,
   Chip,
   Divider,
+  Grid,
   Link,
   Skeleton,
   Snackbar,
@@ -390,15 +391,9 @@ export default function RepositoryDetailPage() {
         </CardContent>
       </Card>
 
-      <CollaboratorsSection
-        repository={repository}
-        isOwner={isOwner}
-        currentUsername={user?.username}
-        onRepositoryChanged={handleRefreshRepository}
-        onNotify={(message, severity = 'info') => setNotice({ message, severity })}
-      />
-
-      {/* ── Documents by term ──────────────────────────────────────────── */}
+      <Grid container spacing={3} sx={{ alignItems: 'flex-start' }}>
+        <Grid size={{ xs: 12, lg: 8 }}>
+          {/* ── Documents by term ──────────────────────────────────────────── */}
       <Tabs
         value={tab}
         onChange={(event, value) => setTab(value)}
@@ -443,6 +438,19 @@ export default function RepositoryDetailPage() {
           ))}
         </Stack>
       )}
+
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <CollaboratorsSection
+            repository={repository}
+            isOwner={isOwner}
+            currentUsername={user?.username}
+            onRepositoryChanged={handleRefreshRepository}
+            onNotify={(message, severity = 'info') => setNotice({ message, severity })}
+          />
+        </Grid>
+      </Grid>
 
       <ConfirmDialog
         open={confirmOpen}
