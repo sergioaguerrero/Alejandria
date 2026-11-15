@@ -23,6 +23,7 @@ import {
   Skeleton,
   Snackbar,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -184,6 +185,7 @@ export default function MySubjectsPage() {
           ).length;
           const allInSemester =
             group.subjects.length > 0 && selectedCount === group.subjects.length;
+          const someInSemester = selectedCount > 0 && selectedCount < group.subjects.length;
           const isExpanded = expandedSemesters.has(group.semester);
 
           return (
@@ -217,7 +219,38 @@ export default function MySubjectsPage() {
                   },
                 }}
               >
-                <Stack direction="row" spacing={1.25} alignItems="center">
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Tooltip
+                    title={
+                      allInSemester
+                        ? `Deseleccionar todas las materias del Semestre ${group.semester}`
+                        : `Seleccionar todas las materias del Semestre ${group.semester}`
+                    }
+                  >
+                    <Box
+                      component="span"
+                      onClick={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        if (event.key === ' ' || event.key === 'Enter') {
+                          event.stopPropagation();
+                        }
+                      }}
+                      sx={{ display: 'inline-flex', alignItems: 'center', ml: -0.5 }}
+                    >
+                      <Checkbox
+                        size="small"
+                        checked={allInSemester}
+                        indeterminate={someInSemester}
+                        onChange={() => toggleSemester(group.subjects)}
+                        slotProps={{
+                          input: {
+                            'aria-label': `Seleccionar todas las materias del Semestre ${group.semester}`,
+                          },
+                        }}
+                      />
+                    </Box>
+                  </Tooltip>
                   <Typography variant="subtitle1" component="span" fontWeight={700}>
                     {`Semestre ${group.semester}`}
                   </Typography>
@@ -228,17 +261,6 @@ export default function MySubjectsPage() {
                     variant={selectedCount > 0 ? 'filled' : 'outlined'}
                   />
                 </Stack>
-
-                <Button
-                  size="small"
-                  variant="text"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleSemester(group.subjects);
-                  }}
-                >
-                  {allInSemester ? 'Deseleccionar todo' : 'Seleccionar semestre'}
-                </Button>
               </AccordionSummary>
 
               <AccordionDetails sx={{ pt: 0 }}>
