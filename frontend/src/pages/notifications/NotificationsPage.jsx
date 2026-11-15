@@ -1,10 +1,10 @@
 /**
  * @file NotificationsPage.jsx
- * @description View 18 — Notifications (FE-18, FE-19, BE-31, BE-32).
+ * @description View 18 — Notifications (FE-18, FE-19, FE-32, BE-31, BE-32).
  *
  * Full notifications inbox for the current user. Allows filtering by all
  * or unread, marking one or all as read, and navigating directly to the
- * referenced repository or document.
+ * referenced repository, document or profile.
  */
 
 import { useEffect, useState } from 'react';
@@ -28,16 +28,12 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined';
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
+import NotificationTypeIcon from '../../components/common/NotificationTypeIcon.jsx';
 import { useAuth } from '../../context/authContext.js';
 import {
   getNotifications,
@@ -45,53 +41,7 @@ import {
   markNotificationAsRead,
 } from '../../services/index.js';
 import { formatRelativeDate } from '../../utils/formatDate.js';
-
-/**
- * Returns an icon corresponding to the notification type.
- * @param {string} type
- */
-function NotificationTypeIcon({ type }) {
-  switch (type) {
-    case 'warning':
-    case 'content_hidden':
-      return <WarningAmberOutlinedIcon color="warning" sx={{ fontSize: 28 }} />;
-    case 'sanction':
-    case 'content_deleted':
-    case 'report_pending':
-      return <ReportProblemOutlinedIcon color="error" sx={{ fontSize: 28 }} />;
-    case 'like':
-      return <ThumbUpOutlinedIcon color="primary" sx={{ fontSize: 28 }} />;
-    case 'new_content':
-      return <DescriptionOutlinedIcon color="primary" sx={{ fontSize: 28 }} />;
-    default:
-      return <FolderOutlinedIcon color="action" sx={{ fontSize: 28 }} />;
-  }
-}
-
-/**
- * Returns a human label for the notification type.
- * @param {string} type
- */
-function notificationTypeLabel(type) {
-  switch (type) {
-    case 'new_content':
-      return 'Novedad';
-    case 'warning':
-      return 'Advertencia';
-    case 'content_hidden':
-      return 'Contenido ocultado';
-    case 'content_deleted':
-      return 'Contenido eliminado';
-    case 'sanction':
-      return 'Sanción';
-    case 'like':
-      return 'Interacción';
-    case 'report_pending':
-      return 'Moderación';
-    default:
-      return 'Aviso';
-  }
-}
+import { notificationTypeLabel } from '../../utils/notificationMeta.js';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -308,7 +258,7 @@ export default function NotificationsPage() {
               <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                   <Box sx={{ pt: 0.5 }}>
-                    <NotificationTypeIcon type={item.type} />
+                    <NotificationTypeIcon type={item.type} sx={{ fontSize: 28 }} />
                   </Box>
 
                   <Box sx={{ flex: 1, minWidth: 0 }}>

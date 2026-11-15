@@ -7,7 +7,7 @@
  * @typedef {object} Notification
  * @property {string} id
  * @property {string} userId
- * @property {'new_content'|'warning'|'content_hidden'|'content_deleted'|'sanction'|'like'|'system'|'report_pending'} type
+ * @property {'new_content'|'warning'|'content_hidden'|'content_deleted'|'sanction'|'like'|'system'|'report_pending'|'new_follower'|'friend_match'} type
  * @property {string} title
  * @property {string} message
  * @property {string|null} targetUrl
@@ -76,5 +76,25 @@ export const NOTIFICATIONS = [
     targetUrl: '/admin/reports',
     read: false,
     createdAt: '2026-10-29T10:00:00.000Z',
+  },
+  {
+    id: 'notif-007',
+    userId: 'usr-001',
+    type: 'new_follower',
+    title: 'Nuevo seguidor',
+    message: '@danielaospino comenzó a seguirte. ¡Síganse mutuamente para ser amigos!',
+    targetUrl: '/users/danielaospino',
+    read: false,
+    createdAt: '2026-10-29T11:30:00.000Z',
+  },
+  {
+    id: 'notif-008',
+    userId: 'usr-001',
+    type: 'like',
+    title: 'Nuevo me gusta en tu repositorio',
+    message: 'A @lauramartinez le gustó tu repositorio "Programación de Computadores II — Estructuras básicas".',
+    targetUrl: '/repositories/repository-001',
+    read: false,
+    createdAt: '2026-10-29T12:15:00.000Z',
   },
 ];

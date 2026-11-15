@@ -13,6 +13,7 @@ import http from './http.js';
 import { nextId, store } from '../mocks/store.js';
 import { withoutPassword } from '../utils/users.js';
 import { currentUser } from './authService.js';
+import { emitMockNotification, notifyFollowersOfNewContent } from './notificationService.js';
 
 /**
  * @typedef {object} RepositoryFilters
@@ -242,6 +243,12 @@ export async function createRepository(data) {
   };
 
   store.repositories.unshift(repository);
+  notifyFollowersOfNewContent({
+    authorUsername: user.username,
+    title: `Nuevo repositorio de @${user.username}`,
+    message: `@${user.username} creó el repositorio "${repository.name}".`,
+    targetUrl: `/repositories/${repository.id}`,
+  });
   return enrich(repository);
 }
 
@@ -333,8 +340,19 @@ export async function toggleRepositoryLike(id) {
     store.likedRepositories.delete(key);
     repository.likes = Math.max(0, repository.likes - 1);
   } else {
+
+
     store.likedRepositories.add(key);
     repository.likes += 1;
+    if (repository.authorUsername !== user.username) {
+      emitMockNotification({
+        recipientUsername: repository.authorUsername,
+        type: 'like',
+        title: 'Nuevo me gusta en tu repositorio',
+        message: `A @${user.username} le gustó tu repositorio "${repository.name}".`,
+        targetUrl: `/repositories/${repository.id}`,
+      });
+    }
   }
 
   return { liked: store.likedRepositories.has(key), likes: repository.likes };

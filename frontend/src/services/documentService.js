@@ -11,6 +11,7 @@ import { ApiError } from './errors.js';
 import http from './http.js';
 import { nextId, store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
+import { emitMockNotification, notifyFollowersOfNewContent } from './notificationService.js';
 import { withoutPassword } from '../utils/users.js';
 import { getExtension, validateFile } from '../utils/validations.js';
 
@@ -431,6 +432,12 @@ export async function uploadDocument(data, onProgress) {
   };
 
   store.documents.unshift(document);
+  notifyFollowersOfNewContent({
+    authorUsername: user.username,
+    title: `Nuevo documento de @${user.username}`,
+    message: `@${user.username} subió "${document.title}" a ${repository.name}.`,
+    targetUrl: `/documents/${document.id}`,
+  });
   return enrich(document);
 }
 
@@ -579,6 +586,15 @@ export async function toggleDocumentLike(id) {
     store.likedDocuments.add(key);
     document.likes += 1;
     recordInteraction('like', document);
+    if (document.authorUsername !== user.username) {
+      emitMockNotification({
+        recipientUsername: document.authorUsername,
+        type: 'like',
+        title: 'Nuevo me gusta en tu documento',
+        message: `A @${user.username} le gustó tu documento "${document.title}".`,
+        targetUrl: `/documents/${document.id}`,
+      });
+    }
   }
 
   return { liked: store.likedDocuments.has(key), likes: document.likes };

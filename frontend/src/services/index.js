@@ -59,7 +59,16 @@ export { getMyStatistics, getGlobalStatistics } from './statisticsService.js';
 
 export { createReport, getReports, getReportById, resolveReport } from './reportService.js';
 
-export { getPublicProfile, getAdminUser, toggleUserSuspension } from './userService.js';
+export {
+  getPublicProfile,
+  getAdminUser,
+  toggleUserSuspension,
+  toggleFollowUser,
+  getFriends,
+  getFollowingUsers,
+  getFollowerUsers,
+  searchUsers,
+} from './userService.js';
 
 export {
   getNotifications,

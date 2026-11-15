@@ -36,6 +36,17 @@ function createInitialState() {
     followedRepositories: new Set(['repo-001::sergioaguerrero', 'repo-002::sergioaguerrero']),
     /** Keys with format `documentId::username`. */
     likedDocuments: new Set(),
+    /** Keys with format `followerUsername::targetUsername` (FE-32). */
+    userFollows: new Set([
+      'sergioaguerrero::lauramartinez',
+      'lauramartinez::sergioaguerrero',
+      'sergioaguerrero::valentinarojas',
+      'valentinarojas::sergioaguerrero',
+      'sergioaguerrero::andrespineda',
+      'danielaospino::sergioaguerrero',
+      'lauramartinez::andrespineda',
+      'andrespineda::lauramartinez',
+    ]),
     /** Ids of the subjects marked by the user (FE-06). */
     subjectsOfInterest: /** @type {number[]} */ ([]),
     /** User interactions (views, downloads, likes) for statistics (FE-25, FE-27, BE-21). */
