@@ -77,7 +77,7 @@ function TargetTypeChip({ type }) {
           label="Repositorio"
           size="small"
           variant="outlined"
-          color="secondary"
+          color="info"
         />
       );
     case 'profile':

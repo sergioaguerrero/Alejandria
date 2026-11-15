@@ -224,7 +224,7 @@ export default function GlobalStatisticsPage() {
                 value={data.totals.documents}
                 subtitle="Archivos compartidos"
                 icon={DescriptionOutlinedIcon}
-                color="secondary.main"
+                color="info.main"
               />
             </Grid>
 

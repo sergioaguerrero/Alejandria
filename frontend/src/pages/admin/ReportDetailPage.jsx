@@ -277,7 +277,7 @@ export default function ReportDetailPage() {
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     {report.targetType === 'document' && <DescriptionOutlinedIcon color="primary" />}
-                    {report.targetType === 'repository' && <FolderOutlinedIcon color="secondary" />}
+                    {report.targetType === 'repository' && <FolderOutlinedIcon color="info" />}
                     {report.targetType === 'profile' && <PersonOutlineIcon color="action" />}
                     <Typography variant="h6" component="h2">
                       Contenido reportado ({report.targetType})

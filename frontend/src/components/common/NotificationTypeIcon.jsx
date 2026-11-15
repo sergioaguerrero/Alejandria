@@ -39,7 +39,7 @@ export default function NotificationTypeIcon({ type, fontSize = 'small', sx }) {
     case 'ai_shared':
       return <AutoAwesomeOutlinedIcon color="primary" fontSize={fontSize} sx={sx} />;
     case 'collab_invite':
-      return <GroupAddOutlinedIcon color="secondary" fontSize={fontSize} sx={sx} />;
+      return <GroupAddOutlinedIcon color="info" fontSize={fontSize} sx={sx} />;
     default:
       return <FolderOutlinedIcon color="action" fontSize={fontSize} sx={sx} />;
   }

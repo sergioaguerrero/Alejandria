@@ -242,7 +242,7 @@ export default function AdminUserPage() {
 
               <Grid size={{ xs: 6, sm: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <InsertDriveFileOutlinedIcon color="secondary" />
+                  <InsertDriveFileOutlinedIcon color="info" />
                   <Box>
                     <Typography variant="caption" color="text.secondary">
                       Documentos
