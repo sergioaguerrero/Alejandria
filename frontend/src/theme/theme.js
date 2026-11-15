@@ -30,22 +30,25 @@ export const DARK_COLORS = {
 };
 
 export const LIGHT_COLORS = {
-  bgMain:     '#F8FAFC',  // global background
+  bgMain:     '#E8EEF5',  // cool slate canvas so white surfaces stand out clearly
   surface:    '#FFFFFF',  // cards, panels, forms
-  secondary:  '#F1F5F9',  // differentiated sections, active nav
+  secondary:  '#E2E8F0',  // differentiated sections, badges, table headers
   accent:     '#2563EB',  // primary buttons, links, interactive details
   textMain:   '#0F172A',  // main text, headings
-  textMuted:  '#64748B',  // secondary text / metadata
+  textMuted:  '#475569',  // secondary text / metadata (slate-600 for higher contrast)
   error:      '#DC2626',  // error states
   warning:    '#D97706',  // warning states
-  success:    '#059669',  // success states
-  divider:    'rgba(15, 23, 42, 0.10)',
+  success:    '#047857',  // success states (emerald-700 for WCAG AA on white)
+  divider:    'rgba(15, 23, 42, 0.14)',
 };
 
 // ─── MUI Theme ────────────────────────────────────────────────────────────────
 
 export function getAppTheme(mode = 'dark') {
-  const COLORS = mode === 'light' ? LIGHT_COLORS : DARK_COLORS;
+  const isLight = mode === 'light';
+  const COLORS = isLight ? LIGHT_COLORS : DARK_COLORS;
+  const primaryHover = isLight ? '#1D4ED8' : '#3B82F6';
+  const primaryContrast = isLight ? '#FFFFFF' : '#0B1220';
 
   return createTheme({
   // 1. Palette
@@ -59,37 +62,37 @@ export function getAppTheme(mode = 'dark') {
 
     primary: {
       main:         COLORS.accent,
-      dark:         '#3B82F6',
-      light:        '#93C5FD',
-      contrastText: mode === 'light' ? '#FFFFFF' : '#0B1220',
+      dark:         primaryHover,
+      light:        isLight ? '#3B82F6' : '#93C5FD',
+      contrastText: primaryContrast,
     },
 
     secondary: {
       main:         COLORS.secondary,
-      dark:         '#152944',
-      light:        '#2A4A70',
+      dark:         isLight ? '#CBD5E1' : '#152944',
+      light:        isLight ? '#F1F5F9' : '#2A4A70',
       contrastText: COLORS.textMain,
     },
 
     text: {
       primary:   COLORS.textMain,
       secondary: COLORS.textMuted,
-      disabled:  'rgba(248, 250, 252, 0.38)',
+      disabled:  isLight ? 'rgba(15, 23, 42, 0.42)' : 'rgba(248, 250, 252, 0.38)',
     },
 
     error: {
       main: COLORS.error,
-      contrastText: '#0B1220',
+      contrastText: primaryContrast,
     },
 
     warning: {
       main: COLORS.warning,
-      contrastText: '#0B1220',
+      contrastText: primaryContrast,
     },
 
     success: {
       main: COLORS.success,
-      contrastText: '#0B1220',
+      contrastText: primaryContrast,
     },
 
     divider: COLORS.divider,
@@ -275,24 +278,24 @@ export function getAppTheme(mode = 'dark') {
             outlineOffset: 3,
           },
         },
-        // Primary: accent background, dark text
+        // Primary: accent background with high-contrast label
         containedPrimary: {
           backgroundColor: COLORS.accent,
-          color: '#0B1220',
+          color: primaryContrast,
           '&:hover': {
-            backgroundColor: '#3B82F6',
+            backgroundColor: primaryHover,
           },
           '&:disabled': {
             backgroundColor: alpha(COLORS.accent, 0.3),
-            color: alpha('#0B1220', 0.5),
+            color: isLight ? 'rgba(15, 23, 42, 0.38)' : alpha('#0B1220', 0.5),
           },
         },
-        // Secondary: medium blue background
+        // Secondary: surface accent background
         containedSecondary: {
           backgroundColor: COLORS.secondary,
           color: COLORS.textMain,
           '&:hover': {
-            backgroundColor: '#264673',
+            backgroundColor: isLight ? '#CBD5E1' : '#264673',
           },
         },
         // Outline
@@ -337,10 +340,10 @@ export function getAppTheme(mode = 'dark') {
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          backgroundColor: alpha(COLORS.secondary, 0.4),
+          backgroundColor: isLight ? COLORS.surface : alpha(COLORS.secondary, 0.4),
           borderRadius: 8,
           '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: alpha(COLORS.textMain, 0.15),
+            borderColor: isLight ? 'rgba(15, 23, 42, 0.24)' : alpha(COLORS.textMain, 0.15),
             transition: 'border-color 200ms',
           },
           '&:hover .MuiOutlinedInput-notchedOutline': {
@@ -398,7 +401,7 @@ export function getAppTheme(mode = 'dark') {
         paper: {
           backgroundColor: COLORS.surface,
           border: `1px solid ${COLORS.divider}`,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          boxShadow: isLight ? '0 10px 30px rgba(15, 23, 42, 0.14)' : '0 8px 32px rgba(0,0,0,0.5)',
         },
       },
     },
@@ -435,6 +438,9 @@ export function getAppTheme(mode = 'dark') {
           backgroundColor: COLORS.surface,
           border: `1px solid ${COLORS.divider}`,
           borderRadius: 12,
+          boxShadow: isLight
+            ? '0 1px 3px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.04)'
+            : 'none',
           transition: 'border-color 200ms, box-shadow 200ms',
         },
       },
@@ -480,7 +486,7 @@ export function getAppTheme(mode = 'dark') {
       defaultProps: { elevation: 0 },
       styleOverrides: {
         root: {
-          backgroundColor: alpha(COLORS.bgMain, 0.92),
+          backgroundColor: isLight ? alpha(COLORS.surface, 0.95) : alpha(COLORS.bgMain, 0.92),
           backdropFilter: 'blur(12px)',
           borderBottom: `1px solid ${COLORS.divider}`,
           color: COLORS.textMain,
@@ -552,10 +558,16 @@ export function getAppTheme(mode = 'dark') {
           fontSize: '0.8125rem',
         },
         filledDefault: {
-          backgroundColor: alpha(COLORS.secondary, 0.8),
+          backgroundColor: isLight ? COLORS.secondary : alpha(COLORS.secondary, 0.8),
           color: COLORS.textMain,
-          '&:hover': { backgroundColor: COLORS.secondary },
+          '&:hover': { backgroundColor: isLight ? '#CBD5E1' : COLORS.secondary },
         },
+        outlinedDefault: isLight
+          ? {
+              borderColor: 'rgba(15, 23, 42, 0.24)',
+              color: COLORS.textMain,
+            }
+          : {},
         outlinedPrimary: {
           borderColor: alpha(COLORS.accent, 0.5),
           color: COLORS.accent,
@@ -608,9 +620,9 @@ export function getAppTheme(mode = 'dark') {
           '& .MuiAlert-icon': { color: COLORS.success },
         },
         standardWarning: {
-          backgroundColor: alpha(COLORS.warning, 0.10),
-          color: COLORS.warning,
-          border: `1px solid ${alpha(COLORS.warning, 0.25)}`,
+          backgroundColor: alpha(COLORS.warning, isLight ? 0.14 : 0.10),
+          color: isLight ? '#92400E' : COLORS.warning,
+          border: `1px solid ${alpha(COLORS.warning, isLight ? 0.35 : 0.25)}`,
           '& .MuiAlert-icon': { color: COLORS.warning },
         },
         standardInfo: {
@@ -630,7 +642,7 @@ export function getAppTheme(mode = 'dark') {
           border: `1px solid ${COLORS.divider}`,
           borderRadius: 14,
           backgroundImage: 'none',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          boxShadow: isLight ? '0 20px 50px rgba(15, 23, 42, 0.20)' : '0 24px 64px rgba(0,0,0,0.7)',
         },
       },
     },
@@ -676,7 +688,7 @@ export function getAppTheme(mode = 'dark') {
       styleOverrides: {
         root: {
           '& .MuiTableCell-head': {
-            backgroundColor: alpha(COLORS.secondary, 0.6),
+            backgroundColor: isLight ? COLORS.secondary : alpha(COLORS.secondary, 0.6),
             color: COLORS.textMuted,
             fontWeight: 600,
             fontSize: '0.8125rem',
@@ -692,7 +704,7 @@ export function getAppTheme(mode = 'dark') {
       styleOverrides: {
         root: {
           '&:hover': {
-            backgroundColor: alpha(COLORS.secondary, 0.3),
+            backgroundColor: isLight ? alpha(COLORS.accent, 0.05) : alpha(COLORS.secondary, 0.3),
           },
           '&:last-child td': { border: 0 },
         },
@@ -744,14 +756,14 @@ export function getAppTheme(mode = 'dark') {
     MuiTooltip: {
       styleOverrides: {
         tooltip: {
-          backgroundColor: COLORS.secondary,
-          color: COLORS.textMain,
+          backgroundColor: isLight ? '#1E293B' : COLORS.secondary,
+          color: isLight ? '#F8FAFC' : COLORS.textMain,
           fontSize: '0.8125rem',
           border: `1px solid ${COLORS.divider}`,
           borderRadius: 6,
           padding: '6px 12px',
         },
-        arrow: { color: COLORS.secondary },
+        arrow: { color: isLight ? '#1E293B' : COLORS.secondary },
       },
     },
 
@@ -798,7 +810,7 @@ export function getAppTheme(mode = 'dark') {
             opacity: 1,
           },
           '&.Mui-checked .MuiSwitch-thumb': {
-            color: '#0B1220',
+            color: primaryContrast,
           },
         },
       },
@@ -810,7 +822,7 @@ export function getAppTheme(mode = 'dark') {
       styleOverrides: {
         root: {
           color: COLORS.accent,
-          '&:hover': { color: '#93C5FD' },
+          '&:hover': { color: isLight ? '#1D4ED8' : '#93C5FD' },
           '&:focus-visible': {
             outline: `2px solid ${COLORS.accent}`,
             outlineOffset: 2,
@@ -836,7 +848,7 @@ export function getAppTheme(mode = 'dark') {
       styleOverrides: {
         badge: {
           backgroundColor: COLORS.accent,
-          color: '#0B1220',
+          color: primaryContrast,
           fontWeight: 700,
           fontSize: '0.7rem',
         },
@@ -859,10 +871,10 @@ export function getAppTheme(mode = 'dark') {
           border: `1px solid ${COLORS.divider}`,
           '&.Mui-selected': {
             backgroundColor: COLORS.accent,
-            color: '#0B1220',
+            color: primaryContrast,
             fontWeight: 700,
             border: 'none',
-            '&:hover': { backgroundColor: '#3B82F6' },
+            '&:hover': { backgroundColor: primaryHover },
           },
           '&:hover': {
             backgroundColor: alpha(COLORS.accent, 0.1),
@@ -876,9 +888,9 @@ export function getAppTheme(mode = 'dark') {
       defaultProps: { animation: 'wave' },
       styleOverrides: {
         root: {
-          backgroundColor: alpha(COLORS.secondary, 0.6),
+          backgroundColor: isLight ? 'rgba(15, 23, 42, 0.10)' : alpha(COLORS.secondary, 0.6),
           '&::after': {
-            background: `linear-gradient(90deg, transparent, ${alpha(COLORS.accent, 0.06)}, transparent)`,
+            background: `linear-gradient(90deg, transparent, ${alpha(COLORS.accent, isLight ? 0.10 : 0.06)}, transparent)`,
           },
         },
       },
@@ -890,7 +902,7 @@ export function getAppTheme(mode = 'dark') {
         paper: {
           backgroundColor: COLORS.surface,
           border: `1px solid ${COLORS.divider}`,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          boxShadow: isLight ? '0 10px 30px rgba(15, 23, 42, 0.14)' : '0 8px 32px rgba(0,0,0,0.5)',
         },
         option: {
           color: COLORS.textMain,
