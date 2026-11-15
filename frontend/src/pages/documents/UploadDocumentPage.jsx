@@ -59,7 +59,12 @@ export default function UploadDocumentPage() {
     };
   }, [id]);
 
-  const isOwner = Boolean(repository && user?.username === repository.authorUsername);
+  const isOwner = Boolean(
+    repository &&
+      (user?.username === repository.authorUsername ||
+        repository.canUpload ||
+        repository.isCollaborator),
+  );
 
   // Only the owner can upload; the rest go to the error page. The check runs
   // once the repository is loaded.

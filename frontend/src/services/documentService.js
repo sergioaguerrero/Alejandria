@@ -12,6 +12,7 @@ import http from './http.js';
 import { nextId, store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
 import { emitMockNotification, notifyFollowersOfNewContent } from './notificationService.js';
+import { isAcceptedCollaborator } from './repositoryService.js';
 import { withoutPassword } from '../utils/users.js';
 import { getExtension, validateFile } from '../utils/validations.js';
 
@@ -397,7 +398,10 @@ export async function uploadDocument(data, onProgress) {
   if (!repository) {
     throw new ApiError('El repositorio no existe o fue eliminado.', { status: 404 });
   }
-  if (user.username !== repository.authorUsername) {
+  if (
+    user.username !== repository.authorUsername &&
+    !isAcceptedCollaborator(repository.id, user.username)
+  ) {
     throw new ApiError('Solo el dueño del repositorio puede subir documentos.', {
       status: 403,
     });

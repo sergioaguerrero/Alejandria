@@ -38,6 +38,7 @@ import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 
+import CollaboratorsSection from '../../components/repositories/CollaboratorsSection.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ReportDialog from '../../components/common/ReportDialog.jsx';
@@ -108,6 +109,16 @@ export default function RepositoryDetailPage() {
   }, [documents]);
 
   const isOwner = Boolean(repository && user?.username === repository.authorUsername);
+  const canUpload = Boolean(isOwner || repository?.canUpload || repository?.isCollaborator);
+
+  const handleRefreshRepository = async () => {
+    try {
+      const fresh = await getRepository(repository.id);
+      setRepository(fresh);
+    } catch {
+      // Keep current repository state if silent reload fails
+    }
+  };
 
   const [isFollowing, setIsFollowing] = useState(false);
 
@@ -322,6 +333,18 @@ export default function RepositoryDetailPage() {
               </Stack>
             </Stack>
 
+            {!isOwner && canUpload && (
+              <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
+                <Button
+                  component={RouterLink}
+                  to={`/repositories/${repository.id}/upload`}
+                  startIcon={<AddIcon />}
+                >
+                  Subir documento
+                </Button>
+              </Stack>
+            )}
+
             {/* Owner actions live on their own row so they never wrap out of place. */}
             {isOwner && (
               <Stack
@@ -367,6 +390,14 @@ export default function RepositoryDetailPage() {
         </CardContent>
       </Card>
 
+      <CollaboratorsSection
+        repository={repository}
+        isOwner={isOwner}
+        currentUsername={user?.username}
+        onRepositoryChanged={handleRefreshRepository}
+        onNotify={(message, severity = 'info') => setNotice({ message, severity })}
+      />
+
       {/* ── Documents by term ──────────────────────────────────────────── */}
       <Tabs
         value={tab}
@@ -394,7 +425,7 @@ export default function RepositoryDetailPage() {
               : 'Cuando el autor suba material de este corte aparecerá aquí.'
           }
           action={
-            isOwner ? (
+            canUpload ? (
               <Button
                 component={RouterLink}
                 to={`/repositories/${repository.id}/upload`}

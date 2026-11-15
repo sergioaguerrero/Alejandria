@@ -58,6 +58,34 @@ function createInitialState() {
     quizzes: clone(QUIZZES),
     /** AI-generated summaries, study guides, and presentation slides (FE-34, BE-37). */
     aiMaterials: clone(AI_MATERIALS),
+    /** Repository collaborators and pending invitations (FE-35, BE-43). */
+    repositoryCollaborators: [
+      {
+        id: 'collab-001',
+        repositoryId: 'repository-001',
+        username: 'lauramartinez',
+        status: 'aceptado',
+        invitedBy: 'sergioaguerrero',
+        createdAt: '2026-10-20T12:00:00.000Z',
+        respondedAt: '2026-10-20T14:00:00.000Z',
+      },
+      {
+        id: 'collab-002',
+        repositoryId: 'repository-001',
+        username: 'valentinarojas',
+        status: 'pendiente',
+        invitedBy: 'sergioaguerrero',
+        createdAt: '2026-10-28T09:00:00.000Z',
+      },
+      {
+        id: 'collab-003',
+        repositoryId: 'repository-002',
+        username: 'sergioaguerrero',
+        status: 'pendiente',
+        invitedBy: 'lauramartinez',
+        createdAt: '2026-10-29T10:00:00.000Z',
+      },
+    ],
     /** AI materials shared exclusively between mutual friends (FE-33, BE-38). */
     aiShares: [
       {
@@ -96,6 +124,7 @@ function createInitialState() {
       sanction: 1,
       quiz: QUIZZES.length,
       aiMaterial: AI_MATERIALS.length,
+      collaborator: 3,
       aiShare: 1,
     },
   };

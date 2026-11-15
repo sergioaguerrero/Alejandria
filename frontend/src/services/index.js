@@ -34,6 +34,11 @@ export {
   toggleRepositoryLike,
   toggleFollowRepository,
   getFollowedRepositories,
+  getRepositoryCollaborators,
+  inviteCollaborator,
+  respondCollaboratorInvitation,
+  removeCollaborator,
+  getMyCollaborations,
 } from './repositoryService.js';
 
 export {
