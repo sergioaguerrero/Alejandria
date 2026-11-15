@@ -277,13 +277,76 @@ export default function CollaboratorsSection({
               getOptionLabel={(option) =>
                 typeof option === 'string'
                   ? option
-                  : `@${option.username} (Semestre ${option.semester})`
+                  : `@${option.username}`
               }
+              isOptionEqualToValue={(option, value) =>
+                typeof value === 'object' && value !== null && option.id === value.id
+              }
+              renderOption={(props, option) => {
+                const { key, ...optionProps } = props;
+                return (
+                  <Box
+                    component="li"
+                    key={key}
+                    {...optionProps}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}
+                  >
+                    <Avatar
+                      src={option.avatarUrl || option.photoUrl || undefined}
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initials({ username: option.username })}
+                    </Avatar>
+                    <Typography variant="body2" fontWeight={600} noWrap>
+                      @{option.username}
+                    </Typography>
+                  </Box>
+                );
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Invitar por @usuario"
                   placeholder="Busca o escribe un estudiante..."
+                  slotProps={{
+                    ...params.slotProps,
+                    input: {
+                      ...params.slotProps?.input,
+                      startAdornment: (
+                        <>
+                          {inviteValue &&
+                            typeof inviteValue === 'object' &&
+                            inviteInput === `@${inviteValue.username}` && (
+                              <Avatar
+                                src={inviteValue.avatarUrl || inviteValue.photoUrl || undefined}
+                                sx={{
+                                  width: 24,
+                                  height: 24,
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  bgcolor: 'primary.main',
+                                  color: 'primary.contrastText',
+                                  ml: 0.25,
+                                  mr: 0.5,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {initials({ username: inviteValue.username })}
+                              </Avatar>
+                            )}
+                          {params.slotProps?.input?.startAdornment}
+                        </>
+                      ),
+                    },
+                  }}
                 />
               )}
             />
