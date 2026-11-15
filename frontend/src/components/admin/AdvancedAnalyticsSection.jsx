@@ -37,6 +37,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
@@ -51,9 +52,38 @@ const PERIOD_LABELS = {
   month: 'Último mes',
 };
 
+const AI_TYPE_COLOR_KEY = {
+  quiz: 'primary',
+  summary: 'info',
+  guide: 'success',
+  slides: 'warning',
+};
+
+const getAiTypeColorKey = (contentType) => AI_TYPE_COLOR_KEY[contentType] || 'primary';
+
 export default function AdvancedAnalyticsSection({ period, onPeriodChange, data, isLoading }) {
   const theme = useTheme();
   const periodLabel = PERIOD_LABELS[period] || PERIOD_LABELS.week;
+  const aiAccentColor = theme.palette.mode === 'dark' ? '#A78BFA' : '#4F46E5';
+
+  const getChartAxisProps = (fontSize = 12) => ({
+    tick: { fontSize, fill: theme.palette.text.secondary },
+    axisLine: { stroke: theme.palette.divider },
+    tickLine: { stroke: theme.palette.divider },
+  });
+
+  const tooltipProps = {
+    cursor: { fill: theme.palette.action.hover },
+    contentStyle: {
+      backgroundColor: theme.palette.background.paper,
+      border: `1px solid ${theme.palette.divider}`,
+      borderRadius: 8,
+      color: theme.palette.text.primary,
+      boxShadow: theme.shadows[4],
+    },
+    itemStyle: { color: theme.palette.text.primary },
+    labelStyle: { color: theme.palette.text.secondary, fontWeight: 600, marginBottom: 4 },
+  };
 
   return (
     <Box sx={{ mt: 1 }}>
@@ -150,7 +180,7 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
               <Card variant="outlined" sx={{ height: '100%' }}>
                 <CardContent>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                    <AutoAwesomeOutlinedIcon color="secondary" />
+                    <AutoAwesomeOutlinedIcon sx={{ color: aiAccentColor }} />
                     <Box>
                       <Typography variant="caption" color="text.secondary">
                         Generaciones IA ({periodLabel})
@@ -182,10 +212,10 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
                   <Box sx={{ width: '100%', height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.activeUsers.timeline} margin={{ top: 10, right: 10, left: -12, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                        <RechartsTooltip />
+                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" {...getChartAxisProps(12)} />
+                        <YAxis allowDecimals={false} {...getChartAxisProps(12)} />
+                        <RechartsTooltip {...tooltipProps} />
                         <Bar
                           dataKey="activos"
                           name="Usuarios activos"
@@ -258,7 +288,7 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
                         key={entry.contentType}
                         size="small"
                         variant="outlined"
-                        color="secondary"
+                        color={getAiTypeColorKey(entry.contentType)}
                         icon={<AiTypeIcon type={entry.contentType} fontSize="small" />}
                         label={`${entry.label}: ${entry.count}`}
                       />
@@ -268,16 +298,18 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
                   <Box sx={{ width: '100%', height: 220 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.aiUsage.byType} margin={{ top: 10, right: 10, left: -12, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                        <RechartsTooltip />
-                        <Bar
-                          dataKey="count"
-                          name="Generaciones"
-                          fill={theme.palette.secondary.main}
-                          radius={[4, 4, 0, 0]}
-                        />
+                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" {...getChartAxisProps(12)} />
+                        <YAxis allowDecimals={false} {...getChartAxisProps(12)} />
+                        <RechartsTooltip {...tooltipProps} />
+                        <Bar dataKey="count" name="Generaciones" fill={theme.palette.primary.main} radius={[4, 4, 0, 0]}>
+                          {data.aiUsage.byType.map((entry) => (
+                            <Cell
+                              key={entry.contentType}
+                              fill={theme.palette[getAiTypeColorKey(entry.contentType)].main}
+                            />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </Box>
@@ -298,10 +330,10 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
                   <Box sx={{ width: '100%', height: 150, mb: 2 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.aiUsage.timeline} margin={{ top: 5, right: 10, left: -12, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                        <RechartsTooltip />
+                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" {...getChartAxisProps(11)} />
+                        <YAxis allowDecimals={false} {...getChartAxisProps(11)} />
+                        <RechartsTooltip {...tooltipProps} />
                         <Bar
                           dataKey="generaciones"
                           name="Generaciones IA"
