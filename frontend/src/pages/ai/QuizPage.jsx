@@ -38,6 +38,7 @@ import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
 import NavigateBeforeOutlinedIcon from '@mui/icons-material/NavigateBeforeOutlined';
 import NavigateNextOutlinedIcon from '@mui/icons-material/NavigateNextOutlined';
 import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 
 import {
@@ -45,6 +46,8 @@ import {
   submitQuizAnswers,
   toggleSaveQuizToMyStudy,
 } from '../../services/index.js';
+
+import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
 
 export default function QuizPage() {
   const { id } = useParams();
@@ -60,6 +63,7 @@ export default function QuizPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedInMyStudy, setSavedInMyStudy] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Snackbar feedback
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -228,7 +232,18 @@ export default function QuizPage() {
           Generador de IA
         </Button>
 
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          {!quiz.isSharedWithMe && (
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              startIcon={<ShareOutlinedIcon />}
+              onClick={() => setShareOpen(true)}
+            >
+              Compartir con amigos
+            </Button>
+          )}
           <Chip
             size="small"
             color="primary"
@@ -240,6 +255,13 @@ export default function QuizPage() {
           )}
         </Stack>
       </Stack>
+
+      {quiz.isSharedWithMe && (
+        <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2 }}>
+          Compartido contigo por <strong>@{quiz.sharedBy}</strong>
+          {quiz.shareNote ? ` — "${quiz.shareNote}"` : ''}
+        </Alert>
+      )}
 
       {/* Main Header Card */}
       <Card sx={{ mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
@@ -264,7 +286,7 @@ export default function QuizPage() {
               startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
               onClick={handleToggleSave}
               disabled={isSaving}
-              sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
+              sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, display: quiz.isSharedWithMe ? 'none' : 'inline-flex' }}
             >
               {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
             </Button>
@@ -601,6 +623,20 @@ export default function QuizPage() {
         Las preguntas y justificaciones son generadas con base en los contenidos cargados en Alejandría.
         Puedes guardar este cuestionario en tu sección &ldquo;Mi estudio&rdquo; para repasar antes de tus evaluaciones.
       </Alert>
+
+      {/* Share with mutual friends dialog */}
+      <ShareAiDialog
+        open={shareOpen}
+        material={quiz}
+        onClose={() => setShareOpen(false)}
+        onShared={() =>
+          setSnackbar({
+            open: true,
+            message: 'Contenido de IA compartido con tus amigos.',
+            severity: 'success',
+          })
+        }
+      />
 
       {/* Snackbar alerts */}
       <Snackbar

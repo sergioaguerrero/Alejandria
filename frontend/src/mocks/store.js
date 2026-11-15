@@ -55,6 +55,17 @@ function createInitialState() {
     resetTokens: new Map(),
     /** AI-generated quizzes (FE-20, FE-21, FE-22, BE-35, BE-36). */
     quizzes: clone(QUIZZES),
+    /** AI materials shared exclusively between mutual friends (FE-33, BE-38). */
+    aiShares: [
+      {
+        id: 'share-001',
+        materialId: 'quiz-002',
+        senderUsername: 'lauramartinez',
+        recipientUsername: 'sergioaguerrero',
+        note: 'Te comparto este quiz de 3FN y SQL para repasar el parcial.',
+        createdAt: '2026-10-29T09:45:00.000Z',
+      },
+    ],
     /** Count of daily AI generations consumed today by user id. */
     aiGenerationsToday: new Map(),
     /** Reports of content sent by the students (FE-23, FE-24). */
@@ -81,6 +92,7 @@ function createInitialState() {
       notification: NOTIFICATIONS.length,
       sanction: 1,
       quiz: QUIZZES.length,
+      aiShare: 1,
     },
   };
 }

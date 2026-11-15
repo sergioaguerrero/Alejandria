@@ -85,4 +85,7 @@ export {
   toggleSaveQuizToMyStudy,
   getMyStudyMaterials,
   deleteFromMyStudy,
+  getSharedFriendsForMaterial,
+  shareAiContentWithFriends,
+  getSharedWithMeAiMaterials,
 } from './aiService.js';

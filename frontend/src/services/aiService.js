@@ -8,6 +8,15 @@ import { ApiError } from './errors.js';
 import http from './http.js';
 import { store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
+import { emitMockNotification } from './notificationService.js';
+
+function isMutualFriend(usernameA, usernameB) {
+  if (!usernameA || !usernameB || !store.userFollows) return false;
+  return (
+    store.userFollows.has(`${usernameA}::${usernameB}`) &&
+    store.userFollows.has(`${usernameB}::${usernameA}`)
+  );
+}
 
 const DAILY_LIMIT = 5;
 
@@ -202,7 +211,21 @@ export async function getQuizById(id) {
     throw new ApiError('El cuestionario no existe o fue eliminado.', { status: 404 });
   }
 
-  return JSON.parse(JSON.stringify(quiz));
+  const share = (store.aiShares || []).find(
+    (s) => s.materialId === quiz.id && s.recipientUsername === user.username,
+  );
+  if (quiz.userId !== user.id && !share) {
+    throw new ApiError('No tienes permiso para ver este cuestionario.', { status: 403 });
+  }
+
+  const copy = JSON.parse(JSON.stringify(quiz));
+  if (share && quiz.userId !== user.id) {
+    copy.isSharedWithMe = true;
+    copy.sharedBy = share.senderUsername;
+    copy.shareNote = share.note || '';
+    copy.sharedAt = share.createdAt;
+  }
+  return copy;
 }
 
 /**
@@ -300,4 +323,157 @@ export async function deleteFromMyStudy(id) {
   }
 
   return { success: true };
+}
+
+
+/**
+ * Lists usernames of friends with whom the current user already shared an AI material (FE-33).
+ * @param {string} materialId
+ * @returns {Promise<string[]>}
+ */
+export async function getSharedFriendsForMaterial(materialId) {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para consultar compartidos.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.get(`/api/ai/materials/${encodeURIComponent(materialId)}/shares`);
+    return Array.isArray(data) ? data : (data?.sharedWith ?? []);
+  }
+
+  await waitForMock(100);
+
+  return (store.aiShares || [])
+    .filter((s) => s.materialId === materialId && s.senderUsername === user.username)
+    .map((s) => s.recipientUsername);
+}
+
+/**
+ * Shares an AI-generated material exclusively with mutual friends (FE-33, BE-38).
+ * @param {string} materialId
+ * @param {string[]} friendUsernames
+ * @param {string} [note]
+ * @returns {Promise<{ sharedCount: number, sharedWith: string[] }>}
+ */
+export async function shareAiContentWithFriends(materialId, friendUsernames, note = '') {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Debes iniciar sesión para compartir contenido con tus amigos.', { status: 401 });
+  }
+
+  const targets = Array.from(
+    new Set((friendUsernames || []).map((u) => String(u).trim().toLowerCase()).filter(Boolean)),
+  );
+  if (targets.length === 0) {
+    throw new ApiError('Selecciona al menos un amigo para compartir.', { status: 400 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post(`/api/ai/materials/${encodeURIComponent(materialId)}/share`, {
+      friendUsernames: targets,
+      note: String(note || '').trim(),
+    });
+    return data;
+  }
+
+  await waitForMock(250);
+
+  const material =
+    store.quizzes.find((q) => q.id === materialId) ??
+    (store.aiMaterials || []).find((m) => m.id === materialId);
+  if (!material) {
+    throw new ApiError('El contenido de IA no existe o fue eliminado.', { status: 404 });
+  }
+  if (material.userId !== user.id) {
+    throw new ApiError('Solo puedes compartir contenido de IA generado por ti.', { status: 403 });
+  }
+
+  for (const friendUsername of targets) {
+    if (!isMutualFriend(user.username, friendUsername)) {
+      throw new ApiError(
+        `@${friendUsername} no es tu amigo mutuo. Solo puedes compartir contenido de IA con amigos.`,
+        { status: 403 },
+      );
+    }
+  }
+
+  store.aiShares = store.aiShares || [];
+  const cleanNote = String(note || '').trim();
+  const targetUrl =
+    material.contentType && material.contentType !== 'quiz'
+      ? `/ai/material/${material.id}`
+      : `/ai/quiz/${material.id}`;
+
+  for (const friendUsername of targets) {
+    const existing = store.aiShares.find(
+      (s) =>
+        s.materialId === material.id &&
+        s.senderUsername === user.username &&
+        s.recipientUsername === friendUsername,
+    );
+
+    if (existing) {
+      existing.note = cleanNote || existing.note;
+      existing.createdAt = new Date().toISOString();
+    } else {
+      store.counters.aiShare = (store.counters.aiShare || 0) + 1;
+      store.aiShares.unshift({
+        id: `share-${String(store.counters.aiShare).padStart(3, '0')}`,
+        materialId: material.id,
+        senderUsername: user.username,
+        recipientUsername: friendUsername,
+        note: cleanNote,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    emitMockNotification({
+      recipientUsername: friendUsername,
+      type: 'ai_shared',
+      title: 'Contenido de IA compartido',
+      message: `@${user.username} compartió contigo "${material.title}".`,
+      targetUrl,
+    });
+  }
+
+  return { sharedCount: targets.length, sharedWith: targets };
+}
+
+/**
+ * Lists AI materials shared by mutual friends with the current user (FE-33, BE-38).
+ * @returns {Promise<object[]>}
+ */
+export async function getSharedWithMeAiMaterials() {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para ver el contenido compartido contigo.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.get('/api/ai/shared-with-me');
+    return Array.isArray(data) ? data : (data?.items ?? []);
+  }
+
+  await waitForMock(200);
+
+  const allMaterials = [...(store.quizzes || []), ...(store.aiMaterials || [])];
+  const shared = (store.aiShares || [])
+    .filter((s) => s.recipientUsername === user.username)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const results = [];
+  for (const share of shared) {
+    const mat = allMaterials.find((item) => item.id === share.materialId);
+    if (!mat) continue;
+    results.push({
+      ...JSON.parse(JSON.stringify(mat)),
+      sharedBy: share.senderUsername,
+      shareNote: share.note || '',
+      sharedAt: share.createdAt,
+      isSharedWithMe: true,
+    });
+  }
+
+  return results;
 }
