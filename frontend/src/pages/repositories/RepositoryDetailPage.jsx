@@ -18,6 +18,7 @@ import {
   CardContent,
   Chip,
   Divider,
+  Grid,
   Link,
   Skeleton,
   Snackbar,
@@ -38,6 +39,7 @@ import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 
+import CollaboratorsSection from '../../components/repositories/CollaboratorsSection.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ReportDialog from '../../components/common/ReportDialog.jsx';
@@ -108,6 +110,16 @@ export default function RepositoryDetailPage() {
   }, [documents]);
 
   const isOwner = Boolean(repository && user?.username === repository.authorUsername);
+  const canUpload = Boolean(isOwner || repository?.canUpload || repository?.isCollaborator);
+
+  const handleRefreshRepository = async () => {
+    try {
+      const fresh = await getRepository(repository.id);
+      setRepository(fresh);
+    } catch {
+      // Keep current repository state if silent reload fails
+    }
+  };
 
   const [isFollowing, setIsFollowing] = useState(false);
 
@@ -322,6 +334,18 @@ export default function RepositoryDetailPage() {
               </Stack>
             </Stack>
 
+            {!isOwner && canUpload && (
+              <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
+                <Button
+                  component={RouterLink}
+                  to={`/repositories/${repository.id}/upload`}
+                  startIcon={<AddIcon />}
+                >
+                  Subir documento
+                </Button>
+              </Stack>
+            )}
+
             {/* Owner actions live on their own row so they never wrap out of place. */}
             {isOwner && (
               <Stack
@@ -367,7 +391,9 @@ export default function RepositoryDetailPage() {
         </CardContent>
       </Card>
 
-      {/* ── Documents by term ──────────────────────────────────────────── */}
+      <Grid container spacing={3} sx={{ alignItems: 'flex-start' }}>
+        <Grid size={{ xs: 12, lg: 8 }}>
+          {/* ── Documents by term ──────────────────────────────────────────── */}
       <Tabs
         value={tab}
         onChange={(event, value) => setTab(value)}
@@ -394,7 +420,7 @@ export default function RepositoryDetailPage() {
               : 'Cuando el autor suba material de este corte aparecerá aquí.'
           }
           action={
-            isOwner ? (
+            canUpload ? (
               <Button
                 component={RouterLink}
                 to={`/repositories/${repository.id}/upload`}
@@ -412,6 +438,19 @@ export default function RepositoryDetailPage() {
           ))}
         </Stack>
       )}
+
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <CollaboratorsSection
+            repository={repository}
+            isOwner={isOwner}
+            currentUsername={user?.username}
+            onRepositoryChanged={handleRefreshRepository}
+            onNotify={(message, severity = 'info') => setNotice({ message, severity })}
+          />
+        </Grid>
+      </Grid>
 
       <ConfirmDialog
         open={confirmOpen}

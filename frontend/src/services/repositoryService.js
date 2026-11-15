@@ -42,6 +42,23 @@ function normalize(text) {
  * @param {object} repository
  * @returns {object}
  */
+function getCollaboratorRecords(repositoryId) {
+  return (store.repositoryCollaborators || []).filter((c) => c.repositoryId === repositoryId);
+}
+
+/**
+ * Checks whether a user is an accepted collaborator on a repository (FE-35).
+ * @param {string} repositoryId
+ * @param {string} [username]
+ * @returns {boolean}
+ */
+export function isAcceptedCollaborator(repositoryId, username) {
+  if (!username) return false;
+  return getCollaboratorRecords(repositoryId).some(
+    (c) => c.username === username && c.status === 'aceptado',
+  );
+}
+
 function enrich(repository) {
   const subject = store.subjects.find((item) => item.id === Number(repository.subjectId)) ?? null;
   const author = store.users.find((user) => user.username === repository.authorUsername);
@@ -57,6 +74,17 @@ function enrich(repository) {
     documentCount,
     liked: username ? store.likedRepositories.has(likeKey(repository.id, username)) : false,
     followed: username ? (store.followedRepositories?.has(likeKey(repository.id, username)) ?? false) : false,
+    collaboratorStatus: username
+      ? (getCollaboratorRecords(repository.id).find((c) => c.username === username)?.status ?? null)
+      : null,
+    isCollaborator: isAcceptedCollaborator(repository.id, username),
+    canUpload: Boolean(
+      username &&
+        (username === repository.authorUsername || isAcceptedCollaborator(repository.id, username)),
+    ),
+    collaboratorsCount: getCollaboratorRecords(repository.id).filter(
+      (c) => c.status === 'aceptado',
+    ).length,
   };
 }
 
@@ -400,6 +428,262 @@ export async function toggleFollowRepository(id) {
  * Returns all repositories followed by the current user.
  * @returns {Promise<object[]>}
  */
+/**
+ * Lists collaborators and pending invitations for a repository (FE-35, BE-43).
+ * @param {string} repositoryId
+ * @returns {Promise<object[]>}
+ */
+export async function getRepositoryCollaborators(repositoryId) {
+  if (!USE_MOCK) {
+    const { data } = await http.get(`/repositories/${encodeURIComponent(repositoryId)}/collaborators`);
+    return Array.isArray(data) ? data : (data?.items ?? []);
+  }
+
+  await waitForMock();
+  const viewer = currentUser();
+  const repository = store.repositories.find((r) => r.id === repositoryId);
+  if (!repository) {
+    throw new ApiError('No encontramos ese repositorio.', { status: 404 });
+  }
+
+  const isOwner = viewer?.username === repository.authorUsername;
+  const records = getCollaboratorRecords(repositoryId).filter(
+    (c) => c.status === 'aceptado' || isOwner || c.username === viewer?.username,
+  );
+
+  return records
+    .map((record) => {
+      const user = store.users.find((u) => u.username === record.username);
+      return {
+        ...record,
+        user: user ? withoutPassword(user) : { username: record.username, semester: 1, role: 'student' },
+      };
+    })
+    .sort((a, b) => (a.status === b.status ? 0 : a.status === 'aceptado' ? -1 : 1));
+}
+
+/**
+ * Invites a student to collaborate on a repository (FE-35, BE-43).
+ * @param {string} repositoryId
+ * @param {string} targetUsername
+ * @returns {Promise<object>}
+ */
+export async function inviteCollaborator(repositoryId, targetUsername) {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para invitar colaboradores.', { status: 401 });
+  }
+
+  const cleanUsername = String(targetUsername || '')
+    .trim()
+    .replace(/^@/, '')
+    .toLowerCase();
+  if (!cleanUsername) {
+    throw new ApiError('Ingresa o selecciona el usuario que deseas invitar.', { status: 400 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post(`/repositories/${encodeURIComponent(repositoryId)}/collaborators`, {
+      username: cleanUsername,
+    });
+    return data;
+  }
+
+  await waitForMock();
+  const repository = store.repositories.find((r) => r.id === repositoryId);
+  if (!repository) {
+    throw new ApiError('No encontramos ese repositorio.', { status: 404 });
+  }
+  if (repository.authorUsername !== user.username) {
+    throw new ApiError('Solo el dueño del repositorio puede invitar colaboradores.', { status: 403 });
+  }
+
+  const targetUser = store.users.find(
+    (u) => u.username.toLowerCase() === cleanUsername && u.role !== 'admin',
+  );
+  if (!targetUser) {
+    throw new ApiError(`No existe un estudiante registrado con @${cleanUsername}.`, { status: 404 });
+  }
+  if (targetUser.username === user.username) {
+    throw new ApiError('Ya eres el dueño de este repositorio.', { status: 400 });
+  }
+
+  store.repositoryCollaborators = store.repositoryCollaborators || [];
+  const existing = store.repositoryCollaborators.find(
+    (c) => c.repositoryId === repositoryId && c.username === targetUser.username,
+  );
+  if (existing) {
+    throw new ApiError(
+      existing.status === 'aceptado'
+        ? `@${targetUser.username} ya es colaborador de este repositorio.`
+        : `@${targetUser.username} ya tiene una invitación pendiente.`,
+      { status: 409 },
+    );
+  }
+
+  store.counters.collaborator = (store.counters.collaborator || 0) + 1;
+  const created = {
+    id: `collab-${String(store.counters.collaborator).padStart(3, '0')}`,
+    repositoryId,
+    username: targetUser.username,
+    status: 'pendiente',
+    invitedBy: user.username,
+    createdAt: new Date().toISOString(),
+  };
+  store.repositoryCollaborators.unshift(created);
+
+  emitMockNotification({
+    recipientUsername: targetUser.username,
+    type: 'collab_invite',
+    title: 'Invitación a colaborar',
+    message: `@${user.username} te invitó a colaborar en "${repository.name}".`,
+    targetUrl: `/repositories/${repositoryId}`,
+  });
+
+  return {
+    ...created,
+    user: withoutPassword(targetUser),
+  };
+}
+
+/**
+ * Accepts or rejects a pending collaboration invitation (FE-35, BE-43).
+ * @param {string} repositoryId
+ * @param {boolean} accept
+ * @returns {Promise<{ status: string }>}
+ */
+export async function respondCollaboratorInvitation(repositoryId, accept) {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para responder la invitación.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post(
+      `/repositories/${encodeURIComponent(repositoryId)}/collaborators/respond`,
+      { accept: Boolean(accept) },
+    );
+    return data;
+  }
+
+  await waitForMock();
+  const repository = store.repositories.find((r) => r.id === repositoryId);
+  if (!repository) {
+    throw new ApiError('No encontramos ese repositorio.', { status: 404 });
+  }
+
+  store.repositoryCollaborators = store.repositoryCollaborators || [];
+  const index = store.repositoryCollaborators.findIndex(
+    (c) => c.repositoryId === repositoryId && c.username === user.username && c.status === 'pendiente',
+  );
+  if (index === -1) {
+    throw new ApiError('No tienes una invitación pendiente en este repositorio.', { status: 404 });
+  }
+
+  if (accept) {
+    store.repositoryCollaborators[index] = {
+      ...store.repositoryCollaborators[index],
+      status: 'aceptado',
+      respondedAt: new Date().toISOString(),
+    };
+    emitMockNotification({
+      recipientUsername: repository.authorUsername,
+      type: 'collab_invite',
+      title: 'Invitación aceptada',
+      message: `@${user.username} aceptó colaborar en "${repository.name}".`,
+      targetUrl: `/repositories/${repositoryId}`,
+    });
+    return { status: 'aceptado' };
+  }
+
+  store.repositoryCollaborators.splice(index, 1);
+  emitMockNotification({
+    recipientUsername: repository.authorUsername,
+    type: 'collab_invite',
+    title: 'Invitación rechazada',
+    message: `@${user.username} rechazó la invitación a colaborar en "${repository.name}".`,
+    targetUrl: `/repositories/${repositoryId}`,
+  });
+  return { status: 'rechazado' };
+}
+
+/**
+ * Removes an accepted collaborator or cancels a pending invite (FE-35, BE-43).
+ * @param {string} repositoryId
+ * @param {string} usernameToRemove
+ * @returns {Promise<{ ok: boolean }>}
+ */
+export async function removeCollaborator(repositoryId, usernameToRemove) {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para gestionar colaboradores.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    await http.delete(
+      `/repositories/${encodeURIComponent(repositoryId)}/collaborators/${encodeURIComponent(usernameToRemove)}`,
+    );
+    return { ok: true };
+  }
+
+  await waitForMock();
+  const repository = store.repositories.find((r) => r.id === repositoryId);
+  if (!repository) {
+    throw new ApiError('No encontramos ese repositorio.', { status: 404 });
+  }
+
+  const isOwner = user.username === repository.authorUsername;
+  const isSelfLeave = user.username === usernameToRemove;
+  if (!isOwner && !isSelfLeave) {
+    throw new ApiError('Solo el dueño o el propio colaborador pueden realizar esta acción.', {
+      status: 403,
+    });
+  }
+
+  store.repositoryCollaborators = (store.repositoryCollaborators || []).filter(
+    (c) => !(c.repositoryId === repositoryId && c.username === usernameToRemove),
+  );
+  return { ok: true };
+}
+
+/**
+ * Lists pending invitations and accepted collaborated repositories for current user (FE-35).
+ * @returns {Promise<{ invitations: object[], collaboratedRepositories: object[] }>}
+ */
+export async function getMyCollaborations() {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para ver tus colaboraciones.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.get('/users/me/collaborations');
+    return data;
+  }
+
+  await waitForMock();
+  const mine = (store.repositoryCollaborators || []).filter((c) => c.username === user.username);
+
+  const invitations = [];
+  const collaboratedRepositories = [];
+
+  for (const record of mine) {
+    const repo = store.repositories.find((r) => r.id === record.repositoryId);
+    if (!repo) continue;
+    const enriched = enrich(repo);
+    if (record.status === 'pendiente') {
+      invitations.push({
+        ...record,
+        repository: enriched,
+      });
+    } else if (record.status === 'aceptado') {
+      collaboratedRepositories.push(enriched);
+    }
+  }
+
+  return { invitations, collaboratedRepositories };
+}
+
 export async function getFollowedRepositories() {
   const user = currentUser();
   if (!user) {

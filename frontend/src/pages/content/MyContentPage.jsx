@@ -11,6 +11,7 @@ import { Link as RouterLink } from 'react-router-dom';
 
 import {
   Alert,
+  Divider,
   Box,
   Button,
   Chip,
@@ -34,7 +35,10 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -45,6 +49,9 @@ import {
   deleteDocument,
   deleteRepository,
   getDocumentsByUser,
+  getMyCollaborations,
+  removeCollaborator,
+  respondCollaboratorInvitation,
   getRepositoriesByUser,
 } from '../../services/index.js';
 
@@ -59,6 +66,49 @@ export default function MyContentPage() {
   const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [repositories, setRepositories] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [collaborations, setCollaborations] = useState({
+    invitations: [],
+    collaboratedRepositories: [],
+  });
+  const [isCollabBusy, setIsCollabBusy] = useState(false);
+
+  const reloadCollaborations = async () => {
+    const fresh = await getMyCollaborations();
+    setCollaborations(fresh);
+  };
+
+  const handleRespondInvitation = async (repositoryId, accept) => {
+    setIsCollabBusy(true);
+    setError('');
+    try {
+      await respondCollaboratorInvitation(repositoryId, accept);
+      await reloadCollaborations();
+      setNotice(
+        accept
+          ? 'Invitación aceptada. Ya puedes subir documentos en ese repositorio.'
+          : 'Invitación rechazada.',
+      );
+    } catch (err) {
+      setError(err?.message || 'No se pudo responder la invitación.');
+    } finally {
+      setIsCollabBusy(false);
+    }
+  };
+
+  const handleLeaveCollaboration = async (repositoryId) => {
+    if (!user?.username) return;
+    setIsCollabBusy(true);
+    setError('');
+    try {
+      await removeCollaborator(repositoryId, user.username);
+      await reloadCollaborations();
+      setNotice('Has salido del equipo colaborador.');
+    } catch (err) {
+      setError(err?.message || 'No se pudo salir del repositorio.');
+    } finally {
+      setIsCollabBusy(false);
+    }
+  };
   const [loadedUsername, setLoadedUsername] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -76,10 +126,11 @@ export default function MyContentPage() {
 
     let active = true;
 
-    Promise.all([getRepositoriesByUser(user.username), getDocumentsByUser(user.username)])
-      .then(([loadedRepositories, loadedDocuments]) => {
+    Promise.all([getRepositoriesByUser(user.username), getDocumentsByUser(user.username), getMyCollaborations()])
+      .then(([loadedRepositories, loadedDocuments, loadedCollaborations]) => {
         if (!active) return;
         setRepositories(loadedRepositories);
+        setCollaborations(loadedCollaborations);
         setDocuments(loadedDocuments);
       })
       .catch((serviceError) => {
@@ -159,6 +210,18 @@ export default function MyContentPage() {
           icon={<DescriptionOutlinedIcon />}
           iconPosition="start"
           label={`Documentos (${documents.length})`}
+        />
+        <Tab
+          value="collaborations"
+          icon={<PeopleOutlinedIcon />}
+          iconPosition="start"
+          label={`Colaboraciones (${collaborations.collaboratedRepositories.length}${
+            collaborations.invitations.length > 0
+              ? ` • ${collaborations.invitations.length} pendiente${
+                  collaborations.invitations.length > 1 ? 's' : ''
+                }`
+              : ''
+          })`}
         />
       </Tabs>
 
@@ -242,6 +305,136 @@ export default function MyContentPage() {
               </TableBody>
             </Table>
           </TableContainer>
+        )
+      ) : activeTab === 'collaborations' ? (
+        collaborations.invitations.length === 0 &&
+        collaborations.collaboratedRepositories.length === 0 ? (
+          <EmptyState
+            icon={PeopleOutlinedIcon}
+            title="Aún no colaboras en otros repositorios"
+            description="Cuando otro estudiante te invite a colaborar en su repositorio, podrás aceptar la invitación aquí y subir documentos juntos."
+          />
+        ) : (
+          <Stack spacing={3}>
+            {collaborations.invitations.length > 0 && (
+              <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+                <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                  Invitaciones pendientes ({collaborations.invitations.length})
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <Stack spacing={1.5}>
+                  {collaborations.invitations.map((invite) => (
+                    <Stack
+                      key={invite.id}
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1.5}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1.5,
+                        border: 1,
+                        borderColor: 'divider',
+                        justifyContent: 'space-between',
+                        alignItems: { sm: 'center' },
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          {invite.repository?.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {invite.repository?.subject?.name ?? 'Materia'} • Invitado por @
+                          {invite.invitedBy}
+                        </Typography>
+                      </Box>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          startIcon={<CheckCircleOutlinedIcon />}
+                          disabled={isCollabBusy}
+                          onClick={() => handleRespondInvitation(invite.repositoryId, true)}
+                        >
+                          Aceptar
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<CancelOutlinedIcon />}
+                          disabled={isCollabBusy}
+                          onClick={() => handleRespondInvitation(invite.repositoryId, false)}
+                        >
+                          Rechazar
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
+
+            {collaborations.collaboratedRepositories.length > 0 && (
+              <TableContainer component={Paper} variant="outlined">
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Repositorio compartido</TableCell>
+                      <TableCell>Dueño</TableCell>
+                      <TableCell>Materia</TableCell>
+                      <TableCell align="center">Documentos</TableCell>
+                      <TableCell align="right">Acciones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {collaborations.collaboratedRepositories.map((repo) => (
+                      <TableRow key={repo.id} hover>
+                        <TableCell sx={{ fontWeight: 600 }}>{repo.name}</TableCell>
+                        <TableCell>@{repo.authorUsername}</TableCell>
+                        <TableCell>{repo.subject?.name ?? 'Sin materia'}</TableCell>
+                        <TableCell align="center">{repo.documentCount ?? 0}</TableCell>
+                        <TableCell align="right">
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{ justifyContent: 'flex-end', alignItems: 'center' }}
+                          >
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              component={RouterLink}
+                              to={`/repositories/${repo.id}/upload`}
+                              startIcon={<AddIcon />}
+                            >
+                              Subir doc
+                            </Button>
+                            <Tooltip title="Ver repositorio">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                component={RouterLink}
+                                to={`/repositories/${repo.id}`}
+                              >
+                                <VisibilityOutlinedIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Button
+                              size="small"
+                              color="error"
+                              disabled={isCollabBusy}
+                              onClick={() => handleLeaveCollaboration(repo.id)}
+                            >
+                              Salir
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Stack>
         )
       ) : documents.length === 0 ? (
         <EmptyState
