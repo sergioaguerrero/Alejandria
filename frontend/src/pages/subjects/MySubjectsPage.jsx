@@ -267,7 +267,7 @@ export default function MySubjectsPage() {
                   },
                 }}
               >
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Tooltip
                     title={
                       allInSemester
@@ -288,6 +288,7 @@ export default function MySubjectsPage() {
                     >
                       <Checkbox
                         size="small"
+                        sx={{ p: 0.5 }}
                         checked={allInSemester}
                         indeterminate={someInSemester}
                         onChange={() => toggleSemester(group)}
@@ -299,7 +300,12 @@ export default function MySubjectsPage() {
                       />
                     </Box>
                   </Tooltip>
-                  <Typography variant="subtitle1" component="span" fontWeight={700}>
+                  <Typography
+                    variant="h6"
+                    component="span"
+                    fontWeight={600}
+                    sx={{ lineHeight: 1.2 }}
+                  >
                     {`Semestre ${group.semester}`}
                   </Typography>
                   <Chip
