@@ -2,19 +2,21 @@
  * @file MySubjectsPage.jsx
  * @description View 15 — Mis materias de interés (FE-06, RF-08, RF-39).
  *
- * Allows students to choose their subjects of interest grouped by semester.
- * Pre-selects subjects matching user's current semester.
+ * Allows students to choose their subjects of interest grouped by semester
+ * using collapsible semester accordions.
  */
 
 import { useEffect, useState } from 'react';
 
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Checkbox,
+  Chip,
   Divider,
   FormControlLabel,
   Grid,
@@ -23,6 +25,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SaveIcon from '@mui/icons-material/Save';
 
 import { useAuth } from '../../context/authContext.js';
@@ -33,11 +36,37 @@ import {
   updateSubjectsOfInterest,
 } from '../../services/index.js';
 
+/**
+ * Determines which semester accordions should start expanded once subjects load.
+ * @param {object[]} allSubjects
+ * @param {Set<number>} initialSet
+ * @param {number|string|undefined} userSemester
+ * @returns {Set<number>}
+ */
+function resolveInitialExpandedSemesters(allSubjects, initialSet, userSemester) {
+  const expanded = new Set(
+    allSubjects
+      .filter((subject) => initialSet.has(subject.id))
+      .map((subject) => subject.semester),
+  );
+
+  if (expanded.size === 0 && userSemester) {
+    expanded.add(Number(userSemester));
+  }
+
+  if (expanded.size === 0 && allSubjects.length > 0) {
+    expanded.add(allSubjects[0].semester);
+  }
+
+  return expanded;
+}
+
 export default function MySubjectsPage() {
   const { user } = useAuth();
 
   const [subjects, setSubjects] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [expandedSemesters, setExpandedSemesters] = useState(new Set());
   const [loaded, setLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -61,6 +90,7 @@ export default function MySubjectsPage() {
         }
 
         setSelectedIds(initialSet);
+        setExpandedSemesters(resolveInitialExpandedSemesters(allSubjects, initialSet, user?.semester));
       })
       .catch((serviceError) => {
         if (active) setError(serviceError?.message ?? 'No se pudieron cargar las materias.');
@@ -73,6 +103,15 @@ export default function MySubjectsPage() {
       active = false;
     };
   }, [user]);
+
+  const toggleAccordion = (semester) => {
+    setExpandedSemesters((prev) => {
+      const next = new Set(prev);
+      if (next.has(semester)) next.delete(semester);
+      else next.add(semester);
+      return next;
+    });
+  };
 
   const toggleSubject = (id) => {
     setSelectedIds((prev) => {
@@ -138,34 +177,71 @@ export default function MySubjectsPage() {
         </Alert>
       )}
 
-      <Stack spacing={3}>
+      <Stack spacing={1.5}>
         {groups.map((group) => {
-          const allInSemester = group.subjects.every((subject) => selectedIds.has(subject.id));
+          const selectedCount = group.subjects.filter((subject) =>
+            selectedIds.has(subject.id),
+          ).length;
+          const allInSemester =
+            group.subjects.length > 0 && selectedCount === group.subjects.length;
+          const isExpanded = expandedSemesters.has(group.semester);
 
           return (
-            <Card key={group.semester} variant="outlined">
-              <CardContent>
-                <Stack
-                  direction="row"
-                  sx={{
-                    mb: 1.5,
-                    justifyContent: 'space-between',
+            <Accordion
+              key={group.semester}
+              variant="outlined"
+              disableGutters
+              expanded={isExpanded}
+              onChange={() => toggleAccordion(group.semester)}
+              slotProps={{ heading: { component: 'h2' } }}
+              sx={{
+                borderRadius: 2,
+                overflow: 'hidden',
+                '&::before': { display: 'none' },
+                '&:first-of-type, &:last-of-type, &:not(:first-of-type):not(:last-of-type)': {
+                  borderRadius: 2,
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`semester-${group.semester}-content`}
+                id={`semester-${group.semester}-header`}
+                sx={{
+                  '& .MuiAccordionSummary-content': {
                     alignItems: 'center',
-                  }}
-                >
-                  <Typography variant="h6" component="h2" fontWeight={600}>
+                    justifyContent: 'space-between',
+                    gap: 1.5,
+                    flexWrap: 'wrap',
+                    mr: 1,
+                  },
+                }}
+              >
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <Typography variant="subtitle1" component="span" fontWeight={700}>
                     {`Semestre ${group.semester}`}
                   </Typography>
-
-                  <Button
+                  <Chip
                     size="small"
-                    variant="text"
-                    onClick={() => toggleSemester(group.subjects)}
-                  >
-                    {allInSemester ? 'Deseleccionar todo' : 'Seleccionar semestre'}
-                  </Button>
+                    label={`${selectedCount}/${group.subjects.length}`}
+                    color={allInSemester ? 'primary' : 'default'}
+                    variant={selectedCount > 0 ? 'filled' : 'outlined'}
+                  />
                 </Stack>
 
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleSemester(group.subjects);
+                  }}
+                >
+                  {allInSemester ? 'Deseleccionar todo' : 'Seleccionar semestre'}
+                </Button>
+              </AccordionSummary>
+
+              <AccordionDetails sx={{ pt: 0 }}>
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={1}>
@@ -190,8 +266,8 @@ export default function MySubjectsPage() {
                     );
                   })}
                 </Grid>
-              </CardContent>
-            </Card>
+              </AccordionDetails>
+            </Accordion>
           );
         })}
       </Stack>
