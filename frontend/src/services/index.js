@@ -80,6 +80,9 @@ export {
 export {
   getDailyAiQuota,
   generateQuiz,
+  generateAiMaterial,
+  getAiMaterialById,
+  toggleSaveAiMaterialToMyStudy,
   getQuizById,
   submitQuizAnswers,
   toggleSaveQuizToMyStudy,

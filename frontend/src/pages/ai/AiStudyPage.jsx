@@ -41,10 +41,16 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 
+import AiTypeIcon from '../../components/ai/AiTypeIcon.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import {
+  AI_CONTENT_TYPES,
+  getAiContentMeta,
+  getAiMaterialRoute,
+} from '../../utils/aiContentMeta.js';
 import { useAuth } from '../../context/authContext.js';
 import {
-  generateQuiz,
+  generateAiMaterial,
   getDailyAiQuota,
   getFollowedRepositories,
   getRepositoriesByUser,
@@ -59,6 +65,7 @@ export default function AiStudyPage() {
   // Repository states
   const [followedRepos, setFollowedRepos] = useState([]);
   const [selectedRepo, setSelectedRepo] = useState(null);
+  const [contentType, setContentType] = useState('quiz');
   const [quota, setQuota] = useState({ total: 5, used: 0, remaining: 5 });
 
   // Scope state
@@ -164,16 +171,17 @@ export default function AiStudyPage() {
     setElapsedSeconds(0);
 
     try {
-      const quiz = await generateQuiz({
+      const material = await generateAiMaterial({
+        contentType,
         repositoryId: selectedRepo.id,
         scope,
         scopeValue,
       });
 
       // Navigate to Quiz resolution view (view 20)
-      navigate(`/ai/quiz/${quiz.id}`);
+      navigate(getAiMaterialRoute(material));
     } catch (err) {
-      setGeneralError(err?.message || 'Ocurrió un error al generar el cuestionario con IA.');
+      setGeneralError(err?.message || 'Ocurrió un error al generar el contenido con IA.');
     } finally {
       setIsGenerating(false);
     }
@@ -190,7 +198,7 @@ export default function AiStudyPage() {
           </Typography>
         </Box>
         <Typography variant="body2" color="text.secondary">
-          Genera cuestionarios de autoevaluación personalizados a partir de los apuntes y documentos de tus materias seguidas.
+          Genera cuestionarios, resúmenes, guías de estudio y diapositivas personalizadas a partir de los apuntes de tus materias seguidas.
         </Typography>
       </Box>
 
@@ -266,10 +274,10 @@ export default function AiStudyPage() {
                 <Box sx={{ py: 6, textAlign: 'center' }}>
                   <CircularProgress size={48} sx={{ mb: 3 }} />
                   <Typography variant="h6" fontWeight={600} gutterBottom>
-                    Generando cuestionario con IA...
+                    {getAiContentMeta(contentType).generatingTitle}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440, mx: 'auto', mb: 2 }}>
-                    Procesando apuntes, extrayendo conceptos clave y formulando preguntas con sus respectivas explicaciones.
+                    {getAiContentMeta(contentType).generatingSubtitle}
                   </Typography>
                   <Chip
                     label={`Tiempo transcurrido: ${elapsedSeconds}s (máx. 60s)`}
@@ -280,11 +288,78 @@ export default function AiStudyPage() {
               ) : (
                 <Box component="form" onSubmit={handleGenerate} noValidate>
                   <Stack spacing={3.5}>
-                    {/* 1. Repository Selector — Option A: Followed Study Repositories */}
+                    {/* 1. Content Type Selector (FE-34) */}
                     <Box>
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="subtitle1" fontWeight={700}>
-                          1. Repositorios de estudio que sigues
+                          1. Tipo de contenido a generar
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Elige el formato de estudio que deseas crear con Inteligencia Artificial.
+                        </Typography>
+                      </Box>
+
+                      <Grid container spacing={1.5}>
+                        {AI_CONTENT_TYPES.map((typeOption) => {
+                          const isSelected = contentType === typeOption.value;
+                          return (
+                            <Grid key={typeOption.value} size={{ xs: 12, sm: 6 }}>
+                              <Box
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setContentType(typeOption.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    setContentType(typeOption.value);
+                                  }
+                                }}
+                                sx={{
+                                  p: 2,
+                                  height: '100%',
+                                  borderRadius: 2,
+                                  cursor: 'pointer',
+                                  border: 2,
+                                  borderColor: isSelected ? 'primary.main' : 'divider',
+                                  bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                                  transition: 'all 0.15s ease-in-out',
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                    bgcolor: isSelected ? 'action.selected' : 'action.hover',
+                                  },
+                                }}
+                              >
+                                <Stack
+                                  direction="row"
+                                  sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
+                                >
+                                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                    <AiTypeIcon
+                                      type={typeOption.value}
+                                      color={isSelected ? 'primary' : 'action'}
+                                      fontSize="small"
+                                    />
+                                    <Typography variant="subtitle2" fontWeight={700}>
+                                      {typeOption.label}
+                                    </Typography>
+                                  </Stack>
+                                  {isSelected && <CheckCircleIcon color="primary" fontSize="small" />}
+                                </Stack>
+                                <Typography variant="caption" color="text.secondary">
+                                  {typeOption.description}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          );
+                        })}
+                      </Grid>
+                    </Box>
+
+                    {/* 2. Repository Selector — Option A: Followed Study Repositories */}
+                    <Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          2. Repositorios de estudio que sigues
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Selecciona una de las materias que estás cursando para autoevaluarte en 1 clic.
@@ -405,7 +480,7 @@ export default function AiStudyPage() {
                     {/* 2. Scope Selector */}
                     <Box>
                       <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-                        2. Alcance del cuestionario
+                        3. Alcance del contenido
                       </Typography>
                       <FormControl component="fieldset" fullWidth>
                         <RadioGroup
@@ -495,7 +570,7 @@ export default function AiStudyPage() {
                         startIcon={<AutoAwesomeIcon />}
                         disabled={!selectedRepo || quota.remaining <= 0}
                       >
-                        Generar cuestionario con IA
+                        {getAiContentMeta(contentType).submitLabel}
                       </Button>
                     </Box>
                   </Stack>

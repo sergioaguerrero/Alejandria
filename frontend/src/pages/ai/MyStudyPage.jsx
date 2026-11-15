@@ -1,10 +1,10 @@
 /**
  * @file MyStudyPage.jsx
- * @description View 21 — My Study & Shared AI Content (FE-22, FE-33, BE-36, BE-38).
+ * @description View 21 — My Study & Shared AI Content (FE-22, FE-33, FE-34, BE-36, BE-37, BE-38).
  *
- * Displays saved AI quizzes and AI materials shared by mutual friends,
- * allowing students to review scores, reopen questionnaires, share their
- * own study content exclusively with mutual friends, and remove saved items.
+ * Displays saved AI materials (quizzes, summaries, study guides, slides) and AI materials
+ * shared by mutual friends, allowing students to reopen content, share their own AI study
+ * items exclusively with mutual friends, and remove saved entries.
  */
 
 import { useEffect, useState } from 'react';
@@ -37,6 +37,7 @@ import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 
+import AiTypeIcon from '../../components/ai/AiTypeIcon.jsx';
 import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -46,6 +47,11 @@ import {
   getMyStudyMaterials,
   getSharedWithMeAiMaterials,
 } from '../../services/index.js';
+import {
+  getAiContentMeta,
+  getAiMaterialRoute,
+  getAiMaterialUnitLabel,
+} from '../../utils/aiContentMeta.js';
 
 export default function MyStudyPage() {
   const { user } = useAuth();
@@ -109,7 +115,7 @@ export default function MyStudyPage() {
       setMaterials((prev) => prev.filter((m) => m.id !== targetToDelete.id));
       setSnackbar({
         open: true,
-        message: 'Cuestionario eliminado de Mi estudio.',
+        message: 'Material eliminado de Mi estudio.',
         severity: 'success',
       });
       setTargetToDelete(null);
@@ -142,7 +148,7 @@ export default function MyStudyPage() {
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary">
-            Consulta y repasa tus cuestionarios guardados o el contenido de IA compartido por tus amigos.
+            Consulta y repasa tus cuestionarios, resúmenes, guías y diapositivas guardadas o compartidas por amigos.
           </Typography>
         </Box>
 
@@ -153,7 +159,7 @@ export default function MyStudyPage() {
             variant="contained"
             startIcon={<AutoAwesomeIcon />}
           >
-            Generar cuestionario
+            Generar con IA
           </Button>
         </Stack>
       </Stack>
@@ -205,7 +211,7 @@ export default function MyStudyPage() {
           <EmptyState
             icon={BookmarkBorderOutlinedIcon}
             title="Aún no tienes material de estudio guardado"
-            description="Genera un cuestionario interactivo con IA a partir de cualquier repositorio de tu interés y guárdalo para practicar antes de tus exámenes."
+            description="Genera cuestionarios, resúmenes, guías de estudio o diapositivas con IA y guárdalos para repasar antes de tus exámenes."
             action={
               <Button
                 component={RouterLink}
@@ -224,10 +230,20 @@ export default function MyStudyPage() {
       {!isLoading && !errorMessage && displayedMaterials.length > 0 && (
         <Grid container spacing={2.5}>
           {displayedMaterials.map((item) => {
-            const hasScore = typeof item.lastScore === 'number';
+            const contentType = item.contentType || 'quiz';
+            const isQuiz = contentType === 'quiz';
+            const typeMeta = getAiContentMeta(contentType);
+            const hasScore = isQuiz && typeof item.lastScore === 'number';
             const scoreColor =
               item.lastScore >= 80 ? 'success' : item.lastScore >= 60 ? 'warning' : 'error';
             const dateToShow = isSharedTab ? item.sharedAt || item.createdAt : item.createdAt;
+            const actionText = isQuiz
+              ? isSharedTab
+                ? 'Resolver cuestionario'
+                : hasScore
+                  ? 'Repasar'
+                  : 'Resolver'
+              : `Abrir ${typeMeta.shortLabel.toLowerCase()}`;
 
             return (
               <Grid key={item.shareId || item.id} size={{ xs: 12, sm: 6, md: 4 }}>
@@ -249,14 +265,21 @@ export default function MyStudyPage() {
                   <CardContent sx={{ pb: 1 }}>
                     <Stack
                       direction="row"
-                      sx={{ justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5, gap: 1 }}
+                      useFlexGap
+                      spacing={0.75}
+                      sx={{
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        mb: 1.5,
+                      }}
                     >
                       <Chip
                         size="small"
-                        color="primary"
+                        color="secondary"
                         variant="outlined"
-                        label={item.subjectName || 'Materia'}
-                        sx={{ maxWidth: 165 }}
+                        icon={<AiTypeIcon type={contentType} fontSize="small" />}
+                        label={typeMeta.shortLabel}
                       />
                       {isSharedTab ? (
                         <Chip
@@ -266,19 +289,29 @@ export default function MyStudyPage() {
                           label={`@${item.sharedBy}`}
                           sx={{ fontWeight: 600 }}
                         />
-                      ) : hasScore ? (
-                        <Chip
-                          size="small"
-                          color={scoreColor}
-                          label={`Último: ${item.lastScore}%`}
-                          sx={{ fontWeight: 700 }}
-                        />
+                      ) : isQuiz ? (
+                        hasScore ? (
+                          <Chip
+                            size="small"
+                            color={scoreColor}
+                            label={`Último: ${item.lastScore}%`}
+                            sx={{ fontWeight: 700 }}
+                          />
+                        ) : (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label="Sin resolver"
+                            sx={{ color: 'text.secondary', borderColor: 'divider' }}
+                          />
+                        )
                       ) : (
                         <Chip
                           size="small"
+                          color="primary"
                           variant="outlined"
-                          label="Sin resolver"
-                          sx={{ color: 'text.secondary', borderColor: 'divider' }}
+                          label={item.subjectName || 'Materia'}
+                          sx={{ maxWidth: 145 }}
                         />
                       )}
                     </Stack>
@@ -299,18 +332,17 @@ export default function MyStudyPage() {
                           {item.repositoryName}
                         </Typography>
                       </Box>
-                      {item.scopeLabel && (
-                        <Typography variant="caption" color="text.secondary">
-                          Alcance: {item.scopeLabel}
-                        </Typography>
-                      )}
+                      <Typography variant="caption" color="text.secondary">
+                        {item.subjectName || 'Materia'}
+                        {item.scopeLabel ? ` • ${item.scopeLabel}` : ''}
+                      </Typography>
                       {isSharedTab && item.shareNote && (
                         <Typography variant="caption" color="info.main" sx={{ fontStyle: 'italic' }}>
                           &ldquo;{item.shareNote}&rdquo;
                         </Typography>
                       )}
                       <Typography variant="caption" color="text.secondary">
-                        {item.questions?.length ?? 5} preguntas •{' '}
+                        {getAiMaterialUnitLabel(item)} •{' '}
                         {isSharedTab ? 'Compartido el ' : 'Guardado el '}
                         {new Date(dateToShow).toLocaleDateString('es-ES', {
                           day: '2-digit',
@@ -324,12 +356,12 @@ export default function MyStudyPage() {
                   <CardActions sx={{ p: 2, pt: 0, justifyContent: 'space-between' }}>
                     <Button
                       component={RouterLink}
-                      to={`/ai/quiz/${item.id}`}
+                      to={getAiMaterialRoute(item)}
                       variant="contained"
                       size="small"
                       startIcon={<PlayArrowOutlinedIcon />}
                     >
-                      {isSharedTab ? 'Abrir cuestionario' : hasScore ? 'Repasar' : 'Resolver'}
+                      {actionText}
                     </Button>
 
                     {!isSharedTab && (
@@ -339,7 +371,7 @@ export default function MyStudyPage() {
                             size="small"
                             color="primary"
                             onClick={() => setShareTarget(item)}
-                            aria-label="Compartir cuestionario con amigos"
+                            aria-label="Compartir material con amigos"
                           >
                             <ShareOutlinedIcon fontSize="small" />
                           </IconButton>
@@ -349,7 +381,7 @@ export default function MyStudyPage() {
                             size="small"
                             color="error"
                             onClick={() => handleOpenDelete(item)}
-                            aria-label="Eliminar cuestionario de Mi estudio"
+                            aria-label="Eliminar material de Mi estudio"
                           >
                             <DeleteOutlinedIcon fontSize="small" />
                           </IconButton>
@@ -381,7 +413,7 @@ export default function MyStudyPage() {
       {/* Confirmation Dialog */}
       <ConfirmDialog
         open={Boolean(targetToDelete)}
-        title="¿Eliminar cuestionario de Mi estudio?"
+        title="¿Eliminar material de Mi estudio?"
         message={`"${targetToDelete?.title}" será removido de tu lista personal de estudio. Podrás volver a generarlo cuando lo desees.`}
         confirmLabel="Eliminar"
         confirmColor="error"

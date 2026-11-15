@@ -34,6 +34,7 @@ import ReportDetailPage from './pages/admin/ReportDetailPage.jsx';
 import AdminUserPage from './pages/admin/AdminUserPage.jsx';
 import GlobalStatisticsPage from './pages/admin/GlobalStatisticsPage.jsx';
 import AiStudyPage from './pages/ai/AiStudyPage.jsx';
+import AiMaterialPage from './pages/ai/AiMaterialPage.jsx';
 import QuizPage from './pages/ai/QuizPage.jsx';
 import MyStudyPage from './pages/ai/MyStudyPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
@@ -86,6 +87,9 @@ export default function App() {
               <Route path="/ai/my-study" element={<MyStudyPage />} />
               <Route path="/ia/mi-estudio" element={<MyStudyPage />} />
               <Route path="/ai/quiz/:id" element={<QuizPage />} />
+              <Route path="/ia/cuestionario/:id" element={<QuizPage />} />
+              <Route path="/ai/material/:id" element={<AiMaterialPage />} />
+              <Route path="/ia/material/:id" element={<AiMaterialPage />} />
               <Route path="/ia/cuestionario/:id" element={<QuizPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/users/:username" element={<PublicProfilePage />} />

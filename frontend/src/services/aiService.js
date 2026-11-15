@@ -83,6 +83,228 @@ const QUESTION_TEMPLATES = [
  * Gets the current daily quota of AI generations for the user.
  * @returns {Promise<{ total: number, used: number, remaining: number }>}
  */
+function enrichMaterialAccess(item, user, notFoundMsg, forbiddenMsg) {
+  if (!item) {
+    throw new ApiError(notFoundMsg, { status: 404 });
+  }
+  const share = (store.aiShares || []).find(
+    (s) => s.materialId === item.id && s.recipientUsername === user.username,
+  );
+  if (item.userId !== user.id && !share) {
+    throw new ApiError(forbiddenMsg, { status: 403 });
+  }
+  const copy = JSON.parse(JSON.stringify(item));
+  if (share && item.userId !== user.id) {
+    copy.isSharedWithMe = true;
+    copy.sharedBy = share.senderUsername;
+    copy.shareNote = share.note || '';
+    copy.sharedAt = share.createdAt;
+  }
+  return copy;
+}
+
+function buildStructuredAiMaterial({ contentType, repository, scope, scopeValue, scopeLabel, user }) {
+  const repoDocs = (store.documents || []).filter((doc) => doc.repositoryId === repository.id);
+  const scopedDocs = repoDocs.filter((doc) => {
+    if (scope === 'term' && scopeValue) return Number(doc.term) === Number(scopeValue);
+    if (scope === 'topic' && scopeValue) {
+      return (doc.topic || '').toLowerCase().includes(String(scopeValue).toLowerCase());
+    }
+    if (scope === 'tag' && scopeValue) {
+      return (doc.tags || []).some((t) => t.toLowerCase().includes(String(scopeValue).toLowerCase()));
+    }
+    return true;
+  });
+  const baseDocs = scopedDocs.length > 0 ? scopedDocs : repoDocs;
+  const primaryTopic = scope === 'topic' && scopeValue
+    ? scopeValue
+    : baseDocs[0]?.topic || repository.subject?.name || repository.name;
+  const docRefs = baseDocs.slice(0, 3).map((d) => d.title);
+  const docsLabel = docRefs.length > 0 ? docRefs.join(', ') : repository.name;
+
+  store.counters.aiMaterial = (store.counters.aiMaterial || 0) + 1;
+  const id = `mat-${Date.now()}-${store.counters.aiMaterial}`;
+  const baseMeta = {
+    id,
+    contentType,
+    repositoryId: repository.id,
+    repositoryName: repository.name,
+    subjectName: repository.subject?.name ?? 'Materia',
+    scope,
+    scopeValue,
+    scopeLabel,
+    userId: user.id,
+    savedInMyStudy: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (contentType === 'summary') {
+    return {
+      ...baseMeta,
+      title: `Resumen IA: ${repository.name}`,
+      estimatedReadMinutes: 5,
+      overview: `Síntesis académica generada para ${scopeLabel.toLowerCase()} de "${repository.name}", enfocada en ${primaryTopic} a partir de: ${docsLabel}.`,
+      sections: [
+        {
+          heading: `1. Fundamentos de ${primaryTopic}`,
+          body: `Recopilación estructurada de los conceptos teóricos esenciales cubiertos en los apuntes de ${repository.subject?.name ?? 'la materia'}.`,
+          keyPoints: [
+            `Definición formal, alcance y supuestos clave trabajados en ${docsLabel}.`,
+            'Relación directa entre los principios del tema y los problemas tipo parcial.',
+            'Criterios recomendados para validar soluciones bajo restricciones reales.',
+          ],
+        },
+        {
+          heading: '2. Aplicaciones y Patrones Frecuentes',
+          body: 'Síntesis de procedimientos prácticos y decisiones de diseño detectadas en los talleres y guías del repositorio.',
+          keyPoints: [
+            'Comparación entre enfoques alternativos según eficiencia y mantenibilidad.',
+            'Errores comunes al implementar casos borde y cómo prevenirlos.',
+          ],
+        },
+        {
+          heading: '3. Puntos Clave para Evaluación',
+          body: 'Resumen de fórmulas, invariantes y criterios evaluados con mayor frecuencia.',
+          keyPoints: [
+            'Verifica siempre precondiciones de entrada antes de aplicar un algoritmo o regla.',
+            'Justifica cada paso intermedio conectándolo con la teoría estudiada.',
+          ],
+        },
+      ],
+      keyConcepts: [
+        {
+          term: primaryTopic,
+          definition: `Eje central del bloque analizado (${scopeLabel}), base para resolver ejercicios aplicados.`,
+        },
+        {
+          term: 'Validación de casos borde',
+          definition: 'Comprobación sistemática de entradas mínimas, vacías o límite para evitar fallos.',
+        },
+        {
+          term: 'Criterio de eficiencia',
+          definition: 'Evaluación del costo computacional o estructural respecto a alternativas equivalentes.',
+        },
+      ],
+    };
+  }
+
+  if (contentType === 'guide') {
+    return {
+      ...baseMeta,
+      title: `Guía de estudio IA: ${repository.name}`,
+      introduction: `Plan guiado paso a paso para dominar ${primaryTopic} (${scopeLabel}), integrando el material de ${docsLabel}.`,
+      objectives: [
+        `Comprender los fundamentos conceptuales de ${primaryTopic} y su vocabulario técnico.`,
+        'Resolver ejercicios paso a paso justificando cada decisión tomada.',
+        'Detectar y corregir errores frecuentes antes de presentar el parcial o taller.',
+      ],
+      modules: [
+        {
+          title: `Módulo 1: Bases conceptuales de ${primaryTopic}`,
+          summary: 'Lectura dirigida de definiciones, propiedades e invariantes clave del tema.',
+          keyTakeaways: [
+            'Identifica las variables, entidades o estructuras protagonistas del problema.',
+            'Resume con tus propias palabras la regla principal antes de pasar a la práctica.',
+          ],
+          practicePrompt: `Explica con un ejemplo breve cómo se aplica ${primaryTopic} en uno de los escenarios de "${repository.name}".`,
+        },
+        {
+          title: 'Módulo 2: Resolución guiada de problemas',
+          summary: 'Estrategia metódica para abordar ejercicios de complejidad media y alta.',
+          keyTakeaways: [
+            'Divide el enunciado en subproblemas independientes y valida entradas límite.',
+            'Documenta supuestos y verifica consistencia de resultados paso a paso.',
+          ],
+          practicePrompt:
+            'Toma un taller del repositorio, resuélvelo sin mirar la solución y compara cada paso crítico.',
+        },
+        {
+          title: 'Módulo 3: Autoevaluación tipo parcial',
+          summary: 'Simulacro breve bajo límite de tiempo para consolidar retención.',
+          keyTakeaways: [
+            'Prioriza precisión conceptual y claridad en las justificaciones.',
+            'Refuerza con un cuestionario IA cualquier tema donde dudes más de 2 minutos.',
+          ],
+          practicePrompt: 'Formula 2 preguntas conceptuales que podrían aparecer en el examen y respóndelas.',
+        },
+      ],
+      checklist: [
+        `Repasé los conceptos centrales de ${primaryTopic}.`,
+        'Practiqué al menos dos ejercicios completos de los documentos base.',
+        'Verifiqué los errores frecuentes y casos borde del módulo.',
+      ],
+    };
+  }
+
+  return {
+    ...baseMeta,
+    title: `Diapositivas IA: ${repository.name}`,
+    subtitle: `Presentación estructurada sobre ${primaryTopic} • ${scopeLabel}`,
+    slides: [
+      {
+        slideNumber: 1,
+        title: repository.name,
+        subtitle: `${repository.subject?.name ?? 'Materia'} — ${scopeLabel}`,
+        bulletPoints: [
+          `Tema central: ${primaryTopic}.`,
+          `Fuentes base del repositorio: ${docsLabel}.`,
+          'Material de apoyo visual estructurado para estudio y exposición.',
+        ],
+        takeaway: 'Visión panorámica clara del contenido antes de profundizar.',
+        speakerNotes: 'Presenta el alcance de la sesión y qué objetivos debe dominar el grupo al finalizar.',
+      },
+      {
+        slideNumber: 2,
+        title: `Conceptos esenciales de ${primaryTopic}`,
+        subtitle: 'Definiciones y principios base',
+        bulletPoints: [
+          'Definición formal del concepto principal y su propósito en la asignatura.',
+          'Componentes clave y cómo interactúan entre sí.',
+          'Restricciones e invariantes que nunca deben romperse.',
+        ],
+        takeaway: 'Dominar el vocabulario base acelera la resolución de problemas complejos.',
+        speakerNotes: 'Detente en la intuición del problema antes de mostrar notación formal.',
+      },
+      {
+        slideNumber: 3,
+        title: 'Flujo práctico y metodología',
+        subtitle: 'Cómo abordar problemas paso a paso',
+        bulletPoints: [
+          'Analizar entradas, salidas esperadas y restricciones de contexto.',
+          'Seleccionar la estrategia o estructura más adecuada justificando el porqué.',
+          'Validar casos límite y verificar complejidad o integridad.',
+        ],
+        takeaway: 'Un método ordenado evita errores por omisión bajo presión.',
+        speakerNotes: 'Muestra un ejemplo corto aplicado paso a paso en pizarra o código.',
+      },
+      {
+        slideNumber: 4,
+        title: 'Errores comunes y buenas prácticas',
+        subtitle: 'Lo que debes cuidar en evaluaciones y entregas',
+        bulletPoints: [
+          'Evitar asumir entradas limpias o estructuras vacías sin validación previa.',
+          'No confundir síntomas con causas raíz al depurar o analizar modelos.',
+          'Mantener trazabilidad entre el diseño teórico y la implementación final.',
+        ],
+        takeaway: 'Anticipar casos borde distingue una solución funcional de una robusta.',
+        speakerNotes: 'Invita a identificar qué error han cometido antes en talleres similares.',
+      },
+      {
+        slideNumber: 5,
+        title: 'Síntesis y siguientes pasos',
+        subtitle: 'Cierre y plan de repaso activo',
+        bulletPoints: [
+          `Conectar ${primaryTopic} con el resto de documentos del repositorio.`,
+          'Complementar estas láminas con un cuestionario de autoevaluación IA.',
+          'Guardar el material en "Mi estudio" o compartirlo con amigos del curso.',
+        ],
+        takeaway: 'Combina repaso visual con práctica activa para consolidar el aprendizaje.',
+        speakerNotes: 'Cierra resumiendo los 3 conceptos indispensables para el parcial.',
+      },
+    ],
+  };
+}
+
 export async function getDailyAiQuota() {
   const user = currentUser();
   if (!user) {
@@ -115,7 +337,7 @@ export async function getDailyAiQuota() {
  * @param {string|number|null} [params.scopeValue]
  * @returns {Promise<object>} Generated quiz
  */
-export async function generateQuiz({ repositoryId, scope = 'all', scopeValue = null }) {
+export async function generateQuiz({ repositoryId, contentType = 'quiz', scope = 'all', scopeValue = null }) {
   const user = currentUser();
   if (!user) {
     throw new ApiError('Debes iniciar sesión para generar cuestionarios con IA.', { status: 401 });
@@ -126,7 +348,9 @@ export async function generateQuiz({ repositoryId, scope = 'all', scopeValue = n
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post('/api/ai/quiz', {
+    const endpoint = contentType === 'quiz' ? '/api/ai/quiz' : '/api/ai/materials';
+    const { data } = await http.post(endpoint, {
+      ...(contentType !== 'quiz' ? { contentType } : {}),
       repositoryId,
       scope,
       scopeValue,
@@ -169,7 +393,22 @@ export async function generateQuiz({ repositoryId, scope = 'all', scopeValue = n
   else if (scope === 'topic') scopeLabel = `Tema: ${scopeValue}`;
   else if (scope === 'tag') scopeLabel = `Etiqueta: ${scopeValue}`;
 
+  if (contentType !== 'quiz') {
+    const material = buildStructuredAiMaterial({
+      contentType,
+      repository,
+      scope,
+      scopeValue,
+      scopeLabel,
+      user,
+    });
+    store.aiMaterials = store.aiMaterials || [];
+    store.aiMaterials.unshift(material);
+    return JSON.parse(JSON.stringify(material));
+  }
+
   const quiz = {
+    contentType: 'quiz',
     id: `quiz-${Date.now()}`,
     title: `Cuestionario IA: ${repository.name}`,
     repositoryId: repository.id,
@@ -293,7 +532,10 @@ export async function getMyStudyMaterials() {
   }
 
   await waitForMock(200);
-  const list = store.quizzes
+  const list = [
+    ...store.quizzes.map((q) => ({ ...q, contentType: q.contentType || 'quiz' })),
+    ...(store.aiMaterials || []),
+  ]
     .filter((q) => q.userId === user.id && q.savedInMyStudy)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -320,6 +562,11 @@ export async function deleteFromMyStudy(id) {
   const quiz = store.quizzes.find((q) => q.id === id);
   if (quiz) {
     quiz.savedInMyStudy = false;
+  }
+
+  const material = (store.aiMaterials || []).find((m) => m.id === id);
+  if (material) {
+    material.savedInMyStudy = false;
   }
 
   return { success: true };
@@ -444,6 +691,72 @@ export async function shareAiContentWithFriends(materialId, friendUsernames, not
  * Lists AI materials shared by mutual friends with the current user (FE-33, BE-38).
  * @returns {Promise<object[]>}
  */
+/**
+ * Generates an AI study material of any supported type (quiz, summary, guide, slides) (FE-34, BE-37).
+ * @param {object} params
+ * @returns {Promise<object>}
+ */
+export async function generateAiMaterial(params) {
+  return generateQuiz(params);
+}
+
+/**
+ * Gets a non-quiz AI material (summary, study guide, slides) by id (FE-34, BE-37).
+ * @param {string} id
+ * @returns {Promise<object>}
+ */
+export async function getAiMaterialById(id) {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para acceder a este material.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.get(`/api/ai/materials/${encodeURIComponent(id)}`);
+    return data;
+  }
+
+  await waitForMock(150);
+  const item =
+    (store.aiMaterials || []).find((m) => m.id === id) ??
+    store.quizzes.find((q) => q.id === id);
+  return enrichMaterialAccess(
+    item,
+    user,
+    'El material generado no existe o fue eliminado.',
+    'No tienes permiso para ver este material de IA.',
+  );
+}
+
+/**
+ * Toggles or saves a generated AI material (summary, guide, slides, quiz) to "Mi estudio" (FE-34).
+ * @param {string} id
+ * @param {boolean} [save=true]
+ * @returns {Promise<object>}
+ */
+export async function toggleSaveAiMaterialToMyStudy(id, save = true) {
+  const user = currentUser();
+  if (!user) {
+    throw new ApiError('Inicia sesión para guardar contenidos.', { status: 401 });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post(`/api/ai/materials/${encodeURIComponent(id)}/save`, { save });
+    return data;
+  }
+
+  await waitForMock(150);
+  const item =
+    (store.aiMaterials || []).find((m) => m.id === id) ??
+    store.quizzes.find((q) => q.id === id);
+  if (!item) {
+    throw new ApiError('Material no encontrado.', { status: 404 });
+  }
+
+  item.savedInMyStudy = Boolean(save);
+  return JSON.parse(JSON.stringify(item));
+}
+
 export async function getSharedWithMeAiMaterials() {
   const user = currentUser();
   if (!user) {
