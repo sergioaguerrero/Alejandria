@@ -262,7 +262,7 @@ export default function AppLayout() {
               flexGrow: { xs: 1, md: 0 },
             }}
           >
-            <LighthouseMark size={18} sx={{ p: '5px', borderRadius: '7px' }} />
+            <LighthouseMark size={26} />
             <Typography
               variant="h6"
               noWrap
