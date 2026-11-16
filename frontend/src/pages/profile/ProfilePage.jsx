@@ -44,6 +44,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
+import ProfileCounters from '../../components/users/ProfileCounters.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
 import {
@@ -288,43 +289,12 @@ export default function ProfilePage() {
         </Box>
 
         {/* Counters Row */}
-        <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-
-          <Box
-            component={RouterLink}
-            to="/friends"
-            sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
-          >
-            <Typography variant="subtitle1" fontWeight={700}>
-              {socialStats.followers}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {socialStats.followers === 1 ? 'seguidor' : 'seguidores'}
-            </Typography>
-          </Box>
-
-          <Box
-            component={RouterLink}
-            to="/friends"
-            sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
-          >
-            <Typography variant="subtitle1" fontWeight={700}>
-              {socialStats.following}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              siguiendo
-            </Typography>
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              {totalLikes}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              me gusta
-            </Typography>
-          </Box>
-        </Stack>
+        <ProfileCounters
+          followers={socialStats.followers}
+          following={socialStats.following}
+          likes={totalLikes}
+          linkSocial
+        />
       </Box>
 
       {/* Tabs */}

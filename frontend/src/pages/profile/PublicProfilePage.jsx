@@ -40,6 +40,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ReportDialog from '../../components/common/ReportDialog.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
+import ProfileCounters from '../../components/users/ProfileCounters.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
 import {
@@ -313,34 +314,11 @@ export default function PublicProfilePage() {
             </Box>
 
             {/* Counters Row */}
-            <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {loaded.profile.followersCount ?? 0}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {(loaded.profile.followersCount ?? 0) === 1 ? 'seguidor' : 'seguidores'}
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {loaded.profile.followingCount ?? 0}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  siguiendo
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {totalLikes}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  me gusta
-                </Typography>
-              </Box>
-            </Stack>
+            <ProfileCounters
+              followers={loaded.profile.followersCount ?? 0}
+              following={loaded.profile.followingCount ?? 0}
+              likes={totalLikes}
+            />
           </Box>
 
           {/* Tabs */}
