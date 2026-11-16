@@ -1,5 +1,6 @@
 package com.backend.service;
 
+import com.backend.cross.AiContentType;
 import com.backend.cross.InteractionType;
 import com.backend.cross.ResourceType;
 import com.backend.domain.analytic.Interaction;
@@ -8,6 +9,8 @@ import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.DocumentDto;
 import com.backend.exception.AuthException;
+import com.backend.repository.AiMaterialRepository;
+import com.backend.repository.AiShareRepository;
 import com.backend.repository.InteractionRepository;
 import com.backend.repository.ReportRepository;
 import com.backend.repository.ResourceRepository;
@@ -47,19 +50,25 @@ public class StatisticsService {
     private final UserRepository userRepository;
     private final ReportRepository reportRepository;
     private final InteractionRepository interactionRepository;
+    private final AiMaterialRepository aiMaterialRepository;
+    private final AiShareRepository aiShareRepository;
 
     public StatisticsService(
             ResourceRepository resourceRepository,
             StudyRepositoryRepository studyRepositoryRepository,
             UserRepository userRepository,
             ReportRepository reportRepository,
-            InteractionRepository interactionRepository
+            InteractionRepository interactionRepository,
+            AiMaterialRepository aiMaterialRepository,
+            AiShareRepository aiShareRepository
     ) {
         this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.userRepository = userRepository;
         this.reportRepository = reportRepository;
         this.interactionRepository = interactionRepository;
+        this.aiMaterialRepository = aiMaterialRepository;
+        this.aiShareRepository = aiShareRepository;
     }
 
     @Transactional(readOnly = true)
@@ -325,7 +334,7 @@ public class StatisticsService {
         activeUsers.put("deltaLabel", activityRows.size() + " interacciones registradas");
         activeUsers.put("timeline", activeTimeline);
 
-        Map<String, Object> aiUsage = buildEmptyAiUsage(period);
+        Map<String, Object> aiUsage = buildAiUsage(period, today, since);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("period", period);
@@ -428,14 +437,7 @@ public class StatisticsService {
         for (Object[] row : rows) {
             Long uid = row[0] != null ? ((Number) row[0]).longValue() : null;
             LocalDateTime dt = (LocalDateTime) row[1];
-            int bucket = switch (period) {
-                case "day" -> Math.min(5, dt.getHour() / 4);
-                case "month" -> {
-                    long daysAgo = ChronoUnit.DAYS.between(dt.toLocalDate(), today);
-                    yield daysAgo < 0 || daysAgo > 27 ? -1 : 3 - (int) (daysAgo / 7);
-                }
-                default -> dt.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue();
-            };
+            int bucket = resolveTimeBucket(period, today, dt);
             if (bucket < 0 || bucket >= labels.size()) continue;
             sessions[bucket]++;
             if (uid != null) {
@@ -454,42 +456,99 @@ public class StatisticsService {
         return timeline;
     }
 
-    private Map<String, Object> buildEmptyAiUsage(String period) {
-        List<Map<String, Object>> byType = List.of(
-                aiTypeRow("quiz", "Cuestionario"),
-                aiTypeRow("summary", "Resumen"),
-                aiTypeRow("guide", "Guía"),
-                aiTypeRow("slides", "Diapositivas")
-        );
+    private int resolveTimeBucket(String period, LocalDate today, LocalDateTime dt) {
+        return switch (period) {
+            case "day" -> Math.min(5, dt.getHour() / 4);
+            case "month" -> {
+                long daysAgo = ChronoUnit.DAYS.between(dt.toLocalDate(), today);
+                yield daysAgo < 0 || daysAgo > 27 ? -1 : 3 - (int) (daysAgo / 7);
+            }
+            default -> dt.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue();
+        };
+    }
+
+    private Map<String, Object> buildAiUsage(String period, LocalDate today, LocalDateTime since) {
+        List<Object[]> rows = aiMaterialRepository.findStatisticsRowsSince(since);
+        long totalGenerations = aiMaterialRepository.count();
+        long sharedWithFriends = aiShareRepository.count();
+
+        Map<AiContentType, Long> typeCounts = new LinkedHashMap<>();
+        for (AiContentType type : AiContentType.values()) {
+            typeCounts.put(type, 0L);
+        }
+
         List<String> labels = switch (period) {
             case "day" -> DAY_HOUR_LABELS;
             case "month" -> MONTH_LABELS;
             default -> WEEK_LABELS;
         };
-        List<Map<String, Object>> timeline = labels.stream()
-                .map(label -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("label", label);
-                    item.put("generaciones", 0);
-                    return item;
-                })
+        int[] bucketCounts = new int[labels.size()];
+        Map<String, Map<String, Object>> repoStats = new LinkedHashMap<>();
+
+        for (Object[] row : rows) {
+            AiContentType type = (AiContentType) row[1];
+            Long repoId = row[2] != null ? ((Number) row[2]).longValue() : null;
+            String repoName = String.valueOf(row[3]);
+            String subjectName = String.valueOf(row[4]);
+            LocalDateTime createdAt = (LocalDateTime) row[5];
+
+            typeCounts.merge(type, 1L, Long::sum);
+
+            int bucket = resolveTimeBucket(period, today, createdAt);
+            if (bucket >= 0 && bucket < bucketCounts.length) {
+                bucketCounts[bucket]++;
+            }
+
+            String repoKey = repoId != null ? String.valueOf(repoId) : "deleted-" + repoName;
+            Map<String, Object> entry = repoStats.computeIfAbsent(repoKey, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("repositoryId", repoKey);
+                m.put("repositoryName", repoName);
+                m.put("subjectName", subjectName);
+                m.put("count", 0L);
+                return m;
+            });
+            entry.put("count", ((Number) entry.get("count")).longValue() + 1L);
+        }
+
+        List<Map<String, Object>> byType = List.of(
+                aiTypeRow("quiz", "Cuestionario", typeCounts.getOrDefault(AiContentType.QUIZ, 0L)),
+                aiTypeRow("summary", "Resumen", typeCounts.getOrDefault(AiContentType.SUMMARY, 0L)),
+                aiTypeRow("guide", "Guía", typeCounts.getOrDefault(AiContentType.GUIDE, 0L)),
+                aiTypeRow("slides", "Diapositivas", typeCounts.getOrDefault(AiContentType.SLIDES, 0L))
+        );
+
+        List<Map<String, Object>> timeline = new ArrayList<>();
+        for (int i = 0; i < labels.size(); i++) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("label", labels.get(i));
+            item.put("generaciones", bucketCounts[i]);
+            timeline.add(item);
+        }
+
+        List<Map<String, Object>> topRepositories = repoStats.values().stream()
+                .sorted((a, b) -> Long.compare(
+                        ((Number) b.get("count")).longValue(),
+                        ((Number) a.get("count")).longValue()
+                ))
+                .limit(5)
                 .toList();
 
         Map<String, Object> aiUsage = new LinkedHashMap<>();
-        aiUsage.put("periodGenerations", 0);
-        aiUsage.put("totalGenerations", 0);
-        aiUsage.put("sharedWithFriends", 0);
+        aiUsage.put("periodGenerations", rows.size());
+        aiUsage.put("totalGenerations", totalGenerations);
+        aiUsage.put("sharedWithFriends", sharedWithFriends);
         aiUsage.put("byType", byType);
-        aiUsage.put("topRepositories", List.of());
+        aiUsage.put("topRepositories", topRepositories);
         aiUsage.put("timeline", timeline);
         return aiUsage;
     }
 
-    private Map<String, Object> aiTypeRow(String type, String label) {
+    private Map<String, Object> aiTypeRow(String type, String label, long count) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("contentType", type);
         row.put("label", label);
-        row.put("count", 0);
+        row.put("count", count);
         return row;
     }
 

@@ -12,6 +12,7 @@ import com.backend.dto.RepositoryPageResponse;
 import com.backend.dto.RepositoryRequestDto;
 import com.backend.dto.RepositoryResponseDto;
 import com.backend.exception.AuthException;
+import com.backend.repository.AiMaterialRepository;
 import com.backend.repository.CatalogRepository;
 import com.backend.repository.ReportRepository;
 import com.backend.repository.RepositoryCollaboratorRepository;
@@ -47,6 +48,7 @@ public class StudyRepositoryService {
     private final RepositoryLikeRepository repositoryLikeRepository;
     private final RepositoryFollowRepository repositoryFollowRepository;
     private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
+    private final AiMaterialRepository aiMaterialRepository;
     private final ReportRepository reportRepository;
     private final NotificationService notificationService;
 
@@ -57,6 +59,7 @@ public class StudyRepositoryService {
             RepositoryLikeRepository repositoryLikeRepository,
             RepositoryFollowRepository repositoryFollowRepository,
             RepositoryCollaboratorRepository repositoryCollaboratorRepository,
+            AiMaterialRepository aiMaterialRepository,
             ReportRepository reportRepository,
             NotificationService notificationService
     ) {
@@ -66,6 +69,7 @@ public class StudyRepositoryService {
         this.repositoryLikeRepository = repositoryLikeRepository;
         this.repositoryFollowRepository = repositoryFollowRepository;
         this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
+        this.aiMaterialRepository = aiMaterialRepository;
         this.reportRepository = reportRepository;
         this.notificationService = notificationService;
     }
@@ -149,6 +153,7 @@ public class StudyRepositoryService {
         StudyRepository repo = findRepoOrThrow(id);
         requireOwner(repo, user, "Solo el dueño puede eliminar este repositorio.");
 
+        aiMaterialRepository.clearRepositoryReference(id);
         reportRepository.clearRepositoryReference(id);
         repositoryCollaboratorRepository.deleteByStudyRepositoryId(id);
         repositoryLikeRepository.deleteByIdRepositoryId(id);
