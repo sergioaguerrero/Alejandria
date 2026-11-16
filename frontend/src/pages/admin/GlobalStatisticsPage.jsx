@@ -84,7 +84,7 @@ function wrapAxisLabel(label, maxCharsPerLine = 16, maxLines = 3) {
   return lines;
 }
 
-function WrappedCategoryTick({ x, y, payload, fill }) {
+function WrappedCategoryTick({ x = 0, y = 0, payload, fill }) {
   const lines = wrapAxisLabel(payload?.value, 16, 3);
   return (
     <g transform={`translate(${x},${y})`}>
@@ -139,14 +139,9 @@ function SummaryCard({ title, value, subtitle, icon: Icon, color = 'primary.main
 
 export default function GlobalStatisticsPage() {
   const theme = useTheme();
+  const { user } = useAuth();
   const { getChartAxisProps, tooltipProps } = createRechartsThemeProps(theme);
   const subjectAxisProps = getChartAxisProps(11);
-  const maxTopicDocs = data?.topTopics?.length
-    ? Math.max(1, ...data.topTopics.map((item) => item.documentos || 0))
-    : 1;
-  const topicAxisTicks =
-    maxTopicDocs <= 4 ? Array.from({ length: maxTopicDocs + 1 }, (_, i) => i) : undefined;
-  const { user } = useAuth();
 
   const [data, setData] = useState(null);
   const [loadedKey, setLoadedKey] = useState('');
@@ -157,6 +152,11 @@ export default function GlobalStatisticsPage() {
   const [loadedAdvKey, setLoadedAdvKey] = useState('');
 
   const loading = !user || loadedKey !== `${user.username}:${reloadKey}`;
+  const maxTopicDocs = data?.topTopics?.length
+    ? Math.max(1, ...data.topTopics.map((item) => item.documentos || 0))
+    : 1;
+  const topicAxisTicks =
+    maxTopicDocs <= 4 ? Array.from({ length: maxTopicDocs + 1 }, (_, i) => i) : undefined;
 
   useEffect(() => {
     if (!user) return undefined;
