@@ -215,6 +215,11 @@ npm run lint    # ESLint check
 
 ## Team & Roles
 
-* **José Daniel Pinzón Racero** — Technical Lead / Backend Developer (Architecture, Business Services, Auth & Verification, AI & Analytics Integration)
-* **Pablo Andrés Amaya Pabón** — Backend Developer (Spring Data JPA Repositories, Domain Entities, Controllers, Exception Handling)
-* **Sergio Alejandro Guerrero Espitia** — Frontend Developer & Full-Stack Integration (React, Vite, Material UI, Service Layer & Cloud Integration)
+* **Sergio Alejandro Guerrero Espitia** — Full-Stack Developer & System Integrator
+  * Built the complete **React + Vite + Material UI** frontend (`frontend/`), service layer, Light/Dark theme, and mock-first workflow.
+  * Implemented the **AI Study Engine** end-to-end (Google Gemini integration with multi-model fallback, Quizzes/Summaries/Guides/Slides generation, daily quota, **My Study** library, and mutual-friend sharing).
+  * Developed full-stack backend & frontend modules for JWT authentication & 6-digit OTP email verification (`console`/`smtp`/`resend`), Study Repositories & Collaborators, Document CRUD/preview & topic normalization, Social network (follows/friends) & Notifications, Personal/Global/Advanced Statistics, Moderation & Admin User management, Oracle Cloud Database-First alignment, and integration tests.
+* **José Daniel Pinzón Racero** — Technical Lead / Backend Developer
+  * Defined the Spring Boot layered architecture, initial Maven/Oracle Cloud setup, `SecurityConfig` & `CorsConfig`, global exception handling (`GlobalExceptionHandler`, `ErrorResponse`), initial service/controller scaffolding, and architecture/class diagrams (`docs/`).
+* **Pablo Andrés Amaya Pabón** — Backend Developer
+  * Designed and implemented the core JPA domain entities (`academy`, `analytic`, `governance`, `identity`, `repos`), cross-cutting domain enums, base Spring Data JPA repositories, and initial asynchronous `AnalyticsService`.
