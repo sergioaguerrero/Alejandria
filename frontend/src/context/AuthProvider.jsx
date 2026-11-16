@@ -15,7 +15,9 @@ import {
   login as loginService,
   getCurrentSession,
   register as registerService,
+  resendVerificationCode as resendVerificationCodeService,
   updateProfile as updateProfileService,
+  verifyEmail as verifyEmailService,
 } from '../services/authService.js';
 
 /**
@@ -31,10 +33,25 @@ export default function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (data) => {
-    const newSession = await registerService(data);
-    setSession(newSession);
+    const result = await registerService(data);
+    if (result?.token && !result?.requiresVerification) {
+      setSession({ token: result.token, user: result.user });
+    }
+    return result;
+  }, []);
+
+  const verifyEmail = useCallback(async (data) => {
+    const newSession = await verifyEmailService(data);
+    if (newSession?.token && newSession?.user) {
+      setSession({ token: newSession.token, user: newSession.user });
+    }
     return newSession;
   }, []);
+
+  const resendVerificationCode = useCallback(
+    (email) => resendVerificationCodeService(email),
+    [],
+  );
 
   const logout = useCallback(() => {
     logoutService();
@@ -57,11 +74,22 @@ export default function AuthProvider({ children }) {
       isAdmin: session?.user?.role === 'admin',
       login,
       register,
+      verifyEmail,
+      resendVerificationCode,
       logout,
       updateProfile,
       changePassword,
     }),
-    [session, login, register, logout, updateProfile, changePassword],
+    [
+      session,
+      login,
+      register,
+      verifyEmail,
+      resendVerificationCode,
+      logout,
+      updateProfile,
+      changePassword,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

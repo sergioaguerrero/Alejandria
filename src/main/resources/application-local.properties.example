@@ -1,0 +1,21 @@
+# Copia este archivo como application-local.properties (ignorado por Git)
+# y completa las credenciales según el proveedor de correo que elijas.
+
+# Base de datos Oracle (si no usas variables de entorno)
+# spring.datasource.password=TU_PASSWORD_DE_ORACLE
+
+# --- Opción 1: SMTP (Gmail con App Password, Brevo SMTP, Mailpit, etc.) ---
+app.mail.provider=smtp
+app.mail.from=Alejandria UPC <tu_correo@gmail.com>
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=tu_correo@gmail.com
+spring.mail.password=tu_app_password_de_16_caracteres
+
+# --- Opción 2: API HTTP de Resend (recomendada para producción/nube) ---
+# app.mail.provider=resend
+# app.mail.from=Alejandria UPC <no-reply@tudominio.edu.co>
+# app.mail.resend-api-key=re_xxxxxxxxxxxxxxxxx
+
+# --- Opción 3: Consola local (imprime el código OTP en logs, sin enviar correo) ---
+# app.mail.provider=console

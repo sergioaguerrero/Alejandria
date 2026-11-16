@@ -1,9 +1,9 @@
 /**
  * @file authService.js
- * @description Registration, login and logout (FE-04 and FE-05).
+ * @description Registration, email OTP verification, login and logout (FE-04 and FE-05).
  *
- * In mock mode it validates the credentials against src/mocks/users.js.
- * In real mode it calls the BE-05 (registration) and BE-06 (login) endpoints.
+ * In mock mode it validates credentials and OTP codes against src/mocks/store.js.
+ * In real mode it calls the /auth/* endpoints on Spring Boot.
  *
  * Screens only call these functions; never Axios or the mocks.
  */
@@ -21,9 +21,55 @@ import { withoutPassword } from '../utils/users.js';
 import {
   isInstitutionalEmail,
   isValidEmail,
+  isValidVerificationCode,
   passwordErrors,
   isValidUsername,
 } from '../utils/validations.js';
+
+const MOCK_OTP_EXPIRATION_MS = 15 * 60 * 1000;
+const MOCK_RESEND_COOLDOWN_MS = 60 * 1000;
+const MOCK_MAX_ATTEMPTS = 5;
+
+function generateMockOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function issueMockOtpForEmail(email, preserveActiveCooldown = false) {
+  const now = Date.now();
+  const existing = store.verificationCodes.get(email);
+
+  if (existing && !existing.used && now < existing.expiresAt) {
+    const elapsedMs = now - existing.createdAt;
+    if (elapsedMs < MOCK_RESEND_COOLDOWN_MS) {
+      const remainingSeconds = Math.ceil((MOCK_RESEND_COOLDOWN_MS - elapsedMs) / 1000);
+      if (preserveActiveCooldown) {
+        return { code: existing.code, resendCooldownSeconds: remainingSeconds };
+      }
+      throw new ApiError(
+        `Debes esperar ${remainingSeconds} segundos antes de solicitar otro código.`,
+        {
+          status: 429,
+          code: 'RESEND_COOLDOWN',
+          meta: { retryAfterSeconds: remainingSeconds },
+        },
+      );
+    }
+  }
+
+  const code = generateMockOtp();
+  store.verificationCodes.set(email, {
+    code,
+    createdAt: now,
+    expiresAt: now + MOCK_OTP_EXPIRATION_MS,
+    attempts: 0,
+    used: false,
+  });
+
+  return {
+    code,
+    resendCooldownSeconds: Math.round(MOCK_RESEND_COOLDOWN_MS / 1000),
+  };
+}
 
 /**
  * @typedef {object} Session
@@ -79,7 +125,7 @@ export function logout() {
  * Logs in with the username or the email, plus the password.
  * @param {{ identifier: string, password: string }} credentials  Identifier: a username or an email.
  * @returns {Promise<Session>}
- * @throws {ApiError} 401 if the credentials do not match, 403 if the account is suspended.
+ * @throws {ApiError} 401 if credentials do not match, 403 if suspended or email unverified.
  */
 export async function login({ identifier, password }) {
   const cleanIdentifier = String(identifier ?? '').trim().toLowerCase();
@@ -91,7 +137,6 @@ export async function login({ identifier, password }) {
   const isEmail = cleanIdentifier.includes('@');
 
   if (!USE_MOCK) {
-    // TODO(BE-41): confirm the login body against Swagger (BE-06).
     const { data } = await http.post('/auth/login', {
       identifier: cleanIdentifier,
       password,
@@ -115,6 +160,17 @@ export async function login({ identifier, password }) {
     );
   }
 
+  if (user.verified === false) {
+    throw new ApiError(
+      'Debes confirmar tu correo institucional antes de iniciar sesión.',
+      {
+        status: 403,
+        code: 'EMAIL_NOT_VERIFIED',
+        meta: { email: user.email },
+      },
+    );
+  }
+
   if (user.suspended) {
     throw new ApiError(
       'Tu cuenta está suspendida. Escribe a coordinación académica para más información.',
@@ -131,7 +187,7 @@ export async function login({ identifier, password }) {
   return session;
 }
 
-// ── Registration (FE-04) ───────────────────────────────────────────────────
+// ── Registration & Email Verification (FE-04) ──────────────────────────────
 
 /**
  * @typedef {object} RegistrationData
@@ -146,10 +202,10 @@ export async function login({ identifier, password }) {
  */
 
 /**
- * Registers a new student and leaves the session started.
+ * Registers a new student with verified=false and triggers sending a 6-digit OTP code.
  * @param {RegistrationData} data
- * @returns {Promise<Session>}
- * @throws {ApiError} 400 with `fields` if there is invalid data, 409 if the email or the user already exist.
+ * @returns {Promise<{ requiresVerification: boolean, user: object, token?: string, message?: string, resendCooldownSeconds?: number, testCode?: string }>}
+ * @throws {ApiError} 400 with `fields` if there is invalid data, 409 if verified email or username already exists.
  */
 export async function register(data) {
   const first_name = String(data.first_name ?? '').trim();
@@ -178,7 +234,11 @@ export async function register(data) {
       password,
       semester,
     });
-    saveSession(response);
+
+    if (response?.token && !response?.requiresVerification) {
+      saveSession(response);
+    }
+
     return response;
   }
 
@@ -187,9 +247,18 @@ export async function register(data) {
   /** @type {Record<string, string>} */
   const fields = {};
 
+  const existingByEmail = store.users.find((user) => user.email.toLowerCase() === email);
+  if (existingByEmail && existingByEmail.verified !== false) {
+    fields.email = 'Ya existe una cuenta con ese correo.';
+  }
+
   if (!isValidUsername(username)) {
     fields.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.';
-  } else if (store.users.some((user) => user.username === username)) {
+  } else if (
+    store.users.some(
+      (user) => user.username === username && user.id !== existingByEmail?.id,
+    )
+  ) {
     fields.username = 'Ese nombre de usuario ya está en uso.';
   }
 
@@ -197,8 +266,6 @@ export async function register(data) {
     fields.email = 'Escribe un correo válido.';
   } else if (!isInstitutionalEmail(email)) {
     fields.email = 'Debes usar tu correo institucional @unicesar.edu.co.';
-  } else if (store.users.some((user) => user.email.toLowerCase() === email)) {
-    fields.email = 'Ya existe una cuenta con ese correo.';
   }
 
   const passwordErrorList = passwordErrors(password);
@@ -207,33 +274,206 @@ export async function register(data) {
   }
 
   if (Object.keys(fields).length > 0) {
-    throw new ApiError('Revisa los datos del formulario.', { status: 400, fields });
+    throw new ApiError('Revisa los datos del formulario.', {
+      status: fields.email?.includes('Ya existe') || fields.username?.includes('en uso') ? 409 : 400,
+      fields,
+    });
   }
 
-  const newUser = {
-    id: nextId('user'),
-    name: fullName || username,
-    first_name,
-    second_name,
-    first_lastname,
-    second_lastname,
-    username,
-    email,
-    semester: semester ? Number(semester) : null,
-    role: 'estudiante',
-    password,
-    suspended: false,
-  };
+  let targetUser = existingByEmail;
+  if (targetUser) {
+    Object.assign(targetUser, {
+      name: fullName || username,
+      first_name,
+      second_name,
+      first_lastname,
+      second_lastname,
+      username,
+      email,
+      semester: semester ? Number(semester) : null,
+      password,
+      verified: false,
+    });
+  } else {
+    targetUser = {
+      id: nextId('user'),
+      name: fullName || username,
+      first_name,
+      second_name,
+      first_lastname,
+      second_lastname,
+      username,
+      email,
+      semester: semester ? Number(semester) : null,
+      role: 'estudiante',
+      password,
+      verified: false,
+      suspended: false,
+    };
+    store.users.push(targetUser);
+  }
 
-  store.users.push(newUser);
+  const { code, resendCooldownSeconds } = issueMockOtpForEmail(email, true);
+
+  return {
+    requiresVerification: true,
+    user: /** @type {any} */ (withoutPassword(targetUser)),
+    message: 'Te enviamos un código de 6 dígitos a tu correo institucional para confirmar tu cuenta.',
+    resendCooldownSeconds,
+    testCode: code,
+  };
+}
+
+/**
+ * Verifies the 6-digit OTP code sent to the institutional email and starts the session.
+ * @param {{ email: string, code: string }} data
+ * @returns {Promise<Session & { requiresVerification: boolean, message?: string }>}
+ */
+export async function verifyEmail({ email, code }) {
+  const cleanEmail = String(email ?? '').trim().toLowerCase();
+  const cleanCode = String(code ?? '').trim();
+
+  if (!isValidEmail(cleanEmail) || !isInstitutionalEmail(cleanEmail)) {
+    throw new ApiError('Escribe un correo institucional válido (@unicesar.edu.co).', {
+      status: 400,
+      fields: { email: 'Correo institucional inválido.' },
+    });
+  }
+
+  if (!isValidVerificationCode(cleanCode)) {
+    throw new ApiError('El código debe tener exactamente 6 dígitos numéricos.', {
+      status: 400,
+      code: 'CODE_INVALID',
+      fields: { code: 'Ingresa los 6 dígitos del código.' },
+    });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post('/auth/verify-email', {
+      email: cleanEmail,
+      code: cleanCode,
+    });
+    if (data?.token && data?.user) {
+      saveSession(data);
+    }
+    return data;
+  }
+
+  await waitForMock(500);
+
+  const user = store.users.find((candidate) => candidate.email.toLowerCase() === cleanEmail);
+  if (!user) {
+    throw new ApiError('Código inválido o expirado.', {
+      status: 400,
+      code: 'CODE_INVALID',
+    });
+  }
+
+  if (user.verified !== false) {
+    throw new ApiError('Tu correo ya fue confirmado. Ya puedes iniciar sesión.', {
+      status: 400,
+      code: 'ALREADY_VERIFIED',
+    });
+  }
+
+  const record = store.verificationCodes.get(cleanEmail);
+  if (!record || record.used || Date.now() >= record.expiresAt) {
+    if (record) record.used = true;
+    throw new ApiError('El código ha expirado. Solicita uno nuevo.', {
+      status: 400,
+      code: 'CODE_EXPIRED',
+    });
+  }
+
+  if (record.attempts >= MOCK_MAX_ATTEMPTS) {
+    record.used = true;
+    throw new ApiError('Superaste el máximo de intentos permitidos. Solicita un nuevo código.', {
+      status: 429,
+      code: 'TOO_MANY_ATTEMPTS',
+    });
+  }
+
+  if (record.code !== cleanCode) {
+    record.attempts += 1;
+    const remaining = Math.max(0, MOCK_MAX_ATTEMPTS - record.attempts);
+    if (remaining === 0) {
+      record.used = true;
+      throw new ApiError(
+        'Código incorrecto. Alcanzaste el límite de intentos, solicita un código nuevo.',
+        { status: 429, code: 'TOO_MANY_ATTEMPTS' },
+      );
+    }
+    throw new ApiError(
+      `Código incorrecto. Te quedan ${remaining} ${remaining === 1 ? 'intento.' : 'intentos.'}`,
+      {
+        status: 400,
+        code: 'CODE_INVALID',
+        fields: { code: 'Código incorrecto.' },
+      },
+    );
+  }
+
+  record.used = true;
+  user.verified = true;
 
   const session = {
-    user: /** @type {any} */ (withoutPassword(newUser)),
-    token: `mock.${newUser.id}.${Date.now()}`,
+    user: /** @type {any} */ (withoutPassword(user)),
+    token: `mock.${user.id}.${Date.now()}`,
   };
-
   saveSession(session);
-  return session;
+
+  return {
+    ...session,
+    requiresVerification: false,
+    message: 'Correo verificado exitosamente. ¡Bienvenido a Alejandría!',
+  };
+}
+
+/**
+ * Resends a fresh 6-digit OTP verification code to the user's institutional email.
+ * @param {string} email
+ * @returns {Promise<{ success: boolean, message: string, resendCooldownSeconds: number, testCode?: string }>}
+ */
+export async function resendVerificationCode(email) {
+  const cleanEmail = String(email ?? '').trim().toLowerCase();
+
+  if (!isValidEmail(cleanEmail) || !isInstitutionalEmail(cleanEmail)) {
+    throw new ApiError('Debes ingresar un correo institucional válido (@unicesar.edu.co).', {
+      status: 400,
+      fields: { email: 'Correo institucional inválido.' },
+    });
+  }
+
+  if (!USE_MOCK) {
+    const { data } = await http.post('/auth/resend-verification', { email: cleanEmail });
+    return data;
+  }
+
+  await waitForMock(450);
+
+  const user = store.users.find((candidate) => candidate.email.toLowerCase() === cleanEmail);
+  if (!user) {
+    return {
+      success: true,
+      message: 'Si el correo institucional está pendiente de verificación, enviaremos un nuevo código.',
+      resendCooldownSeconds: Math.round(MOCK_RESEND_COOLDOWN_MS / 1000),
+    };
+  }
+
+  if (user.verified !== false) {
+    throw new ApiError('Esta cuenta ya confirmó su correo. Puedes iniciar sesión.', {
+      status: 400,
+      code: 'ALREADY_VERIFIED',
+    });
+  }
+
+  const { code, resendCooldownSeconds } = issueMockOtpForEmail(cleanEmail, false);
+  return {
+    success: true,
+    message: 'Enviamos un nuevo código de 6 dígitos a tu correo institucional.',
+    resendCooldownSeconds,
+    testCode: code,
+  };
 }
 
 // ── Profile (FE-07, BE-08) ─────────────────────────────────────────────────

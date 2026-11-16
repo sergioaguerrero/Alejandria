@@ -148,3 +148,12 @@ export function formatSize(bytes) {
 
   return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
+
+/**
+ * Indicates if the verification OTP code has exactly 6 numeric digits.
+ * @param {string} code
+ * @returns {boolean}
+ */
+export function isValidVerificationCode(code) {
+  return /^\d{6}$/.test(String(code ?? '').trim());
+}
