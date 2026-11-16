@@ -1,6 +1,7 @@
 package com.backend.domain.identity;
 
 import jakarta.persistence.*;
+import org.hibernate.type.NumericBooleanConverter;
 import java.time.LocalDateTime;
 
 /**
@@ -8,10 +9,10 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(
-        name = "EMAIL_VERIFICATION_CODE",
+        name = "CODIGO_VERIFICACION_CORREO",
         indexes = {
-                @Index(name = "idx_evc_user_used", columnList = "user_id, used"),
-                @Index(name = "idx_evc_expires_at", columnList = "expires_at")
+                @Index(name = "idx_cvc_usuario_usado", columnList = "usuario_id, usado"),
+                @Index(name = "idx_cvc_fecha_expiracion", columnList = "fecha_expiracion")
         }
 )
 public class EmailVerificationCode {
@@ -21,22 +22,23 @@ public class EmailVerificationCode {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "usuario_id", nullable = false)
     private User user;
 
-    @Column(name = "code_hash", nullable = false, length = 128)
+    @Column(name = "codigo_hash", nullable = false, length = 128)
     private String codeHash;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "expires_at", nullable = false)
+    @Column(name = "fecha_expiracion", nullable = false)
     private LocalDateTime expiresAt;
 
-    @Column(nullable = false)
+    @Column(name = "intentos", nullable = false)
     private int attempts;
 
-    @Column(nullable = false)
+    @Convert(converter = NumericBooleanConverter.class)
+    @Column(name = "usado", nullable = false)
     private boolean used;
 
     protected EmailVerificationCode() {}

@@ -118,7 +118,9 @@ export default function PublicProfilePage() {
     });
   };
 
-  const totalLikes = loaded.repositories.reduce((acc, repo) => acc + (repo.likes || 0), 0);
+  const totalLikes =
+    loaded.repositories.reduce((acc, repo) => acc + (repo.likes || 0), 0) +
+    loaded.documents.reduce((acc, doc) => acc + (doc.likes || 0), 0);
 
   const handleToggleFollow = async () => {
     if (!loaded.profile) return;
@@ -327,23 +329,6 @@ export default function PublicProfilePage() {
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   siguiendo
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {loaded.repositories.length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {loaded.repositories.length === 1 ? 'repositorio' : 'repositorios'}
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {loaded.documents.length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {loaded.documents.length === 1 ? 'documento' : 'documentos'}
                 </Typography>
               </Box>
 

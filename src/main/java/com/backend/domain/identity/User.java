@@ -1,50 +1,52 @@
 package com.backend.domain.identity;
 
 import jakarta.persistence.*;
+import org.hibernate.type.NumericBooleanConverter;
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Entity
-@Table(name = "APP_USER")
+@Table(name = "USUARIO")
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "nombre_usuario", nullable = false, unique = true, length = 150)
     private String username;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "primer_nombre", nullable = false, length = 150)
     private String first_name;
 
-    @Column(length = 150)
+    @Column(name = "segundo_nombre", length = 150)
     private String second_name;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "primer_apellido", nullable = false, length = 150)
     private String first_lastname;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "segundo_apellido", nullable = false, length = 150)
     private String second_lastname;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "correo_institucional", nullable = false, unique = true, length = 150)
     private String institutionalEmail;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "contrasena_hash", nullable = false, length = 150)
     private String passwordHash;
 
-    @Column(nullable = false)
+    @Convert(converter = NumericBooleanConverter.class)
+    @Column(name = "verificado", nullable = false)
     private boolean verified;
 
-    @Column(name = "registration_date", nullable = false)
+    @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime registrationDate;
 
-    @Column
+    @Column(name = "semestre")
     private Integer semester;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "role_id")
+    @JoinColumn(name = "rol_id")
     private Role role;
 
     protected User() {}

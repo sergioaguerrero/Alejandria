@@ -10,60 +10,56 @@ import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
 
 @Entity
-@Table(name = "ACADEMIC_RESOURCE")
+@Table(name = "RECURSO_ACADEMICO")
 public class Resource {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 200)
+    @Column(name = "titulo", nullable = false, length = 200)
     private String title;
 
-    @Column(length = 2000)
+    @Column(name = "descripcion", length = 2000)
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "resource_type", nullable = false, length = 20)
+    @Column(name = "tipo_recurso", nullable = false, length = 20)
     private ResourceType type;
 
     @Lob
-    @Column(name = "file_bytes", nullable = false)
+    @Column(name = "archivo_bytes", nullable = false)
     private byte[] fileBytes;
 
-    @Column(name = "mime_type", nullable = false, length = 100)
+    @Column(name = "tipo_mime", nullable = false, length = 100)
     private String mimeType;
 
-    @Column(name = "file_size_bytes", nullable = false)
+    @Column(name = "tamano_bytes", nullable = false)
     private long fileSizeBytes;
 
-    @Column(name = "upload_date", nullable = false)
+    @Column(name = "fecha_subida", nullable = false)
     private LocalDateTime uploadDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "estado", nullable = false, length = 20)
     private ResourceStatus status;
 
-    @Column(name = "total_downloads", nullable = false)
+    @Column(name = "total_descargas", nullable = false)
     private int totalDownloads;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "uploaded_by")
+    @JoinColumn(name = "subido_por")
     private User uploadedBy;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "subject_id")
+    @JoinColumn(name = "materia_id")
     private Subject subject;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User uploader;
 
     @ManyToMany
     @JoinTable(
-            name = "RESOURCE_TAG",
-            joinColumns = @JoinColumn(name = "resource_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
+            name = "RECURSO_ETIQUETA",
+            joinColumns = @JoinColumn(name = "recurso_id"),
+            inverseJoinColumns = @JoinColumn(name = "etiqueta_id")
     )
     private Set<Tag> tags = new HashSet<>();
 
@@ -124,7 +120,4 @@ public class Resource {
 
     public Set<Tag> getTags() { return tags; }
     public void setTags(Set<Tag> tags) { this.tags = tags; }
-
-    public User getUploader() {return uploader;}
-    public void setUploader(User uploader) {this.uploader = uploader;}
 }

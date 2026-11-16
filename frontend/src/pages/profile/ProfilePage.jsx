@@ -48,7 +48,6 @@ import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
 import {
   getDocumentsByUser,
-  getFriends,
   getPublicProfile,
   getRepositoriesByUser,
 } from '../../services/index.js';
@@ -78,7 +77,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [repositories, setRepositories] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [socialStats, setSocialStats] = useState({ followers: 0, following: 0, friends: 0 });
+  const [socialStats, setSocialStats] = useState({ followers: 0, following: 0 });
   const [loadedKey, setLoadedKey] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -114,16 +113,14 @@ export default function ProfilePage() {
       getRepositoriesByUser(user.username),
       getDocumentsByUser(user.username),
       getPublicProfile(user.username).catch(() => null),
-      getFriends().catch(() => []),
     ])
-      .then(([userRepos, userDocs, publicProfile, friendsList]) => {
+      .then(([userRepos, userDocs, publicProfile]) => {
         if (!active) return;
         setRepositories(userRepos);
         setDocuments(userDocs);
         setSocialStats({
           followers: publicProfile?.followersCount ?? 0,
           following: publicProfile?.followingCount ?? 0,
-          friends: Array.isArray(friendsList) ? friendsList.length : 0,
         });
       })
       .catch(() => {})
@@ -203,7 +200,9 @@ export default function ProfilePage() {
     }
   };
 
-  const totalLikes = repositories.reduce((acc, repo) => acc + (repo.likes || 0), 0);
+  const totalLikes =
+    repositories.reduce((acc, repo) => acc + (repo.likes || 0), 0) +
+    documents.reduce((acc, doc) => acc + (doc.likes || 0), 0);
 
   return (
     <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
@@ -290,18 +289,6 @@ export default function ProfilePage() {
 
         {/* Counters Row */}
         <Stack direction="row" spacing={3} sx={{ mt: 2, alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-          <Box
-            component={RouterLink}
-            to="/friends"
-            sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
-          >
-            <Typography variant="subtitle1" fontWeight={700}>
-              {socialStats.friends}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {socialStats.friends === 1 ? 'amigo' : 'amigos'}
-            </Typography>
-          </Box>
 
           <Box
             component={RouterLink}
@@ -326,23 +313,6 @@ export default function ProfilePage() {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               siguiendo
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              {repositories.length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {repositories.length === 1 ? 'repositorio' : 'repositorios'}
-            </Typography>
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              {documents.length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {documents.length === 1 ? 'documento' : 'documentos'}
             </Typography>
           </Box>
 
