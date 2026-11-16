@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class GeminiAiClientTest {
@@ -39,7 +40,7 @@ class GeminiAiClientTest {
         GeminiAiClient client = new GeminiAiClient(
                 restTemplate,
                 objectMapper,
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=",
                 ""
         );
 
@@ -58,11 +59,12 @@ class GeminiAiClientTest {
     }
 
     @Test
-    void parsesGeminiJsonSkippingThoughtPartsAndMarkdownFences() {
+    void parsesGeminiJsonAndFallsBackOnUnavailableModel() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
 
-        String baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=";
+        String primaryUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=";
+        String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=";
         String geminiPayload = """
                 {
                   "candidates": [{
@@ -75,11 +77,14 @@ class GeminiAiClientTest {
                   }]
                 }
                 """;
-        server.expect(requestTo(baseUrl + "fake-key"))
+        server.expect(requestTo(primaryUrl + "fake-key"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        server.expect(requestTo(fallbackUrl + "fake-key"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess(geminiPayload, MediaType.APPLICATION_JSON));
 
-        GeminiAiClient client = new GeminiAiClient(restTemplate, objectMapper, baseUrl, "fake-key");
+        GeminiAiClient client = new GeminiAiClient(restTemplate, objectMapper, primaryUrl, "fake-key");
         StudyRepository repo = sampleRepository();
         Resource doc = sampleResource(repo);
 

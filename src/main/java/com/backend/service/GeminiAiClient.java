@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -19,9 +21,12 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -32,6 +37,16 @@ import java.util.stream.Collectors;
  */
 @Component
 public class GeminiAiClient implements AiGenerationClient {
+
+    private static final Logger log = LoggerFactory.getLogger(GeminiAiClient.class);
+
+    private static final List<String> FALLBACK_FLASH_MODELS = List.of(
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-3.8-flash",
+            "gemini-flash-lite-latest"
+    );
 
     private static final int MAX_DOCS_IN_PROMPT = 6;
     private static final int MAX_INLINE_PDFS = 3;
@@ -79,35 +94,78 @@ public class GeminiAiClient implements AiGenerationClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
-        String rawResponse;
-        try {
-            rawResponse = restTemplate.postForObject(buildTargetUrl(), request, String.class);
-        } catch (ResourceAccessException ex) {
-            throw new AuthException(
-                    HttpStatus.GATEWAY_TIMEOUT,
-                    "AI_TIMEOUT",
-                    "La generación con IA superó el tiempo máximo de espera. Intenta con un alcance más específico."
-            );
-        } catch (HttpStatusCodeException ex) {
-            throw mapHttpError(ex);
-        } catch (Exception ex) {
-            throw new AuthException(
-                    HttpStatus.BAD_GATEWAY,
-                    "AI_PROVIDER_ERROR",
-                    "Error de comunicación con el proveedor de IA."
-            );
+        List<String> candidateUrls = buildCandidateUrls();
+        AuthException lastError = null;
+
+        for (String baseUrl : candidateUrls) {
+            String targetUrl = appendApiKey(baseUrl);
+            try {
+                String rawResponse = restTemplate.postForObject(URI.create(targetUrl), request, String.class);
+                return extractStructuredJson(rawResponse);
+            } catch (ResourceAccessException ex) {
+                log.warn("Timeout/red llamando a IA ({}): {}", sanitizeUrl(baseUrl), ex.getMessage());
+                lastError = new AuthException(
+                        HttpStatus.GATEWAY_TIMEOUT,
+                        "AI_TIMEOUT",
+                        "La generación con IA superó el tiempo máximo de espera. Intenta con un alcance más específico."
+                );
+            } catch (HttpStatusCodeException ex) {
+                int status = ex.getStatusCode().value();
+                log.warn("Error HTTP {} desde IA ({}): {}", status, sanitizeUrl(baseUrl), ex.getResponseBodyAsString());
+                lastError = mapHttpError(ex);
+                if (status == 401 || status == 403) {
+                    throw lastError;
+                }
+            } catch (AuthException ex) {
+                log.warn("Respuesta IA inválida ({}): {}", sanitizeUrl(baseUrl), ex.getMessage());
+                lastError = ex;
+            } catch (Exception ex) {
+                log.warn("Error inesperado llamando a IA ({}): {}", sanitizeUrl(baseUrl), ex.getMessage());
+                lastError = new AuthException(
+                        HttpStatus.BAD_GATEWAY,
+                        "AI_PROVIDER_ERROR",
+                        "Error de comunicación con el proveedor de IA."
+                );
+            }
         }
 
-        return extractStructuredJson(rawResponse);
+        throw lastError != null ? lastError : new AuthException(
+                HttpStatus.BAD_GATEWAY,
+                "AI_PROVIDER_ERROR",
+                "Error de comunicación con el proveedor de IA."
+        );
     }
 
-    private String buildTargetUrl() {
-        String encodedKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
-        if (apiUrl.endsWith("=")) {
-            return apiUrl + encodedKey;
+    private List<String> buildCandidateUrls() {
+        Set<String> urls = new LinkedHashSet<>();
+        if (!apiUrl.isBlank()) {
+            urls.add(apiUrl);
         }
-        String separator = apiUrl.contains("?") ? "&" : "?";
-        return apiUrl + separator + "key=" + encodedKey;
+        String markerStart = "generativelanguage.googleapis.com/v1beta/models/";
+        String markerEnd = ":generateContent";
+        int startIdx = apiUrl.indexOf(markerStart);
+        int endIdx = apiUrl.indexOf(markerEnd);
+        if (startIdx >= 0 && endIdx > startIdx) {
+            String prefix = apiUrl.substring(0, startIdx + markerStart.length());
+            String suffix = apiUrl.substring(endIdx);
+            for (String model : FALLBACK_FLASH_MODELS) {
+                urls.add(prefix + model + suffix);
+            }
+        }
+        return new ArrayList<>(urls);
+    }
+
+    private String appendApiKey(String baseUrl) {
+        String encodedKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
+        if (baseUrl.endsWith("=")) {
+            return baseUrl + encodedKey;
+        }
+        String separator = baseUrl.contains("?") ? "&" : "?";
+        return baseUrl + separator + "key=" + encodedKey;
+    }
+
+    private String sanitizeUrl(String url) {
+        return url == null ? "" : url.replaceAll("([?&]key=)[^&]*", "$1***");
     }
 
     private AuthException mapHttpError(HttpStatusCodeException ex) {
