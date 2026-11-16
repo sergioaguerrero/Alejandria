@@ -12,6 +12,28 @@ import { REPORT_REASONS } from '../mocks/catalogs.js';
 import { AI_CONTENT_TYPES, getAiContentMeta } from '../utils/aiContentMeta.js';
 
 /**
+ * Builds fast lookup helpers to resolve the subject name of a repository or
+ * document in the mock store (documents only persist `repositoryId`).
+ */
+function createSubjectLookup() {
+  const subjectsById = new Map(store.subjects.map((subject) => [Number(subject.id), subject.name]));
+  const reposById = new Map(store.repositories.map((repo) => [repo.id, repo]));
+
+  const fromRepository = (repo, fallback = 'Sin materia') => {
+    if (!repo) return fallback;
+    if (repo.subject?.name) return repo.subject.name;
+    return subjectsById.get(Number(repo.subjectId)) ?? fallback;
+  };
+
+  const fromDocument = (doc, fallback = 'Sin materia') => {
+    if (doc?.subject?.name) return doc.subject.name;
+    return fromRepository(reposById.get(doc?.repositoryId), fallback);
+  };
+
+  return { fromRepository, fromDocument };
+}
+
+/**
  * Gets personal statistics for the logged-in user.
  * @param {'week'|'month'} [period='week']
  * @returns {Promise<object>}
@@ -257,13 +279,14 @@ export async function getAdvancedAdminStatistics(period = 'week') {
     count: typeCountsMap.get(t.value) || 0,
   }));
 
+  const resolveSubject = createSubjectLookup();
   const topRepositories = Array.from(repoCountsMap.entries())
     .map(([repoId, count]) => {
       const repo = store.repositories.find((r) => r.id === repoId);
       return {
         repositoryId: repoId,
         repositoryName: repo?.name ?? 'Repositorio eliminado',
-        subjectName: repo?.subject?.name ?? 'Materia',
+        subjectName: resolveSubject.fromRepository(repo, 'Materia'),
         count,
       };
     })
@@ -340,9 +363,10 @@ export async function getGlobalStatistics() {
   const pendingReports = store.reports.filter((r) => r.status === 'pendiente').length;
   const resolvedReports = store.reports.filter((r) => r.status === 'resuelto').length;
 
+  const resolveSubject = createSubjectLookup();
   const subjectViewsMap = new Map();
   for (const doc of store.documents) {
-    const subjectName = doc.subject?.name || 'Otras';
+    const subjectName = resolveSubject.fromDocument(doc, 'Otras');
     subjectViewsMap.set(subjectName, (subjectViewsMap.get(subjectName) || 0) + (doc.views || 0));
   }
   const topSubjects = Array.from(subjectViewsMap.entries())
@@ -379,7 +403,7 @@ export async function getGlobalStatistics() {
 
   const docsBySubjectMap = new Map();
   for (const doc of store.documents) {
-    const name = doc.subject?.name || 'Sin materia';
+    const name = resolveSubject.fromDocument(doc, 'Sin materia');
     docsBySubjectMap.set(name, (docsBySubjectMap.get(name) || 0) + 1);
   }
   const documentsBySubject = Array.from(docsBySubjectMap.entries())
@@ -392,7 +416,7 @@ export async function getGlobalStatistics() {
     .map((doc) => ({
       id: doc.id,
       title: doc.title,
-      subjectName: doc.subject?.name || '—',
+      subjectName: resolveSubject.fromDocument(doc, '—'),
       views: doc.views || 0,
       downloads: doc.downloads || 0,
       likes: doc.likes || 0,

@@ -26,6 +26,7 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useTheme,
 } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -47,6 +48,56 @@ import AdvancedAnalyticsSection from '../../components/admin/AdvancedAnalyticsSe
 import EmptyState from '../../components/common/EmptyState.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { getAdvancedAdminStatistics, getGlobalStatistics } from '../../services/index.js';
+import { createRechartsThemeProps } from '../../utils/rechartsTheme.js';
+
+function wrapAxisLabel(label, maxCharsPerLine = 16, maxLines = 3) {
+  const words = String(label ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [''];
+
+  const lines = [];
+  let current = '';
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= maxCharsPerLine) {
+      current = candidate;
+    } else if (!current) {
+      lines.push(`${word.slice(0, maxCharsPerLine - 1)}…`);
+      if (lines.length === maxLines) return lines;
+    } else {
+      lines.push(current);
+      if (lines.length === maxLines) {
+        const last = lines.length - 1;
+        lines[last] = `${lines[last].slice(0, maxCharsPerLine - 1)}…`;
+        return lines;
+      }
+      current = word;
+    }
+  }
+
+  if (current) {
+    lines.push(
+      current.length > maxCharsPerLine ? `${current.slice(0, maxCharsPerLine - 1)}…` : current,
+    );
+  }
+
+  return lines;
+}
+
+function WrappedCategoryTick({ x = 0, y = 0, payload, fill }) {
+  const lines = wrapAxisLabel(payload?.value, 16, 3);
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} textAnchor="middle" fill={fill} fontSize={11}>
+        {lines.map((line, index) => (
+          <tspan key={`${index}-${line}`} x={0} dy={index === 0 ? 12 : 13}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
 
 function SummaryCard({ title, value, subtitle, icon: Icon, color = 'primary.main' }) {
   return (
@@ -87,7 +138,10 @@ function SummaryCard({ title, value, subtitle, icon: Icon, color = 'primary.main
 }
 
 export default function GlobalStatisticsPage() {
+  const theme = useTheme();
   const { user } = useAuth();
+  const { getChartAxisProps, tooltipProps } = createRechartsThemeProps(theme);
+  const subjectAxisProps = getChartAxisProps(11);
 
   const [data, setData] = useState(null);
   const [loadedKey, setLoadedKey] = useState('');
@@ -98,6 +152,11 @@ export default function GlobalStatisticsPage() {
   const [loadedAdvKey, setLoadedAdvKey] = useState('');
 
   const loading = !user || loadedKey !== `${user.username}:${reloadKey}`;
+  const maxTopicDocs = data?.topTopics?.length
+    ? Math.max(1, ...data.topTopics.map((item) => item.documentos || 0))
+    : 1;
+  const topicAxisTicks =
+    maxTopicDocs <= 4 ? Array.from({ length: maxTopicDocs + 1 }, (_, i) => i) : undefined;
 
   useEffect(() => {
     if (!user) return undefined;
@@ -244,7 +303,7 @@ export default function GlobalStatisticsPage() {
             {/* Top Subjects Chart */}
             <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ height: '100%' }}>
-                <CardContent>
+                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Typography variant="h6" sx={{ mb: 0.5 }}>
                     Asignaturas más consultadas
                   </Typography>
@@ -252,22 +311,30 @@ export default function GlobalStatisticsPage() {
                     Vistas acumuladas en los documentos de la materia
                   </Typography>
 
-                  <Box sx={{ width: '100%', height: 260 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.topSubjects} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis
-                          dataKey="subject"
-                          tick={{ fontSize: 11 }}
-                          interval={0}
-                          angle={-15}
-                          textAnchor="end"
-                        />
-                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <RechartsTooltip />
-                        <Bar dataKey="vistas" name="Visualizaciones" fill="#1976d2" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <Box sx={{ width: '100%', flex: 1, minHeight: 270, position: 'relative' }}>
+                    <Box sx={{ position: 'absolute', inset: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.topSubjects} margin={{ top: 10, right: 12, left: -10, bottom: 4 }}>
+                          <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
+                          <XAxis
+                            dataKey="subject"
+                            interval={0}
+                            height={54}
+                            axisLine={subjectAxisProps.axisLine}
+                            tickLine={subjectAxisProps.tickLine}
+                            tick={<WrappedCategoryTick fill={theme.palette.text.secondary} />}
+                          />
+                          <YAxis {...subjectAxisProps} allowDecimals={false} />
+                          <RechartsTooltip {...tooltipProps} />
+                          <Bar
+                            dataKey="vistas"
+                            name="Visualizaciones"
+                            fill={theme.palette.primary.main}
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
                   </Box>
                 </CardContent>
               </Card>
@@ -276,7 +343,7 @@ export default function GlobalStatisticsPage() {
             {/* Students by Semester Chart */}
             <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ height: '100%' }}>
-                <CardContent>
+                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Typography variant="h6" sx={{ mb: 0.5 }}>
                     Estudiantes por semestre
                   </Typography>
@@ -284,19 +351,26 @@ export default function GlobalStatisticsPage() {
                     Distribución de estudiantes registrados activos
                   </Typography>
 
-                  <Box sx={{ width: '100%', height: 260 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={data.studentsBySemester}
-                        margin={{ top: 10, right: 10, left: -10, bottom: 20 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="semestre" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <RechartsTooltip />
-                        <Bar dataKey="estudiantes" name="Estudiantes" fill="#2e7d32" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <Box sx={{ width: '100%', flex: 1, minHeight: 270, position: 'relative' }}>
+                    <Box sx={{ position: 'absolute', inset: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={data.studentsBySemester}
+                          margin={{ top: 10, right: 10, left: -10, bottom: 12 }}
+                        >
+                          <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="semestre" {...subjectAxisProps} />
+                          <YAxis {...subjectAxisProps} allowDecimals={false} />
+                          <RechartsTooltip {...tooltipProps} />
+                          <Bar
+                            dataKey="estudiantes"
+                            name="Estudiantes"
+                            fill={theme.palette.success.main}
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
                   </Box>
                 </CardContent>
               </Card>
@@ -308,7 +382,7 @@ export default function GlobalStatisticsPage() {
             {/* Top Topics Chart */}
             <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ height: '100%' }}>
-                <CardContent>
+                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Typography variant="h6" sx={{ mb: 0.5 }}>
                     Temas con mayor contenido
                   </Typography>
@@ -316,16 +390,29 @@ export default function GlobalStatisticsPage() {
                     Cantidad de documentos subidos por temática
                   </Typography>
 
-                  <Box sx={{ width: '100%', height: 240 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.topTopics} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <YAxis dataKey="tema" type="category" tick={{ fontSize: 12 }} width={100} />
-                        <RechartsTooltip />
-                        <Bar dataKey="documentos" name="Documentos" fill="#ed6c02" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <Box sx={{ width: '100%', flex: 1, minHeight: 270, position: 'relative' }}>
+                    <Box sx={{ position: 'absolute', inset: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.topTopics} layout="vertical" margin={{ top: 5, right: 18, left: 4, bottom: 5 }}>
+                          <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" horizontal={false} />
+                          <XAxis
+                            type="number"
+                            {...subjectAxisProps}
+                            allowDecimals={false}
+                            domain={[0, maxTopicDocs]}
+                            ticks={topicAxisTicks}
+                          />
+                          <YAxis dataKey="tema" type="category" {...getChartAxisProps(12)} width={120} />
+                          <RechartsTooltip {...tooltipProps} />
+                          <Bar
+                            dataKey="documentos"
+                            name="Documentos"
+                            fill={theme.palette.warning.main}
+                            radius={[0, 4, 4, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
                   </Box>
                 </CardContent>
               </Card>
