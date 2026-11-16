@@ -1,28 +1,157 @@
 package com.backend.controller;
 
+import com.backend.cross.AiContentType;
+import com.backend.domain.identity.User;
 import com.backend.service.AiService;
+import com.backend.service.JwtTokenService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Endpoints del módulo Estudio con IA, "Mi estudio" y compartición entre amigos mutuos.
+ */
 @RestController
 @RequestMapping("/api/ai")
 public class AiController {
 
     private final AiService aiService;
+    private final JwtTokenService jwtTokenService;
 
-    // Inyectamos el servicio que se conecta a Google Gemini
-    public AiController(AiService aiService) {
+    public AiController(AiService aiService, JwtTokenService jwtTokenService) {
         this.aiService = aiService;
+        this.jwtTokenService = jwtTokenService;
     }
 
-    /** Endpoint para que React solicite el cuestionario de un documento */
-    @GetMapping("/quiz/{resourceId}")
-    public ResponseEntity<String> generateQuiz(@PathVariable Long resourceId) {
+    @GetMapping("/quota")
+    public ResponseEntity<Map<String, Object>> getDailyQuota(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.getDailyQuota(currentUser));
+    }
 
-        // Llamamos al servicio pasándole el ID del documento
-        String quizResponse = aiService.generateQuiz(resourceId);
+    @PostMapping("/quiz")
+    public ResponseEntity<Map<String, Object>> generateQuiz(
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.generateMaterial(AiContentType.QUIZ, body, currentUser));
+    }
 
-        // Devolvemos un 200 OK con el JSON crudo que entregó la IA
-        return ResponseEntity.ok(quizResponse);
+    @PostMapping("/materials")
+    public ResponseEntity<Map<String, Object>> generateMaterial(
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.generateMaterial(null, body, currentUser));
+    }
+
+    @GetMapping("/quiz/{id}")
+    public ResponseEntity<Map<String, Object>> getQuizById(
+            @PathVariable String id,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.getQuizById(id, currentUser));
+    }
+
+    @PostMapping("/quiz/{id}/submit")
+    public ResponseEntity<Map<String, Object>> submitQuiz(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.submitQuizScore(id, body, currentUser));
+    }
+
+    @PostMapping("/quiz/{id}/save")
+    public ResponseEntity<Map<String, Object>> toggleSaveQuiz(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.toggleSaveToMyStudy(id, body, currentUser));
+    }
+
+    @GetMapping("/materials/{id}")
+    public ResponseEntity<Map<String, Object>> getMaterialById(
+            @PathVariable String id,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.getMaterialById(id, currentUser));
+    }
+
+    @PostMapping("/materials/{id}/save")
+    public ResponseEntity<Map<String, Object>> toggleSaveMaterial(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.toggleSaveToMyStudy(id, body, currentUser));
+    }
+
+    @GetMapping("/my-study")
+    public ResponseEntity<List<Map<String, Object>>> getMyStudyMaterials(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.getMyStudyMaterials(currentUser));
+    }
+
+    @DeleteMapping("/my-study/{id}")
+    public ResponseEntity<Map<String, Object>> removeFromMyStudy(
+            @PathVariable String id,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.removeFromMyStudy(id, currentUser));
+    }
+
+    @GetMapping("/materials/{id}/shares")
+    public ResponseEntity<List<String>> getSharedFriends(
+            @PathVariable String id,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.getSharedFriends(id, currentUser));
+    }
+
+    @PostMapping("/materials/{id}/share")
+    public ResponseEntity<Map<String, Object>> shareWithFriends(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.shareWithMutualFriends(id, body, currentUser));
+    }
+
+    @GetMapping("/shared-with-me")
+    public ResponseEntity<List<Map<String, Object>>> getSharedWithMe(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User currentUser = resolveUser(authorization);
+        return ResponseEntity.ok(aiService.getSharedWithMe(currentUser));
+    }
+
+    private User resolveUser(String authorization) {
+        return jwtTokenService.resolveUserFromAuthorizationHeader(authorization).orElse(null);
     }
 }

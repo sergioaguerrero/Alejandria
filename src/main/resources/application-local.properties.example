@@ -19,3 +19,9 @@ spring.mail.password=tu_app_password_de_16_caracteres
 
 # --- Opción 3: Consola local (imprime el código OTP en logs, sin enviar correo) ---
 # app.mail.provider=console
+
+
+# --- Inteligencia Artificial (Google Gemini) ---
+# ai.api.key=AIzaSy...
+# ai.api.url=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=
+# ai.daily-limit=5

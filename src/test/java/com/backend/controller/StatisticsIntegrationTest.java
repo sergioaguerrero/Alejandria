@@ -238,6 +238,8 @@ class StatisticsIntegrationTest {
 
     private void cleanAllTables() {
         transactionTemplate.executeWithoutResult(status -> {
+            entityManager.createQuery("DELETE FROM AiShare").executeUpdate();
+            entityManager.createQuery("DELETE FROM AiMaterial").executeUpdate();
             entityManager.createQuery("DELETE FROM Interaction").executeUpdate();
             entityManager.createQuery("DELETE FROM DemandMetric").executeUpdate();
             entityManager.createQuery("DELETE FROM UserSanction").executeUpdate();
