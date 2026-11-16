@@ -9,10 +9,20 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
+
 @Repository
 public interface ResourceRepository extends JpaRepository<Resource, Long> {
 
     Page<Resource> findBySubjectId(Long subjectId, Pageable pageable);
+
+    long countByStudyRepositoryId(Long repositoryId);
+
+    @Query("SELECT r.studyRepository.id, COUNT(r) FROM Resource r WHERE r.studyRepository.id IN :repositoryIds GROUP BY r.studyRepository.id")
+    List<Object[]> countByStudyRepositoryIds(@Param("repositoryIds") Collection<Long> repositoryIds);
+
+    List<Resource> findByStudyRepositoryIdOrderByUploadDateDesc(Long repositoryId);
 
     // Los filtros son opcionales: si llegan null, no se aplican.
     @Query("""
