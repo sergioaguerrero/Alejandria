@@ -17,7 +17,7 @@ public class Decision {
     @Column(name = "accion_moderacion", nullable = false, length = 30)
     private ModerationAction action;
 
-    @Column(name = "justificacion", nullable = false, length = 1000)
+    @Column(name = "justificacion", length = 1000)
     private String justification;
 
     @Column(name = "fecha_decision", nullable = false)

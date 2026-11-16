@@ -5,5 +5,7 @@ public enum ReportReason {
     PLAGIARISM,
     INAPPROPRIATE_CONTENT,
     CORRUPTED_FILE,
+    MISLABELED,
+    DUPLICATE,
     OTHER
 }

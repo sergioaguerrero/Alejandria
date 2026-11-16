@@ -30,6 +30,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             SELECT u FROM User u
             LEFT JOIN FETCH u.role r
             WHERE u.verified = true
+              AND u.suspended = false
             ORDER BY LOWER(u.username) ASC
             """)
     List<User> findVerifiedUsers();
