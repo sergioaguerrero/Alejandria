@@ -26,6 +26,7 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useTheme,
 } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -47,6 +48,7 @@ import AdvancedAnalyticsSection from '../../components/admin/AdvancedAnalyticsSe
 import EmptyState from '../../components/common/EmptyState.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { getAdvancedAdminStatistics, getGlobalStatistics } from '../../services/index.js';
+import { createRechartsThemeProps } from '../../utils/rechartsTheme.js';
 
 function SummaryCard({ title, value, subtitle, icon: Icon, color = 'primary.main' }) {
   return (
@@ -87,6 +89,8 @@ function SummaryCard({ title, value, subtitle, icon: Icon, color = 'primary.main
 }
 
 export default function GlobalStatisticsPage() {
+  const theme = useTheme();
+  const { getChartAxisProps, tooltipProps } = createRechartsThemeProps(theme);
   const { user } = useAuth();
 
   const [data, setData] = useState(null);
@@ -254,18 +258,26 @@ export default function GlobalStatisticsPage() {
 
                   <Box sx={{ width: '100%', height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.topSubjects} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis
+                      <BarChart
+                        data={data.topSubjects}
+                        layout="vertical"
+                        margin={{ top: 5, right: 20, left: 8, bottom: 5 }}
+                      >
+                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" {...getChartAxisProps(11)} allowDecimals={false} />
+                        <YAxis
                           dataKey="subject"
-                          tick={{ fontSize: 11 }}
-                          interval={0}
-                          angle={-15}
-                          textAnchor="end"
+                          type="category"
+                          {...getChartAxisProps(11)}
+                          width={185}
                         />
-                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <RechartsTooltip />
-                        <Bar dataKey="vistas" name="Visualizaciones" fill="#1976d2" radius={[4, 4, 0, 0]} />
+                        <RechartsTooltip {...tooltipProps} />
+                        <Bar
+                          dataKey="vistas"
+                          name="Visualizaciones"
+                          fill={theme.palette.primary.main}
+                          radius={[0, 4, 4, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </Box>
@@ -290,11 +302,16 @@ export default function GlobalStatisticsPage() {
                         data={data.studentsBySemester}
                         margin={{ top: 10, right: 10, left: -10, bottom: 20 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="semestre" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <RechartsTooltip />
-                        <Bar dataKey="estudiantes" name="Estudiantes" fill="#2e7d32" radius={[4, 4, 0, 0]} />
+                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="semestre" {...getChartAxisProps(11)} />
+                        <YAxis {...getChartAxisProps(11)} allowDecimals={false} />
+                        <RechartsTooltip {...tooltipProps} />
+                        <Bar
+                          dataKey="estudiantes"
+                          name="Estudiantes"
+                          fill={theme.palette.success.main}
+                          radius={[4, 4, 0, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </Box>
@@ -319,11 +336,16 @@ export default function GlobalStatisticsPage() {
                   <Box sx={{ width: '100%', height: 240 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.topTopics} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <YAxis dataKey="tema" type="category" tick={{ fontSize: 12 }} width={100} />
-                        <RechartsTooltip />
-                        <Bar dataKey="documentos" name="Documentos" fill="#ed6c02" radius={[0, 4, 4, 0]} />
+                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" {...getChartAxisProps(11)} allowDecimals={false} />
+                        <YAxis dataKey="tema" type="category" {...getChartAxisProps(12)} width={100} />
+                        <RechartsTooltip {...tooltipProps} />
+                        <Bar
+                          dataKey="documentos"
+                          name="Documentos"
+                          fill={theme.palette.warning.main}
+                          radius={[0, 4, 4, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </Box>
