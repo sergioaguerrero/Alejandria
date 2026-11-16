@@ -10,6 +10,7 @@ import com.backend.domain.repos.Tag;
 import com.backend.dto.DocumentDto;
 import com.backend.dto.DocumentPageResponse;
 import com.backend.exception.AuthException;
+import com.backend.repository.ReportRepository;
 import com.backend.repository.RepositoryCollaboratorRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
@@ -74,6 +75,7 @@ public class DocumentService {
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final TagRepository tagRepository;
     private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
+    private final ReportRepository reportRepository;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
@@ -82,6 +84,7 @@ public class DocumentService {
             StudyRepositoryRepository studyRepositoryRepository,
             TagRepository tagRepository,
             RepositoryCollaboratorRepository repositoryCollaboratorRepository,
+            ReportRepository reportRepository,
             NotificationService notificationService,
             ObjectMapper objectMapper
     ) {
@@ -89,6 +92,7 @@ public class DocumentService {
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.tagRepository = tagRepository;
         this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
+        this.reportRepository = reportRepository;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
@@ -280,6 +284,7 @@ public class DocumentService {
         Resource resource = findResourceOrThrow(id);
         requireAuthor(resource, user, "Solo el autor puede eliminar este documento.");
 
+        reportRepository.clearResourceReference(id);
         resource.getTags().clear();
         resourceRepository.saveAndFlush(resource);
         resourceRepository.delete(resource);
@@ -297,6 +302,7 @@ public class DocumentService {
 
     private Resource findResourceOrThrow(Long id) {
         return resourceRepository.findByIdWithDetails(id)
+                .filter(resource -> resource.getStatus() == ResourceStatus.PUBLISHED)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
                         "DOCUMENT_NOT_FOUND",
@@ -496,7 +502,7 @@ public class DocumentService {
             String type,
             String topic
     ) {
-        Specification<Resource> spec = Specification.where(null);
+        Specification<Resource> spec = (root, q, cb) -> cb.equal(root.get("status"), ResourceStatus.PUBLISHED);
 
         if (subjectId != null) {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("subject").get("id"), subjectId));
