@@ -6,6 +6,8 @@
 
 import { SUGGESTED_TOPICS_BY_SUBJECT } from '../mocks/catalogs.js';
 
+export const OTHER_TOPIC_OPTION = 'Otro';
+
 const MAX_TOPIC_LENGTH = 60;
 const TOPIC_ALLOWED_CHARS_REGEX = /^[\p{L}\p{N}\s\-/+*#.:()]+$/u;
 const TOPIC_HAS_LETTER_REGEX = /\p{L}/u;
@@ -89,6 +91,9 @@ export function getTopicValidationError(rawTopic) {
 
   if (clean.length < 3) {
     return 'Escribe o selecciona el tema del documento (mínimo 3 caracteres).';
+  }
+  if (normalizeTopicKey(clean) === normalizeTopicKey(OTHER_TOPIC_OPTION)) {
+    return 'Especifica el tema del documento en lugar de "Otro".';
   }
   if (clean.length > MAX_TOPIC_LENGTH) {
     return `El tema no puede superar los ${MAX_TOPIC_LENGTH} caracteres.`;
