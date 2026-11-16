@@ -43,6 +43,7 @@ export {
 
 export {
   listByRepository,
+  listSubjectTopics,
   getDocument,
   getDocuments,
   getDocumentsByUser,

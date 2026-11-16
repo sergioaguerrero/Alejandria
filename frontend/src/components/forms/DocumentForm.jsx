@@ -8,11 +8,12 @@
  * pages only have to load the data and talk to the service.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -24,6 +25,7 @@ import {
   Stack,
   TextField,
   Typography,
+  createFilterOptions,
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
@@ -32,6 +34,16 @@ import TagInput from './TagInput.jsx';
 import { MATERIAL_TYPES, SUGGESTED_TAGS, TERMS } from '../../mocks/catalogs.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 import { validateFile } from '../../utils/validations.js';
+import {
+  buildTopicSuggestions,
+  getTopicValidationError,
+  normalizeTopicKey,
+  resolveCanonicalTopic,
+} from '../../utils/topics.js';
+
+const filterTopicOptions = createFilterOptions({
+  stringify: (option) => `${option} ${normalizeTopicKey(option)}`,
+});
 
 /** Empty values of the form. */
 const EMPTY_VALUES = {
@@ -76,8 +88,9 @@ function validate(values, file, { requireFile }) {
   if (!values.term) {
     errors.term = 'Selecciona el corte.';
   }
-  if (values.topic.trim().length < 3) {
-    errors.topic = 'Escribe el tema del documento.';
+  const topicError = getTopicValidationError(values.topic);
+  if (topicError) {
+    errors.topic = topicError;
   }
 
   if (requireFile || file) {
@@ -112,6 +125,8 @@ function withoutField(errors, field) {
  */
 export default function DocumentForm({
   initialValues,
+  subjectId = null,
+  topicSuggestions = [],
   currentFile = null,
   requireFile = true,
   submitLabel = 'Subir documento',
@@ -129,6 +144,11 @@ export default function DocumentForm({
   const [serverErrors, setServerErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [generalError, setGeneralError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const topicOptions = useMemo(
+    () => buildTopicSuggestions(subjectId, topicSuggestions),
+    [subjectId, topicSuggestions],
+  );
 
   /** Visible error of a field: the API one wins over the client one. */
   const errorFor = (field) => serverErrors[field] ?? clientErrors[field];
@@ -155,8 +175,27 @@ export default function DocumentForm({
     clearErrors('tags');
   };
 
+  const handleTopicChange = (topic) => {
+    setValues((previous) => ({ ...previous, topic }));
+    clearErrors('topic');
+  };
+
+  const handleTopicBlur = () => {
+    setValues((previous) => {
+      const canonical = resolveCanonicalTopic(previous.topic, topicOptions);
+      if (!canonical || canonical === previous.topic) return previous;
+      return { ...previous, topic: canonical };
+    });
+  };
+
   const submit = async () => {
-    const errors = validate(values, file, { requireFile });
+    const nextValues = {
+      ...values,
+      topic: resolveCanonicalTopic(values.topic, topicOptions),
+    };
+    setValues(nextValues);
+
+    const errors = validate(nextValues, file, { requireFile });
     setClientErrors(errors);
     setServerErrors({});
     setGeneralError('');
@@ -166,7 +205,7 @@ export default function DocumentForm({
     setIsSubmitting(true);
 
     try {
-      await onSubmit({ ...values, file });
+      await onSubmit({ ...nextValues, file });
     } catch (error) {
       if (error?.fields) setServerErrors(error.fields);
       setGeneralError(error?.message ?? 'No se pudo guardar el documento.');
@@ -276,13 +315,46 @@ export default function DocumentForm({
               </TextField>
             </Stack>
 
-            <TextField
-              label="Tema"
-              value={values.topic}
-              onChange={setField('topic')}
-              error={Boolean(errorFor('topic'))}
-              helperText={errorFor('topic') ?? 'Tema o unidad que cubre el documento.'}
+            <Autocomplete
+              freeSolo
+              autoHighlight
+              options={topicOptions}
+              filterOptions={filterTopicOptions}
+              value={values.topic || null}
+              inputValue={values.topic}
               disabled={isSubmitting}
+              isOptionEqualToValue={(option, value) =>
+                normalizeTopicKey(option) === normalizeTopicKey(value)
+              }
+              onChange={(_event, selectedTopic) => {
+                handleTopicChange(
+                  selectedTopic ? resolveCanonicalTopic(selectedTopic, topicOptions) : '',
+                );
+              }}
+              onInputChange={(_event, nextInput, reason) => {
+                if (reason === 'input' || reason === 'clear') {
+                  handleTopicChange(nextInput);
+                }
+              }}
+              onBlur={handleTopicBlur}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Tema"
+                  placeholder={
+                    topicOptions.length > 0
+                      ? 'Selecciona o escribe el tema (ej. Recursividad)'
+                      : 'Ej. Recursividad, Listas enlazadas, SQL'
+                  }
+                  error={Boolean(errorFor('topic'))}
+                  helperText={
+                    errorFor('topic') ??
+                    (topicOptions.length > 0
+                      ? 'Elige un tema sugerido de la materia o escribe uno académico válido.'
+                      : 'Tema o unidad académica que cubre el documento.')
+                  }
+                />
+              )}
             />
 
             <TagInput

@@ -15,6 +15,12 @@ import { emitMockNotification, notifyFollowersOfNewContent } from './notificatio
 import { isAcceptedCollaborator } from './repositoryService.js';
 import { withoutPassword } from '../utils/users.js';
 import { getExtension, validateFile } from '../utils/validations.js';
+import {
+  buildTopicSuggestions,
+  getCatalogTopicsForSubject,
+  getTopicValidationError,
+  resolveCanonicalTopic,
+} from '../utils/topics.js';
 
 /** Like key of a document for a user. */
 const likeKey = (documentId, username) => `${documentId}::${username}`;
@@ -82,6 +88,37 @@ function normalize(text) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
+
+function topicsForSubject(subjectId) {
+  if (!subjectId) return [];
+  const repoIds = new Set(
+    store.repositories
+      .filter((repo) => Number(repo.subjectId) === Number(subjectId))
+      .map((repo) => repo.id),
+  );
+  return store.documents
+    .filter((doc) => repoIds.has(doc.repositoryId) && doc.topic)
+    .map((doc) => doc.topic);
+}
+
+function canonicalizeTopicForSubject(rawTopic, subjectId, includeStore = false) {
+  const suggestions = includeStore
+    ? buildTopicSuggestions(subjectId, topicsForSubject(subjectId))
+    : getCatalogTopicsForSubject(subjectId);
+  return resolveCanonicalTopic(rawTopic, suggestions);
+}
+
+/**
+ * Returns suggested topics for a subject, combining curated curriculum topics
+ * with valid topics already used by existing documents in mock mode.
+ * @param {number|string|null|undefined} subjectId
+ * @returns {Promise<string[]>}
+ */
+export async function listSubjectTopics(subjectId) {
+  if (!subjectId) return [];
+  if (!USE_MOCK) return getCatalogTopicsForSubject(subjectId);
+  return buildTopicSuggestions(subjectId, topicsForSubject(subjectId));
 }
 
 // ── Queries ────────────────────────────────────────────────────────────────
@@ -317,8 +354,9 @@ function validateDocument(data, { requireFile = true } = {}) {
   if (!data.term) {
     fields.term = 'Selecciona el corte.';
   }
-  if (String(data.topic ?? '').trim().length < 3) {
-    fields.topic = 'Escribe el tema del documento.';
+  const topicError = getTopicValidationError(data.topic);
+  if (topicError) {
+    fields.topic = topicError;
   }
 
   if (requireFile) {
@@ -374,7 +412,7 @@ export async function uploadDocument(data, onProgress) {
     form.append('description', data.description);
     form.append('type', data.type);
     form.append('term', String(data.term));
-    form.append('topic', data.topic);
+    form.append('topic', canonicalizeTopicForSubject(data.topic, data.subjectId));
     form.append('tags', JSON.stringify(data.tags ?? []));
     if (data.file) form.append('file', data.file);
 
@@ -427,7 +465,7 @@ export async function uploadDocument(data, onProgress) {
     description: String(data.description).trim(),
     type: data.type,
     term: Number(data.term),
-    topic: String(data.topic).trim(),
+    topic: canonicalizeTopicForSubject(data.topic, repository.subjectId, true),
     tags: data.tags ?? [],
     file: fileFromFile(data.file),
     authorUsername: user.username,
@@ -461,7 +499,7 @@ export async function updateDocument(id, data, onProgress) {
     form.append('description', data.description);
     form.append('type', data.type);
     form.append('term', String(data.term));
-    form.append('topic', data.topic);
+    form.append('topic', canonicalizeTopicForSubject(data.topic, data.subjectId));
     form.append('tags', JSON.stringify(data.tags ?? []));
     if (data.file) form.append('file', data.file);
 
@@ -502,7 +540,8 @@ export async function updateDocument(id, data, onProgress) {
   document.description = String(data.description).trim();
   document.type = data.type;
   document.term = Number(data.term);
-  document.topic = String(data.topic).trim();
+  const repository = store.repositories.find((item) => item.id === document.repositoryId);
+  document.topic = canonicalizeTopicForSubject(data.topic, repository?.subjectId, true);
   document.tags = data.tags ?? document.tags;
 
   return enrich(document);

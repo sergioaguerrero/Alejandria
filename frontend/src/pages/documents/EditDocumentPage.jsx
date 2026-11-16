@@ -27,7 +27,7 @@ import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 
 import DocumentForm from '../../components/forms/DocumentForm.jsx';
 import { useAuth } from '../../context/authContext.js';
-import { getDocument, updateDocument } from '../../services/index.js';
+import { getDocument, listSubjectTopics, updateDocument } from '../../services/index.js';
 
 export default function EditDocumentPage() {
   const { id } = useParams();
@@ -38,6 +38,7 @@ export default function EditDocumentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(/** @type {number|null} */ (null));
+  const [topicSuggestions, setTopicSuggestions] = useState(/** @type {string[]} */ ([]));
 
   // Loads the document. The loading flag starts as true and the state is only
   // touched from the asynchronous callbacks.
@@ -46,7 +47,14 @@ export default function EditDocumentPage() {
 
     getDocument(id)
       .then((loadedDocument) => {
-        if (active) setDocumentData(loadedDocument);
+        if (!active) return;
+        setDocumentData(loadedDocument);
+        const subjectId = loadedDocument?.subject?.id ?? loadedDocument?.repository?.subjectId;
+        listSubjectTopics(subjectId)
+          .then((topics) => {
+            if (active) setTopicSuggestions(topics);
+          })
+          .catch(() => {});
       })
       .catch((serviceError) => {
         if (active) setError(serviceError?.message ?? 'No se pudo cargar el documento.');
@@ -77,7 +85,14 @@ export default function EditDocumentPage() {
     setProgress(0);
 
     try {
-      await updateDocument(id, data, setProgress);
+      await updateDocument(
+        id,
+        {
+          ...data,
+          subjectId: documentData?.subject?.id ?? documentData?.repository?.subjectId,
+        },
+        setProgress,
+      );
       setProgress(null);
       navigate(`/documents/${id}`);
     } catch (submitError) {
@@ -161,6 +176,8 @@ export default function EditDocumentPage() {
       <Card>
         <CardContent>
           <DocumentForm
+            subjectId={subject?.id ?? repository?.subjectId}
+            topicSuggestions={topicSuggestions}
             initialValues={{
               title: documentData.title,
               description: documentData.description,
