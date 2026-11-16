@@ -37,6 +37,8 @@ public interface StudyRepositoryRepository
             """)
     List<StudyRepository> findByAuthorUsernameOrderByCreatedAtDesc(@Param("username") String username);
 
+    List<StudyRepository> findByAuthorId(Long authorId);
+
     @Override
     @EntityGraph(attributePaths = {"subject", "subject.semester", "author"})
     Page<StudyRepository> findAll(Specification<StudyRepository> spec, Pageable pageable);
