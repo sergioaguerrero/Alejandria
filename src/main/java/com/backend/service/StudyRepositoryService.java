@@ -5,7 +5,6 @@ import com.backend.domain.identity.User;
 import com.backend.domain.repos.RepositoryFollow;
 import com.backend.domain.repos.RepositoryLike;
 import com.backend.domain.repos.RepositoryReactionId;
-import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.RepositoryPageResponse;
 import com.backend.dto.RepositoryRequestDto;
@@ -185,12 +184,6 @@ public class StudyRepositoryService {
         User user = requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus repositorios seguidos.");
         List<StudyRepository> followed = repositoryFollowRepository.findFollowedRepositoriesByUserId(user.getId());
         return mapList(followed, user);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Resource> listDocuments(Long repositoryId) {
-        findRepoOrThrow(repositoryId);
-        return resourceRepository.findByStudyRepositoryIdOrderByUploadDateDesc(repositoryId);
     }
 
     private StudyRepository findRepoOrThrow(Long id) {

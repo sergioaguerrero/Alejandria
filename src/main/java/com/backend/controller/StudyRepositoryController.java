@@ -1,7 +1,6 @@
 package com.backend.controller;
 
 import com.backend.domain.identity.User;
-import com.backend.domain.repos.Resource;
 import com.backend.dto.RepositoryPageResponse;
 import com.backend.dto.RepositoryRequestDto;
 import com.backend.dto.RepositoryResponseDto;
@@ -22,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -135,14 +133,6 @@ public class StudyRepositoryController {
         return ResponseEntity.ok(studyRepositoryService.getByAuthorUsername(username, resolveUser(authorization)));
     }
 
-    @GetMapping("/repositories/{id}/documents")
-    public ResponseEntity<List<RepositoryDocumentSummary>> listRepositoryDocuments(@PathVariable Long id) {
-        List<RepositoryDocumentSummary> docs = studyRepositoryService.listDocuments(id).stream()
-                .map(RepositoryDocumentSummary::fromResource)
-                .toList();
-        return ResponseEntity.ok(docs);
-    }
-
     @GetMapping("/repositories/{id}/collaborators")
     public ResponseEntity<List<Object>> listRepositoryCollaborators(
             @PathVariable Long id,
@@ -154,31 +144,5 @@ public class StudyRepositoryController {
 
     private User resolveUser(String authorization) {
         return jwtTokenService.resolveUserFromAuthorizationHeader(authorization).orElse(null);
-    }
-
-    public record RepositoryDocumentSummary(
-            String id,
-            String title,
-            String description,
-            String type,
-            String mimeType,
-            long fileSizeBytes,
-            LocalDateTime uploadDate,
-            String status,
-            int downloads
-    ) {
-        static RepositoryDocumentSummary fromResource(Resource resource) {
-            return new RepositoryDocumentSummary(
-                    String.valueOf(resource.getId()),
-                    resource.getTitle(),
-                    resource.getDescription(),
-                    resource.getType() != null ? resource.getType().name() : null,
-                    resource.getMimeType(),
-                    resource.getFileSizeBytes(),
-                    resource.getUploadDate(),
-                    resource.getStatus() != null ? resource.getStatus().name() : null,
-                    resource.getTotalDownloads()
-            );
-        }
     }
 }

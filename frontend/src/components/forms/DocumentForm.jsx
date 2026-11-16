@@ -35,15 +35,25 @@ import { MATERIAL_TYPES, SUGGESTED_TAGS, TERMS } from '../../mocks/catalogs.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 import { validateFile } from '../../utils/validations.js';
 import {
+  OTHER_TOPIC_OPTION,
   buildTopicSuggestions,
   getTopicValidationError,
   normalizeTopicKey,
   resolveCanonicalTopic,
 } from '../../utils/topics.js';
 
-const filterTopicOptions = createFilterOptions({
+const baseTopicFilter = createFilterOptions({
   stringify: (option) => `${option} ${normalizeTopicKey(option)}`,
 });
+
+const filterTopicOptions = (options, params) => {
+  const withoutOther = options.filter((opt) => opt !== OTHER_TOPIC_OPTION);
+  const filtered = baseTopicFilter(withoutOther, params);
+  if (options.includes(OTHER_TOPIC_OPTION)) {
+    filtered.push(OTHER_TOPIC_OPTION);
+  }
+  return filtered;
+};
 
 /** Empty values of the form. */
 const EMPTY_VALUES = {
@@ -137,7 +147,18 @@ export default function DocumentForm({
   onSubmit,
   onCancel,
 }) {
+  const topicOptions = useMemo(
+    () => buildTopicSuggestions(subjectId, topicSuggestions),
+    [subjectId, topicSuggestions],
+  );
+
   const [values, setValues] = useState(() => ({ ...EMPTY_VALUES, ...initialValues }));
+  const [useOtherTopic, setUseOtherTopic] = useState(() => {
+    const initialTopic = initialValues?.topic?.trim();
+    if (!initialTopic || topicOptions.length === 0) return false;
+    const initialKey = normalizeTopicKey(initialTopic);
+    return !topicOptions.some((option) => normalizeTopicKey(option) === initialKey);
+  });
   const [file, setFile] = useState(/** @type {File|null} */ (null));
   const [declaration, setDeclaration] = useState(false);
   const [clientErrors, setClientErrors] = useState(/** @type {Record<string, string>} */ ({}));
@@ -145,10 +166,25 @@ export default function DocumentForm({
   const [generalError, setGeneralError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const topicOptions = useMemo(
-    () => buildTopicSuggestions(subjectId, topicSuggestions),
-    [subjectId, topicSuggestions],
+  const autocompleteOptions = useMemo(
+    () => (topicOptions.length > 0 ? [...topicOptions, OTHER_TOPIC_OPTION] : []),
+    [topicOptions],
   );
+
+  const isCustomTopicSelected =
+    useOtherTopic ||
+    (Boolean(values.topic) &&
+      topicOptions.length > 0 &&
+      !topicOptions.some(
+        (option) => normalizeTopicKey(option) === normalizeTopicKey(values.topic),
+      ));
+
+  const selectedAutocompleteOption = useMemo(() => {
+    if (isCustomTopicSelected) return OTHER_TOPIC_OPTION;
+    if (!values.topic) return null;
+    const currentKey = normalizeTopicKey(values.topic);
+    return topicOptions.find((option) => normalizeTopicKey(option) === currentKey) ?? null;
+  }, [isCustomTopicSelected, topicOptions, values.topic]);
 
   /** Visible error of a field: the API one wins over the client one. */
   const errorFor = (field) => serverErrors[field] ?? clientErrors[field];
@@ -315,47 +351,95 @@ export default function DocumentForm({
               </TextField>
             </Stack>
 
-            <Autocomplete
-              freeSolo
-              autoHighlight
-              options={topicOptions}
-              filterOptions={filterTopicOptions}
-              value={values.topic || null}
-              inputValue={values.topic}
-              disabled={isSubmitting}
-              isOptionEqualToValue={(option, value) =>
-                normalizeTopicKey(option) === normalizeTopicKey(value)
-              }
-              onChange={(_event, selectedTopic) => {
-                handleTopicChange(
-                  selectedTopic ? resolveCanonicalTopic(selectedTopic, topicOptions) : '',
-                );
-              }}
-              onInputChange={(_event, nextInput, reason) => {
-                if (reason === 'input' || reason === 'clear') {
-                  handleTopicChange(nextInput);
-                }
-              }}
-              onBlur={handleTopicBlur}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Tema"
-                  placeholder={
-                    topicOptions.length > 0
-                      ? 'Selecciona o escribe el tema (ej. Recursividad)'
-                      : 'Ej. Recursividad, Listas enlazadas, SQL'
+            {autocompleteOptions.length > 0 ? (
+              <Stack spacing={2}>
+                <Autocomplete
+                  autoHighlight
+                  options={autocompleteOptions}
+                  filterOptions={filterTopicOptions}
+                  value={selectedAutocompleteOption}
+                  disabled={isSubmitting}
+                  isOptionEqualToValue={(option, value) =>
+                    normalizeTopicKey(option) === normalizeTopicKey(value)
                   }
-                  error={Boolean(errorFor('topic'))}
-                  helperText={
-                    errorFor('topic') ??
-                    (topicOptions.length > 0
-                      ? 'Elige un tema sugerido de la materia o escribe uno académico válido.'
-                      : 'Tema o unidad académica que cubre el documento.')
-                  }
+                  onChange={(_event, selectedTopic) => {
+                    if (selectedTopic === OTHER_TOPIC_OPTION) {
+                      setUseOtherTopic(true);
+                      if (
+                        topicOptions.some(
+                          (option) => normalizeTopicKey(option) === normalizeTopicKey(values.topic),
+                        )
+                      ) {
+                        handleTopicChange('');
+                      } else {
+                        clearErrors('topic');
+                      }
+                      return;
+                    }
+
+                    setUseOtherTopic(false);
+                    handleTopicChange(
+                      selectedTopic ? resolveCanonicalTopic(selectedTopic, topicOptions) : '',
+                    );
+                  }}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option}>
+                      {option === OTHER_TOPIC_OPTION ? (
+                        <Typography component="span" sx={{ fontWeight: 600 }}>
+                          Otro (escribir tema)
+                        </Typography>
+                      ) : (
+                        option
+                      )}
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Tema"
+                      placeholder="Selecciona un tema o elige Otro"
+                      error={!isCustomTopicSelected && Boolean(errorFor('topic'))}
+                      helperText={
+                        !isCustomTopicSelected
+                          ? (errorFor('topic') ??
+                            'Elige un tema de la materia o selecciona "Otro" para escribirlo.')
+                          : undefined
+                      }
+                    />
+                  )}
                 />
-              )}
-            />
+
+                {isCustomTopicSelected && (
+                  <TextField
+                    label="Especifica el tema"
+                    value={values.topic}
+                    onChange={(event) => handleTopicChange(event.target.value)}
+                    onBlur={handleTopicBlur}
+                    placeholder="Ej. Programación dinámica, Árboles B+"
+                    error={Boolean(errorFor('topic'))}
+                    helperText={
+                      errorFor('topic') ??
+                      'Escribe el tema o unidad académica que cubre este documento.'
+                    }
+                    autoFocus
+                    disabled={isSubmitting}
+                  />
+                )}
+              </Stack>
+            ) : (
+              <TextField
+                label="Tema"
+                value={values.topic}
+                onChange={(event) => handleTopicChange(event.target.value)}
+                onBlur={handleTopicBlur}
+                placeholder="Ej. Recursividad, Listas enlazadas, SQL"
+                error={Boolean(errorFor('topic'))}
+                helperText={
+                  errorFor('topic') ?? 'Tema o unidad académica que cubre el documento.'
+                }
+                disabled={isSubmitting}
+              />
+            )}
 
             <TagInput
               value={values.tags}
