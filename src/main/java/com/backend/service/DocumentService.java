@@ -10,6 +10,7 @@ import com.backend.domain.repos.Tag;
 import com.backend.dto.DocumentDto;
 import com.backend.dto.DocumentPageResponse;
 import com.backend.exception.AuthException;
+import com.backend.repository.InteractionRepository;
 import com.backend.repository.RepositoryCollaboratorRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
@@ -74,6 +75,7 @@ public class DocumentService {
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final TagRepository tagRepository;
     private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
+    private final InteractionRepository interactionRepository;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
@@ -82,6 +84,7 @@ public class DocumentService {
             StudyRepositoryRepository studyRepositoryRepository,
             TagRepository tagRepository,
             RepositoryCollaboratorRepository repositoryCollaboratorRepository,
+            InteractionRepository interactionRepository,
             NotificationService notificationService,
             ObjectMapper objectMapper
     ) {
@@ -89,6 +92,7 @@ public class DocumentService {
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.tagRepository = tagRepository;
         this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
+        this.interactionRepository = interactionRepository;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
@@ -280,6 +284,7 @@ public class DocumentService {
         Resource resource = findResourceOrThrow(id);
         requireAuthor(resource, user, "Solo el autor puede eliminar este documento.");
 
+        interactionRepository.clearResourceReference(id);
         resource.getTags().clear();
         resourceRepository.saveAndFlush(resource);
         resourceRepository.delete(resource);

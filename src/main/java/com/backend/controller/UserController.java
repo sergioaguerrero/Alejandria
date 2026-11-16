@@ -10,6 +10,7 @@ import com.backend.dto.UpdateSubjectsOfInterestRequest;
 import com.backend.dto.UserDto;
 import com.backend.service.CollaboratorService;
 import com.backend.service.JwtTokenService;
+import com.backend.service.StatisticsService;
 import com.backend.service.UserProfileService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +25,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * Expone los endpoints REST del perfil propio, perfil público, red de amigos, colaboraciones y materias.
+ * Expone los endpoints REST del perfil propio, perfil público, red de amigos, colaboraciones, estadísticas y materias.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -34,15 +36,18 @@ public class UserController {
 
     private final UserProfileService userProfileService;
     private final CollaboratorService collaboratorService;
+    private final StatisticsService statisticsService;
     private final JwtTokenService jwtTokenService;
 
     public UserController(
             UserProfileService userProfileService,
             CollaboratorService collaboratorService,
+            StatisticsService statisticsService,
             JwtTokenService jwtTokenService
     ) {
         this.userProfileService = userProfileService;
         this.collaboratorService = collaboratorService;
+        this.statisticsService = statisticsService;
         this.jwtTokenService = jwtTokenService;
     }
 
@@ -106,6 +111,14 @@ public class UserController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
         return ResponseEntity.ok(collaboratorService.getMyCollaborations(resolveUser(authorization)));
+    }
+
+    @GetMapping("/me/statistics")
+    public ResponseEntity<Map<String, Object>> getMyStatistics(
+            @RequestParam(defaultValue = "week") String period,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        return ResponseEntity.ok(statisticsService.getMyStatistics(period, resolveUser(authorization)));
     }
 
     @GetMapping
