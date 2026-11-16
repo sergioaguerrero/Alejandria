@@ -28,8 +28,11 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
 
     List<Resource> findByStudyRepositoryIdOrderByUploadDateDesc(Long repositoryId);
 
+    // No usar DISTINCT en JPQL: RECURSO_ACADEMICO tiene columna BLOB (archivo_bytes)
+    // y Oracle falla con ORA-00932 al aplicar DISTINCT sobre LOBs; Hibernate 6 ya
+    // desduplica las entidades raíz al hacer JOIN FETCH sobre colecciones.
     @Query("""
-            SELECT DISTINCT r FROM Resource r
+            SELECT r FROM Resource r
             JOIN FETCH r.subject s
             JOIN FETCH s.semester
             JOIN FETCH r.uploadedBy
@@ -40,7 +43,7 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
     Optional<Resource> findByIdWithDetails(@Param("id") Long id);
 
     @Query("""
-            SELECT DISTINCT r FROM Resource r
+            SELECT r FROM Resource r
             JOIN FETCH r.subject s
             JOIN FETCH s.semester
             JOIN FETCH r.uploadedBy
@@ -52,7 +55,7 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
     List<Resource> findByStudyRepositoryIdWithDetails(@Param("repositoryId") Long repositoryId);
 
     @Query("""
-            SELECT DISTINCT r FROM Resource r
+            SELECT r FROM Resource r
             JOIN FETCH r.subject s
             JOIN FETCH s.semester
             JOIN FETCH r.uploadedBy
@@ -66,7 +69,7 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
                                                              @Param("term") int term);
 
     @Query("""
-            SELECT DISTINCT r FROM Resource r
+            SELECT r FROM Resource r
             JOIN FETCH r.subject s
             JOIN FETCH s.semester
             JOIN FETCH r.uploadedBy u

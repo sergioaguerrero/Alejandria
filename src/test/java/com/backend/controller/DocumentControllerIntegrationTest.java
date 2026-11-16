@@ -219,7 +219,12 @@ class DocumentControllerIntegrationTest {
         JsonNode createdJson = objectMapper.readTree(uploadResult.getResponse().getContentAsString());
         String docId = createdJson.get("id").asText();
 
-        // 5. Listado por repositorio y por búsqueda global
+        // 5. Listado por repositorio (con y sin term) y por búsqueda global (incluyendo tags)
+        mockMvc.perform(get("/api/repositories/{id}/documents", repositoryId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(docId));
+
         mockMvc.perform(get("/api/repositories/{id}/documents", repositoryId)
                         .param("term", "1"))
                 .andExpect(status().isOk())
@@ -230,6 +235,13 @@ class DocumentControllerIntegrationTest {
                         .param("q", "grafos")
                         .param("subjectId", String.valueOf(subjectId))
                         .param("type", "guia"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].id").value(docId));
+
+        mockMvc.perform(get("/api/documents")
+                        .param("q", "taller"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.items", hasSize(1)))

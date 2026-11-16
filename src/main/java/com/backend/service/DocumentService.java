@@ -16,6 +16,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -504,15 +506,20 @@ public class DocumentService {
         if (query != null && !query.isBlank()) {
             String pattern = likePattern(query);
             spec = spec.and((root, q, cb) -> {
-                q.distinct(true);
-                Join<Resource, Tag> tagJoin = root.join("tags", JoinType.LEFT);
                 Join<Resource, StudyRepository> repoJoin = root.join("studyRepository", JoinType.LEFT);
+                // Usamos EXISTS en lugar de q.distinct(true) + join sobre tags porque Oracle
+                // rechaza SELECT DISTINCT cuando la tabla incluye columnas BLOB (archivo_bytes).
+                Subquery<Long> tagSubquery = q.subquery(Long.class);
+                Root<Resource> subRoot = tagSubquery.correlate(root);
+                Join<Resource, Tag> tagJoin = subRoot.join("tags");
+                tagSubquery.select(cb.literal(1L))
+                        .where(cb.like(cb.lower(tagJoin.get("name")), pattern, '\\'));
                 return cb.or(
                         cb.like(cb.lower(root.get("title")), pattern, '\\'),
                         cb.like(cb.lower(root.get("description")), pattern, '\\'),
                         cb.like(cb.lower(root.get("topic")), pattern, '\\'),
                         cb.like(cb.lower(repoJoin.get("name")), pattern, '\\'),
-                        cb.like(cb.lower(tagJoin.get("name")), pattern, '\\')
+                        cb.exists(tagSubquery)
                 );
             });
         }
