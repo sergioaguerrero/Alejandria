@@ -240,6 +240,7 @@ class StatisticsIntegrationTest {
         transactionTemplate.executeWithoutResult(status -> {
             entityManager.createQuery("DELETE FROM Interaction").executeUpdate();
             entityManager.createQuery("DELETE FROM DemandMetric").executeUpdate();
+            entityManager.createQuery("DELETE FROM UserSanction").executeUpdate();
             entityManager.createQuery("DELETE FROM Decision").executeUpdate();
             entityManager.createQuery("DELETE FROM Report").executeUpdate();
             entityManager.createQuery("DELETE FROM Notification").executeUpdate();
