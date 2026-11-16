@@ -30,7 +30,7 @@ export async function getNotifications() {
     return JSON.parse(JSON.stringify(list));
   }
 
-  const response = await http.get('/api/notifications');
+  const response = await http.get('/notifications');
   return response.data;
 }
 
@@ -51,7 +51,7 @@ export async function getUnreadNotificationsCount() {
     ).length;
   }
 
-  const response = await http.get('/api/notifications/unread-count');
+  const response = await http.get('/notifications/unread-count');
   return response.data.count;
 }
 
@@ -78,7 +78,7 @@ export async function markNotificationAsRead(notificationId) {
     return { success: true };
   }
 
-  const response = await http.put(`/api/notifications/${encodeURIComponent(notificationId)}/read`);
+  const response = await http.put(`/notifications/${encodeURIComponent(notificationId)}/read`);
   return response.data;
 }
 
@@ -102,7 +102,7 @@ export async function markAllNotificationsAsRead() {
     return { success: true };
   }
 
-  const response = await http.put('/api/notifications/read-all');
+  const response = await http.put('/notifications/read-all');
   return response.data;
 }
 

@@ -1,5 +1,6 @@
 package com.backend.service;
 
+import com.backend.cross.NotificationType;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
 import com.backend.domain.identity.UserFollow;
@@ -43,19 +44,22 @@ public class UserProfileService {
     private final UserSubjectInterestRepository userSubjectInterestRepository;
     private final CatalogRepository catalogRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
 
     public UserProfileService(
             UserRepository userRepository,
             UserFollowRepository userFollowRepository,
             UserSubjectInterestRepository userSubjectInterestRepository,
             CatalogRepository catalogRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            NotificationService notificationService
     ) {
         this.userRepository = userRepository;
         this.userFollowRepository = userFollowRepository;
         this.userSubjectInterestRepository = userSubjectInterestRepository;
         this.catalogRepository = catalogRepository;
         this.passwordEncoder = passwordEncoder;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -161,6 +165,16 @@ public class UserProfileService {
             userFollowRepository.deleteById(followId);
         } else {
             userFollowRepository.save(new UserFollow(viewer.getId(), target.getId()));
+            boolean mutual = userFollowRepository.existsById(new UserFollowId(target.getId(), viewer.getId()));
+            notificationService.create(
+                    target,
+                    mutual ? NotificationType.FRIEND_MATCH : NotificationType.NEW_FOLLOWER,
+                    mutual ? "¡Nuevo amigo en Alejandría!" : "Nuevo seguidor",
+                    mutual
+                            ? "@" + viewer.getUsername() + " también comenzó a seguirte. Ahora tienen seguimiento mutuo."
+                            : "@" + viewer.getUsername() + " comenzó a seguirte.",
+                    "/users/" + viewer.getUsername()
+            );
         }
 
         return mapList(List.of(target), viewer).get(0);

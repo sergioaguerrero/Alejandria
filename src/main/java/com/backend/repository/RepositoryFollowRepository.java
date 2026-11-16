@@ -1,5 +1,6 @@
 package com.backend.repository;
 
+import com.backend.domain.identity.User;
 import com.backend.domain.repos.RepositoryFollow;
 import com.backend.domain.repos.RepositoryReactionId;
 import com.backend.domain.repos.StudyRepository;
@@ -33,6 +34,14 @@ public interface RepositoryFollowRepository extends JpaRepository<RepositoryFoll
             ORDER BY rf.createdAt DESC
             """)
     List<StudyRepository> findFollowedRepositoriesByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT u FROM User u
+            JOIN RepositoryFollow rf ON rf.id.userId = u.id
+            WHERE rf.id.repositoryId = :repositoryId
+              AND u.verified = true
+            """)
+    List<User> findFollowerUsersByRepositoryId(@Param("repositoryId") Long repositoryId);
 
     void deleteByIdRepositoryId(Long repositoryId);
 }

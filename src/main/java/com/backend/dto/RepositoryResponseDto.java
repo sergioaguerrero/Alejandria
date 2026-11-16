@@ -1,6 +1,7 @@
 package com.backend.dto;
 
 import com.backend.domain.repos.StudyRepository;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
 
@@ -24,6 +25,11 @@ public class RepositoryResponseDto {
     private long followersCount;
     private int documentCount;
     private boolean canUpload;
+
+    @JsonProperty("isCollaborator")
+    private boolean collaborator;
+
+    private String collaboratorStatus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -35,6 +41,19 @@ public class RepositoryResponseDto {
             long followersCount,
             boolean canUpload
     ) {
+        return fromEntity(repo, documentCount, liked, followed, followersCount, canUpload, false, null);
+    }
+
+    public static RepositoryResponseDto fromEntity(
+            StudyRepository repo,
+            int documentCount,
+            boolean liked,
+            boolean followed,
+            long followersCount,
+            boolean canUpload,
+            boolean isCollaborator,
+            String collaboratorStatus
+    ) {
         RepositoryResponseDto dto = new RepositoryResponseDto();
         dto.setId(String.valueOf(repo.getId()));
         dto.setName(repo.getName());
@@ -45,6 +64,8 @@ public class RepositoryResponseDto {
         dto.setFollowersCount(followersCount);
         dto.setDocumentCount(documentCount);
         dto.setCanUpload(canUpload);
+        dto.setCollaborator(isCollaborator);
+        dto.setCollaboratorStatus(collaboratorStatus);
         dto.setCreatedAt(repo.getCreatedAt());
         dto.setUpdatedAt(repo.getUpdatedAt());
 
@@ -108,6 +129,14 @@ public class RepositoryResponseDto {
 
     public boolean isCanUpload() { return canUpload; }
     public void setCanUpload(boolean canUpload) { this.canUpload = canUpload; }
+
+    @JsonProperty("isCollaborator")
+    public boolean isCollaborator() { return collaborator; }
+    @JsonProperty("isCollaborator")
+    public void setCollaborator(boolean collaborator) { this.collaborator = collaborator; }
+
+    public String getCollaboratorStatus() { return collaboratorStatus; }
+    public void setCollaboratorStatus(String collaboratorStatus) { this.collaboratorStatus = collaboratorStatus; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
