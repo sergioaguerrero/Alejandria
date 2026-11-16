@@ -181,6 +181,18 @@ class DocumentControllerIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fields.file").exists());
 
+        // 3b. Tema literal "Otro" rechazado -> 400 con fields.topic
+        mockMvc.perform(multipart("/api/repositories/{id}/documents", repositoryId)
+                        .file(pdfFile)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .param("title", "Taller personalizado")
+                        .param("description", "Descripción suficientemente larga")
+                        .param("type", "apunte")
+                        .param("term", "2")
+                        .param("topic", "Otro"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.topic").exists());
+
         // 4. Subida válida por el dueño -> 201
         MvcResult uploadResult = mockMvc.perform(multipart("/api/repositories/{id}/documents", repositoryId)
                         .file(pdfFile)
@@ -255,12 +267,13 @@ class DocumentControllerIntegrationTest {
                         .param("description", "Descripción actualizada del taller de grafos")
                         .param("type", "resumen")
                         .param("term", "2")
-                        .param("topic", "Árboles")
+                        .param("topic", "  programación   dinámica  ")
                         .param("tags", "[\"repaso\"]"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Taller de Grafos Actualizado"))
                 .andExpect(jsonPath("$.type").value("resumen"))
                 .andExpect(jsonPath("$.term").value(2))
+                .andExpect(jsonPath("$.topic").value("Programación dinámica"))
                 .andExpect(jsonPath("$.tags", hasSize(1)));
 
         // 8. Eliminación (solo autor)

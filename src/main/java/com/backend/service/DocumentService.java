@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Gestiona la subida, consulta, edición, eliminación y descarga de documentos académicos.
@@ -40,6 +41,11 @@ import java.util.Set;
 public class DocumentService {
 
     private static final long MAX_FILE_SIZE_BYTES = 25L * 1024L * 1024L;
+    private static final int MIN_TOPIC_LENGTH = 3;
+    private static final int MAX_TOPIC_LENGTH = 60;
+    private static final Pattern TOPIC_ALLOWED_CHARS = Pattern.compile("^[\\p{L}\\p{N}\\s\\-/+*#.:()]+$");
+    private static final Pattern TOPIC_HAS_LETTER = Pattern.compile(".*\\p{L}.*");
+    private static final Pattern TOPIC_REPEATED_LETTER = Pattern.compile(".*(\\p{L})\\1{2,}.*", Pattern.CASE_INSENSITIVE);
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "jpg", "jpeg", "png"
@@ -131,7 +137,7 @@ public class DocumentService {
         );
         resource.setStudyRepository(repo);
         resource.setTerm(term);
-        resource.setTopic(topic.trim());
+        resource.setTopic(normalizeTopic(topic));
         resource.setFileName(validatedFile.originalName());
         resource.setStatus(ResourceStatus.PUBLISHED);
         resource.setTags(resolveTags(tagsJson));
@@ -239,7 +245,7 @@ public class DocumentService {
         resource.setDescription(description.trim());
         resource.setType(parseResourceType(type));
         resource.setTerm(term);
-        resource.setTopic(topic.trim());
+        resource.setTopic(normalizeTopic(topic));
         resource.setTags(resolveTags(tagsJson));
 
         if (file != null && !file.isEmpty()) {
@@ -326,9 +332,9 @@ public class DocumentService {
             fields.put("term", "Selecciona un corte válido (1, 2 o 3).");
         }
 
-        String cleanTopic = topic == null ? "" : topic.trim();
-        if (cleanTopic.length() < 2 || cleanTopic.length() > 150) {
-            fields.put("topic", "Escribe un tema válido (entre 2 y 150 caracteres).");
+        String topicError = validateTopic(topic);
+        if (topicError != null) {
+            fields.put("topic", topicError);
         }
 
         if (requireFile && (file == null || file.isEmpty())) {
@@ -342,6 +348,39 @@ public class DocumentService {
         }
 
         return fields;
+    }
+
+    private String validateTopic(String rawTopic) {
+        String clean = cleanTopicSpacing(rawTopic);
+        if (clean.length() < MIN_TOPIC_LENGTH) {
+            return "Escribe o selecciona el tema del documento (mínimo 3 caracteres).";
+        }
+        if ("otro".equalsIgnoreCase(clean)) {
+            return "Especifica el tema del documento en lugar de \"Otro\".";
+        }
+        if (clean.length() > MAX_TOPIC_LENGTH) {
+            return "El tema no puede superar los " + MAX_TOPIC_LENGTH + " caracteres.";
+        }
+        if (!TOPIC_ALLOWED_CHARS.matcher(clean).matches() || !TOPIC_HAS_LETTER.matcher(clean).matches()) {
+            return "Usa un nombre de tema académico válido (letras, números y signos básicos).";
+        }
+        if (TOPIC_REPEATED_LETTER.matcher(clean).matches()) {
+            return "Escribe un tema académico válido (evita caracteres repetidos sin sentido).";
+        }
+        return null;
+    }
+
+    private String normalizeTopic(String rawTopic) {
+        String clean = cleanTopicSpacing(rawTopic);
+        if (clean.isEmpty()) return "";
+        if (clean.equals(clean.toLowerCase(Locale.ROOT))) {
+            return Character.toUpperCase(clean.charAt(0)) + clean.substring(1);
+        }
+        return clean;
+    }
+
+    private String cleanTopicSpacing(String rawTopic) {
+        return rawTopic == null ? "" : rawTopic.trim().replaceAll("\\s+", " ");
     }
 
     private boolean isAllowedFile(MultipartFile file) {
