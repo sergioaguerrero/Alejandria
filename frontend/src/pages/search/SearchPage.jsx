@@ -290,7 +290,7 @@ export default function SearchPage() {
                   <Select
                     labelId="order-label"
                     label="Ordenar por"
-                    value={order}
+                    value={activeTab === 'documents' && order === 'liked' ? 'popular' : order}
                     onChange={(e) => {
                       setOrder(e.target.value);
                       updateUrlParams({ order: e.target.value === 'recent' ? '' : e.target.value });
@@ -300,7 +300,9 @@ export default function SearchPage() {
                   >
                     <MenuItem value="recent">Más recientes</MenuItem>
                     <MenuItem value="popular">Más vistos y descargados</MenuItem>
-                    <MenuItem value="liked">Mejor valorados</MenuItem>
+                    {activeTab === 'repositories' && (
+                      <MenuItem value="liked">Mejor valorados</MenuItem>
+                    )}
                   </Select>
                 </FormControl>
               )}

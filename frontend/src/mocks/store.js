@@ -23,7 +23,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 
 /**
  * Counters to generate new ids with the same format as the mocks.
- * @returns {{ users: object[], repositories: object[], documents: object[], subjects: object[], reports: object[], likedRepositories: Set<string>, likedDocuments: Set<string>, counters: { repository: number, document: number, user: number, report: number } }}
+ * @returns {{ users: object[], repositories: object[], documents: object[], subjects: object[], reports: object[], likedRepositories: Set<string>, counters: { repository: number, document: number, user: number, report: number } }}
  */
 function createInitialState() {
   return {
@@ -43,8 +43,6 @@ function createInitialState() {
       'repository-002::camilodaza',
       'repository-002::valentinarojas',
     ]),
-    /** Keys with format `documentId::username`. */
-    likedDocuments: new Set(),
     /** Keys with format `followerUsername::targetUsername` (FE-32). */
     userFollows: new Set([
       'sergioaguerrero::lauramartinez',

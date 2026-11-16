@@ -30,7 +30,6 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import CheckIcon from '@mui/icons-material/Check';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
@@ -482,10 +481,6 @@ export default function PublicProfilePage() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               <DownloadOutlinedIcon fontSize="small" />
                               <Typography variant="caption">{doc.downloads || 0}</Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <FavoriteBorderIcon fontSize="small" />
-                              <Typography variant="caption">{doc.likes || 0}</Typography>
                             </Box>
                           </Stack>
                         </Box>

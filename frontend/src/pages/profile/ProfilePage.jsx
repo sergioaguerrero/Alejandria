@@ -37,7 +37,6 @@ import AddIcon from '@mui/icons-material/Add';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlined';
@@ -489,10 +488,6 @@ export default function ProfilePage() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <DownloadOutlinedIcon fontSize="small" />
                           <Typography variant="caption">{doc.downloads || 0}</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <FavoriteBorderIcon fontSize="small" />
-                          <Typography variant="caption">{doc.likes || 0}</Typography>
                         </Box>
                       </Stack>
                     </Box>

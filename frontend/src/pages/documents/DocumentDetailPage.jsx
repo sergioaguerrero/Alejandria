@@ -3,7 +3,7 @@
  * @description View 10 — Document detail (FE-16, endpoints BE-16, BE-13 and BE-21).
  *
  * Shows the file in a viewer (or a card when it cannot be previewed), the
- * metadata, and the download, like and report actions. The author also sees
+ * metadata, and the download and report actions. The author also sees
  * the edit and delete actions. It is open to students and admins.
  */
 
@@ -28,8 +28,6 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -44,7 +42,6 @@ import {
   deleteDocument,
   downloadDocument,
   getDocument,
-  toggleDocumentLike,
 } from '../../services/index.js';
 
 export default function DocumentDetailPage() {
@@ -55,7 +52,6 @@ export default function DocumentDetailPage() {
   const [documentData, setDocumentData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isLiking, setIsLiking] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -85,22 +81,6 @@ export default function DocumentDetailPage() {
   }, [id]);
 
   const isAuthor = Boolean(documentData && user?.username === documentData.authorUsername);
-
-  const handleLike = async () => {
-    setIsLiking(true);
-
-    try {
-      const result = await toggleDocumentLike(documentData.id);
-      setDocumentData((current) => ({ ...current, liked: result.liked, likes: result.likes }));
-    } catch (serviceError) {
-      setNotice({
-        severity: 'error',
-        message: serviceError?.message ?? 'No se pudo actualizar el me gusta.',
-      });
-    } finally {
-      setIsLiking(false);
-    }
-  };
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -336,16 +316,6 @@ export default function DocumentDetailPage() {
                 {isDownloading ? 'Descargando…' : 'Descargar'}
               </Button>
             )}
-
-            <Button
-              variant={documentData.liked ? 'contained' : 'outlined'}
-              onClick={handleLike}
-              disabled={isLiking}
-              startIcon={documentData.liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-              aria-label="Me gusta"
-            >
-              {`Me gusta (${documentData.likes ?? 0})`}
-            </Button>
 
             {!isAuthor && (
               <Button

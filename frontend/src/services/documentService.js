@@ -11,7 +11,7 @@ import { ApiError } from './errors.js';
 import http from './http.js';
 import { nextId, recordMockSearchTerm, store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
-import { emitMockNotification, notifyFollowersOfNewContent } from './notificationService.js';
+import { notifyFollowersOfNewContent } from './notificationService.js';
 import { isAcceptedCollaborator } from './repositoryService.js';
 import { withoutPassword } from '../utils/users.js';
 import { getExtension, validateFile } from '../utils/validations.js';
@@ -21,9 +21,6 @@ import {
   getTopicValidationError,
   resolveCanonicalTopic,
 } from '../utils/topics.js';
-
-/** Like key of a document for a user. */
-const likeKey = (documentId, username) => `${documentId}::${username}`;
 
 /**
  * Adds the repository, the author and the calculated data to the document.
@@ -36,16 +33,12 @@ function enrich(document) {
     ? store.subjects.find((item) => item.id === Number(repository.subjectId)) ?? null
     : null;
   const author = store.users.find((user) => user.username === document.authorUsername);
-  const username = currentUser()?.username;
 
   return {
     ...document,
     repository,
     subject,
     author: withoutPassword(author),
-    liked: username
-      ? store.likedDocuments.has(likeKey(document.id, username))
-      : false,
   };
 }
 
@@ -240,10 +233,9 @@ export async function getDocuments(filters = {}) {
       return true;
     })
     .sort((a, b) => {
-      if (order === 'popular') {
+      if (order === 'popular' || order === 'liked') {
         return (b.views ?? 0) + (b.downloads ?? 0) - ((a.views ?? 0) + (a.downloads ?? 0));
       }
-      if (order === 'liked') return (b.likes ?? 0) - (a.likes ?? 0);
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
@@ -471,7 +463,6 @@ export async function uploadDocument(data, onProgress) {
     authorUsername: user.username,
     views: 0,
     downloads: 0,
-    likes: 0,
     createdAt: new Date().toISOString(),
   };
 
@@ -597,50 +588,4 @@ export async function downloadDocument(id) {
   recordInteraction('download', document);
 
   return { url: document.file.url, name: document.file.name };
-}
-
-/**
- * Gives or removes the like of the session user.
- * @param {string} id
- * @returns {Promise<{ liked: boolean, likes: number }>}
- */
-export async function toggleDocumentLike(id) {
-  if (!USE_MOCK) {
-    const { data } = await http.post(`/documents/${id}/like`);
-    return data;
-  }
-
-  await waitForMock(200);
-
-  const document = store.documents.find((item) => item.id === id);
-  if (!document) {
-    throw new ApiError('El documento no existe o fue eliminado.', { status: 404 });
-  }
-
-  const user = currentUser();
-  if (!user) {
-    throw new ApiError('Inicia sesión para dar me gusta.', { status: 401 });
-  }
-
-  const key = likeKey(id, user.username);
-
-  if (store.likedDocuments.has(key)) {
-    store.likedDocuments.delete(key);
-    document.likes = Math.max(0, document.likes - 1);
-  } else {
-    store.likedDocuments.add(key);
-    document.likes += 1;
-    recordInteraction('like', document);
-    if (document.authorUsername !== user.username) {
-      emitMockNotification({
-        recipientUsername: document.authorUsername,
-        type: 'like',
-        title: 'Nuevo me gusta en tu documento',
-        message: `A @${user.username} le gustó tu documento "${document.title}".`,
-        targetUrl: `/documents/${document.id}`,
-      });
-    }
-  }
-
-  return { liked: store.likedDocuments.has(key), likes: document.likes };
 }
