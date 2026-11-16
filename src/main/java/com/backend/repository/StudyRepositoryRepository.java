@@ -37,7 +37,7 @@ public interface StudyRepositoryRepository
             """)
     List<StudyRepository> findByAuthorUsernameOrderByCreatedAtDesc(@Param("username") String username);
 
-    List<StudyRepository> findByAuthorId(Long authorId);
+    long countByAuthorId(Long authorId);
 
     @Override
     @EntityGraph(attributePaths = {"subject", "subject.semester", "author"})

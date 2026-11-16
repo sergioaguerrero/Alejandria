@@ -23,7 +23,15 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
 
     long countByStudyRepositoryId(Long repositoryId);
 
-    @Query("SELECT r.studyRepository.id, COUNT(r) FROM Resource r WHERE r.studyRepository.id IN :repositoryIds GROUP BY r.studyRepository.id")
+    long countByUploadedById(Long uploadedById);
+
+    @Query("""
+            SELECT r.studyRepository.id, COUNT(r)
+            FROM Resource r
+            WHERE r.studyRepository.id IN :repositoryIds
+              AND r.status = com.backend.cross.ResourceStatus.PUBLISHED
+            GROUP BY r.studyRepository.id
+            """)
     List<Object[]> countByStudyRepositoryIds(@Param("repositoryIds") Collection<Long> repositoryIds);
 
     List<Resource> findByStudyRepositoryIdOrderByUploadDateDesc(Long repositoryId);
@@ -50,6 +58,7 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
             LEFT JOIN FETCH r.studyRepository sr
             LEFT JOIN FETCH r.tags
             WHERE sr.id = :repositoryId
+              AND r.status = com.backend.cross.ResourceStatus.PUBLISHED
             ORDER BY r.uploadDate DESC
             """)
     List<Resource> findByStudyRepositoryIdWithDetails(@Param("repositoryId") Long repositoryId);
@@ -63,6 +72,7 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
             LEFT JOIN FETCH r.tags
             WHERE sr.id = :repositoryId
               AND r.term = :term
+              AND r.status = com.backend.cross.ResourceStatus.PUBLISHED
             ORDER BY r.uploadDate DESC
             """)
     List<Resource> findByStudyRepositoryIdAndTermWithDetails(@Param("repositoryId") Long repositoryId,
@@ -76,6 +86,7 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
             LEFT JOIN FETCH r.studyRepository
             LEFT JOIN FETCH r.tags
             WHERE LOWER(u.username) = LOWER(:username)
+              AND r.status = com.backend.cross.ResourceStatus.PUBLISHED
             ORDER BY r.uploadDate DESC
             """)
     List<Resource> findByAuthorUsernameWithDetails(@Param("username") String username);

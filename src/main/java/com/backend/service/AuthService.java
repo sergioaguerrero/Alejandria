@@ -169,6 +169,14 @@ public class AuthService {
             );
         }
 
+        if (user.isSuspended()) {
+            throw new AuthException(
+                    HttpStatus.FORBIDDEN,
+                    "ACCOUNT_SUSPENDED",
+                    "Tu cuenta ha sido suspendida por administración."
+            );
+        }
+
         if (!user.isVerified()) {
             throw new AuthException(
                     HttpStatus.FORBIDDEN,

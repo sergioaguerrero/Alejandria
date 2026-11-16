@@ -39,6 +39,10 @@ public class User {
     @Column(name = "verificado", nullable = false)
     private boolean verified;
 
+    @Convert(converter = NumericBooleanConverter.class)
+    @Column(name = "suspendido", nullable = false)
+    private boolean suspended = false;
+
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime registrationDate;
 
@@ -62,6 +66,7 @@ public class User {
         this.institutionalEmail = institutionalEmail;
         this.passwordHash = passwordHash;
         this.verified = verified;
+        this.suspended = false;
         this.registrationDate = registrationDate != null ? registrationDate : LocalDateTime.now();
     }
 
@@ -97,6 +102,9 @@ public class User {
 
     public boolean isVerified() { return verified; }
     public void setVerified(boolean verified) { this.verified = verified; }
+
+    public boolean isSuspended() { return suspended; }
+    public void setSuspended(boolean suspended) { this.suspended = suspended; }
 
     public LocalDateTime getRegistrationDate() { return registrationDate; }
     public void setRegistrationDate(LocalDateTime registrationDate) { this.registrationDate = registrationDate; }

@@ -14,6 +14,7 @@ public class UserDto {
     private String role;
     private Integer semester;
     private boolean verified;
+    private boolean suspended;
 
     public UserDto() {}
 
@@ -29,6 +30,7 @@ public class UserDto {
         dto.setSecond_lastname(user.getSecond_lastname());
         dto.setSemester(user.getSemester());
         dto.setVerified(user.isVerified());
+        dto.setSuspended(user.isSuspended());
 
         String roleName = user.getRole() != null ? user.getRole().getName().toLowerCase() : "estudiante";
         dto.setRole(roleName.contains("admin") ? "admin" : "estudiante");
@@ -67,4 +69,7 @@ public class UserDto {
 
     public boolean isVerified() { return verified; }
     public void setVerified(boolean verified) { this.verified = verified; }
+
+    public boolean isSuspended() { return suspended; }
+    public void setSuspended(boolean suspended) { this.suspended = suspended; }
 }
