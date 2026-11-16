@@ -223,7 +223,7 @@ public class AuthService {
         if (secondLastname.isEmpty()) {
             fields.put("second_lastname", "El segundo apellido es obligatorio.");
         }
-        if (!USERNAME_PATTERN.matcher(username).matches()) {
+        if (!isValidUsername(username)) {
             fields.put("username", "Entre 3 y 20 caracteres: letras, números, punto o guion bajo.");
         }
         if (email.isEmpty() || !email.contains("@")) {
@@ -240,8 +240,13 @@ public class AuthService {
         return fields;
     }
 
-    private boolean isValidPassword(String password) {
-        return password.length() >= 8
+    public static boolean isValidUsername(String username) {
+        return username != null && USERNAME_PATTERN.matcher(username).matches();
+    }
+
+    public static boolean isValidPassword(String password) {
+        return password != null
+                && password.length() >= 8
                 && UPPERCASE_PATTERN.matcher(password).find()
                 && LOWERCASE_PATTERN.matcher(password).find()
                 && DIGIT_PATTERN.matcher(password).find();
