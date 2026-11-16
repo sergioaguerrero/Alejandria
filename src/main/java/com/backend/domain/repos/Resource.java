@@ -55,6 +55,10 @@ public class Resource {
     @JoinColumn(name = "materia_id")
     private Subject subject;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "repositorio_id")
+    private StudyRepository studyRepository;
+
     @ManyToMany
     @JoinTable(
             name = "RECURSO_ETIQUETA",
@@ -117,6 +121,9 @@ public class Resource {
 
     public Subject getSubject() { return subject; }
     public void setSubject(Subject subject) { this.subject = subject; }
+
+    public StudyRepository getStudyRepository() { return studyRepository; }
+    public void setStudyRepository(StudyRepository studyRepository) { this.studyRepository = studyRepository; }
 
     public Set<Tag> getTags() { return tags; }
     public void setTags(Set<Tag> tags) { this.tags = tags; }
