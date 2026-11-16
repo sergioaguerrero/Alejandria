@@ -27,6 +27,15 @@ public class Resource {
     @Column(name = "tipo_recurso", nullable = false, length = 20)
     private ResourceType type;
 
+    @Column(name = "corte", nullable = false)
+    private int term = 1;
+
+    @Column(name = "tema", length = 150)
+    private String topic;
+
+    @Column(name = "nombre_archivo", length = 255)
+    private String fileName;
+
     @Lob
     @Column(name = "archivo_bytes", nullable = false)
     private byte[] fileBytes;
@@ -44,8 +53,11 @@ public class Resource {
     @Column(name = "estado", nullable = false, length = 20)
     private ResourceStatus status;
 
+    @Column(name = "total_vistas", nullable = false)
+    private int totalViews = 0;
+
     @Column(name = "total_descargas", nullable = false)
-    private int totalDownloads;
+    private int totalDownloads = 0;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "subido_por")
@@ -81,7 +93,9 @@ public class Resource {
         this.uploadedBy = uploadedBy;
         this.subject = subject;
         this.uploadDate = LocalDateTime.now();
-        this.status = ResourceStatus.PENDING;
+        this.status = ResourceStatus.PUBLISHED;
+        this.term = 1;
+        this.totalViews = 0;
         this.totalDownloads = 0;
     }
 
@@ -99,6 +113,15 @@ public class Resource {
     public ResourceType getType() { return type; }
     public void setType(ResourceType type) { this.type = type; }
 
+    public int getTerm() { return term; }
+    public void setTerm(int term) { this.term = term; }
+
+    public String getTopic() { return topic; }
+    public void setTopic(String topic) { this.topic = topic; }
+
+    public String getFileName() { return fileName; }
+    public void setFileName(String fileName) { this.fileName = fileName; }
+
     public byte[] getFileBytes() { return fileBytes; }
     public void setFileBytes(byte[] fileBytes) { this.fileBytes = fileBytes; }
 
@@ -112,6 +135,9 @@ public class Resource {
 
     public ResourceStatus getStatus() { return status; }
     public void setStatus(ResourceStatus status) { this.status = status; }
+
+    public int getTotalViews() { return totalViews; }
+    public void setTotalViews(int totalViews) { this.totalViews = totalViews; }
 
     public int getTotalDownloads() { return totalDownloads; }
     public void setTotalDownloads(int totalDownloads) { this.totalDownloads = totalDownloads; }

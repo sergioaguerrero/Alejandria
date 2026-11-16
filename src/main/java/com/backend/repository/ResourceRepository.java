@@ -4,16 +4,20 @@ import com.backend.cross.ResourceType;
 import com.backend.domain.repos.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
-public interface ResourceRepository extends JpaRepository<Resource, Long> {
+public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSpecificationExecutor<Resource> {
 
     Page<Resource> findBySubjectId(Long subjectId, Pageable pageable);
 
@@ -23,6 +27,59 @@ public interface ResourceRepository extends JpaRepository<Resource, Long> {
     List<Object[]> countByStudyRepositoryIds(@Param("repositoryIds") Collection<Long> repositoryIds);
 
     List<Resource> findByStudyRepositoryIdOrderByUploadDateDesc(Long repositoryId);
+
+    @Query("""
+            SELECT DISTINCT r FROM Resource r
+            JOIN FETCH r.subject s
+            JOIN FETCH s.semester
+            JOIN FETCH r.uploadedBy
+            LEFT JOIN FETCH r.studyRepository
+            LEFT JOIN FETCH r.tags
+            WHERE r.id = :id
+            """)
+    Optional<Resource> findByIdWithDetails(@Param("id") Long id);
+
+    @Query("""
+            SELECT DISTINCT r FROM Resource r
+            JOIN FETCH r.subject s
+            JOIN FETCH s.semester
+            JOIN FETCH r.uploadedBy
+            LEFT JOIN FETCH r.studyRepository sr
+            LEFT JOIN FETCH r.tags
+            WHERE sr.id = :repositoryId
+            ORDER BY r.uploadDate DESC
+            """)
+    List<Resource> findByStudyRepositoryIdWithDetails(@Param("repositoryId") Long repositoryId);
+
+    @Query("""
+            SELECT DISTINCT r FROM Resource r
+            JOIN FETCH r.subject s
+            JOIN FETCH s.semester
+            JOIN FETCH r.uploadedBy
+            LEFT JOIN FETCH r.studyRepository sr
+            LEFT JOIN FETCH r.tags
+            WHERE sr.id = :repositoryId
+              AND r.term = :term
+            ORDER BY r.uploadDate DESC
+            """)
+    List<Resource> findByStudyRepositoryIdAndTermWithDetails(@Param("repositoryId") Long repositoryId,
+                                                             @Param("term") int term);
+
+    @Query("""
+            SELECT DISTINCT r FROM Resource r
+            JOIN FETCH r.subject s
+            JOIN FETCH s.semester
+            JOIN FETCH r.uploadedBy u
+            LEFT JOIN FETCH r.studyRepository
+            LEFT JOIN FETCH r.tags
+            WHERE LOWER(u.username) = LOWER(:username)
+            ORDER BY r.uploadDate DESC
+            """)
+    List<Resource> findByAuthorUsernameWithDetails(@Param("username") String username);
+
+    @Override
+    @EntityGraph(attributePaths = {"subject", "subject.semester", "uploadedBy", "studyRepository", "tags"})
+    Page<Resource> findAll(Specification<Resource> spec, Pageable pageable);
 
     // Los filtros son opcionales: si llegan null, no se aplican.
     @Query("""
