@@ -8,7 +8,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "REPORT")
+@Table(name = "REPORTE")
 public class Report {
 
     @Id
@@ -16,29 +16,29 @@ public class Report {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(name = "motivo", nullable = false, length = 30)
     private ReportReason reason;
 
-    @Column(length = 1000)
+    @Column(name = "descripcion", length = 1000)
     private String description;
 
-    @Column(name = "report_date", nullable = false)
+    @Column(name = "fecha_reporte", nullable = false)
     private LocalDateTime date;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "estado", nullable = false, length = 20)
     private ReportStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reporter_id")
+    @JoinColumn(name = "reportante_id")
     private User reporter;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "resource_id")
+    @JoinColumn(name = "recurso_id")
     private Resource resource;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "moderator_id")
+    @JoinColumn(name = "moderador_id")
     private User moderator;
 
     protected Report() {}

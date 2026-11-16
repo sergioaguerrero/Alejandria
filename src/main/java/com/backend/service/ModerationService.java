@@ -65,7 +65,7 @@ public class ModerationService {
 
         } else if (action == ModerationAction.SUSPEND_USER) {
             // Buscamos al dueño del recurso y le quitamos el acceso
-            User offendingUser = report.getResource().getUploader();
+            User offendingUser = report.getResource().getUploadedBy();
             offendingUser.setVerified(false); // O un campo isActive = false
             userRepository.save(offendingUser);
         }

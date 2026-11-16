@@ -8,28 +8,28 @@ import com.backend.domain.identity.User;
 
 
 @Entity
-@Table(name = "RATING", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "resource_id"}))
+@Table(name = "CALIFICACION", uniqueConstraints = @UniqueConstraint(columnNames = {"usuario_id", "recurso_id"}))
 public class Rating {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Min(1)
     @Max(5)
-    @Column(nullable = false)
+    @Column(name = "puntuacion", nullable = false)
     private int score;
 
-    @Column(name = "comment_text", length = 1000)
+    @Column(name = "texto_comentario", length = 1000)
     private String comment;
 
-    @Column(name = "rating_date", nullable = false)
+    @Column(name = "fecha_calificacion", nullable = false)
     private LocalDateTime date;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "usuario_id")
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "resource_id")
+    @JoinColumn(name = "recurso_id")
     private Resource resource;
 
     protected Rating () {}

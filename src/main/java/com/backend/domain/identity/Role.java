@@ -5,20 +5,19 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "ROLE")
-
+@Table(name = "ROL")
 public class Role {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "nombre", nullable = false, unique = true, length = 150)
     private String name;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "ROLE_PERMISSION", joinColumns = @JoinColumn(name = "role_id"))
-    @Column(name = "permission", nullable = false, length = 100)
+    @CollectionTable(name = "PERMISO_ROL", joinColumns = @JoinColumn(name = "rol_id"))
+    @Column(name = "permiso", nullable = false, length = 100)
     private Set<String> permissions = new HashSet<>();
 
     protected Role() {

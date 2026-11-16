@@ -5,8 +5,8 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(
-        name = "DEMAND_METRIC",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"subject_id", "academic_period"})
+        name = "METRICA_DEMANDA",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"materia_id", "periodo_academico"})
 )
 public class DemandMetric {
 
@@ -14,23 +14,23 @@ public class DemandMetric {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "academic_period", nullable = false, length = 10)
+    @Column(name = "periodo_academico", nullable = false, length = 10)
     private String academicPeriod;          // ejemplo: "2026-2"
 
-    @Column(name = "total_queries", nullable = false)
+    @Column(name = "total_consultas", nullable = false)
     private int totalQueries;
 
-    @Column(name = "total_downloads", nullable = false)
+    @Column(name = "total_descargas", nullable = false)
     private int totalDownloads;
 
-    @Column(name = "total_searches", nullable = false)
+    @Column(name = "total_busquedas", nullable = false)
     private int totalSearches;
 
-    @Column(name = "demand_index", nullable = false)
+    @Column(name = "indice_demanda", nullable = false)
     private double demandIndex;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "subject_id")
+    @JoinColumn(name = "materia_id")
     private Subject subject;
 
     protected DemandMetric() {}

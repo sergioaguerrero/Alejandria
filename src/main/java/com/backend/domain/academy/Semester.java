@@ -3,17 +3,17 @@ package com.backend.domain.academy;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "SEMESTER")
+@Table(name = "SEMESTRE")
 public class Semester {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "semester_number",nullable = false)
+    @Column(name = "numero_semestre", nullable = false)
     private int number;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "program_id")
+    @JoinColumn(name = "programa_id")
     private Program program;
 
     protected Semester() {}

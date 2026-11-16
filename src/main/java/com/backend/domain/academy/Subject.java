@@ -3,7 +3,7 @@ package com.backend.domain.academy;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "SUBJECT")
+@Table(name = "MATERIA")
 
 public class Subject {
 
@@ -11,17 +11,17 @@ public class Subject {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "codigo", nullable = false, length = 150)
     private String code;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "nombre", nullable = false, length = 150)
     private String name;
 
-    @Column(nullable = false)
+    @Column(name = "creditos", nullable = false)
     private int credits;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "semester_id")
+    @JoinColumn(name = "semestre_id")
     private Semester semester;
 
     protected Subject() {}

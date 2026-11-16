@@ -2,13 +2,13 @@ package com.backend.domain.repos;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "TAG")
+@Table(name = "ETIQUETA")
 public class Tag {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false,unique = true, length = 60)
+    @Column(name = "nombre", nullable = false, unique = true, length = 60)
     private String name;
 
     protected Tag (){}
