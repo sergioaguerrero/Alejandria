@@ -314,7 +314,7 @@ export async function getDailyAiQuota() {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get('/api/ai/quota');
+    const { data } = await http.get('/ai/quota');
     return data;
   }
 
@@ -348,13 +348,17 @@ export async function generateQuiz({ repositoryId, contentType = 'quiz', scope =
   }
 
   if (!USE_MOCK) {
-    const endpoint = contentType === 'quiz' ? '/api/ai/quiz' : '/api/ai/materials';
-    const { data } = await http.post(endpoint, {
-      ...(contentType !== 'quiz' ? { contentType } : {}),
-      repositoryId,
-      scope,
-      scopeValue,
-    });
+    const endpoint = contentType === 'quiz' ? '/ai/quiz' : '/ai/materials';
+    const { data } = await http.post(
+      endpoint,
+      {
+        ...(contentType !== 'quiz' ? { contentType } : {}),
+        repositoryId,
+        scope,
+        scopeValue,
+      },
+      { timeout: 65000 },
+    );
     return data;
   }
 
@@ -450,7 +454,7 @@ export async function getQuizById(id) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get(`/api/ai/quiz/${encodeURIComponent(id)}`);
+    const { data } = await http.get(`/ai/quiz/${encodeURIComponent(id)}`);
     return data;
   }
 
@@ -485,7 +489,7 @@ export async function getQuizById(id) {
  */
 export async function submitQuizAnswers(id, { score }) {
   if (!USE_MOCK) {
-    const { data } = await http.post(`/api/ai/quiz/${encodeURIComponent(id)}/submit`, { score });
+    const { data } = await http.post(`/ai/quiz/${encodeURIComponent(id)}/submit`, { score });
     return data;
   }
 
@@ -512,7 +516,7 @@ export async function toggleSaveQuizToMyStudy(id, save = true) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post(`/api/ai/quiz/${encodeURIComponent(id)}/save`, { save });
+    const { data } = await http.post(`/ai/quiz/${encodeURIComponent(id)}/save`, { save });
     return data;
   }
 
@@ -537,7 +541,7 @@ export async function getMyStudyMaterials() {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get('/api/ai/my-study');
+    const { data } = await http.get('/ai/my-study');
     return data;
   }
 
@@ -564,7 +568,7 @@ export async function deleteFromMyStudy(id) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.delete(`/api/ai/my-study/${encodeURIComponent(id)}`);
+    const { data } = await http.delete(`/ai/my-study/${encodeURIComponent(id)}`);
     return data;
   }
 
@@ -595,7 +599,7 @@ export async function getSharedFriendsForMaterial(materialId) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get(`/api/ai/materials/${encodeURIComponent(materialId)}/shares`);
+    const { data } = await http.get(`/ai/materials/${encodeURIComponent(materialId)}/shares`);
     return Array.isArray(data) ? data : (data?.sharedWith ?? []);
   }
 
@@ -627,7 +631,7 @@ export async function shareAiContentWithFriends(materialId, friendUsernames, not
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post(`/api/ai/materials/${encodeURIComponent(materialId)}/share`, {
+    const { data } = await http.post(`/ai/materials/${encodeURIComponent(materialId)}/share`, {
       friendUsernames: targets,
       note: String(note || '').trim(),
     });
@@ -722,7 +726,7 @@ export async function getAiMaterialById(id) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get(`/api/ai/materials/${encodeURIComponent(id)}`);
+    const { data } = await http.get(`/ai/materials/${encodeURIComponent(id)}`);
     return data;
   }
 
@@ -751,7 +755,7 @@ export async function toggleSaveAiMaterialToMyStudy(id, save = true) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post(`/api/ai/materials/${encodeURIComponent(id)}/save`, { save });
+    const { data } = await http.post(`/ai/materials/${encodeURIComponent(id)}/save`, { save });
     return data;
   }
 
@@ -774,7 +778,7 @@ export async function getSharedWithMeAiMaterials() {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get('/api/ai/shared-with-me');
+    const { data } = await http.get('/ai/shared-with-me');
     return Array.isArray(data) ? data : (data?.items ?? []);
   }
 

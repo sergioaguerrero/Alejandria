@@ -54,6 +54,7 @@ import {
   getDailyAiQuota,
   getFollowedRepositories,
   getRepositoriesByUser,
+  getRepository,
 } from '../../services/index.js';
 
 export default function AiStudyPage() {
@@ -91,21 +92,31 @@ export default function AiStudyPage() {
       getRepositoriesByUser(user.username),
       getDailyAiQuota(),
     ])
-      .then(([followedList, userRepos, quotaData]) => {
+      .then(async ([followedList, userRepos, quotaData]) => {
         if (!active) return;
 
         // Merge followed and authored repositories (deduplicating by id)
         const repoMap = new Map();
         [...followedList, ...userRepos].forEach((repo) => {
-          if (repo && repo.id) repoMap.set(repo.id, repo);
+          if (repo && repo.id != null) repoMap.set(String(repo.id), repo);
         });
+
+        // Include preselected repository from /repositories/:id even if not followed yet
+        if (preselectedRepoId && !repoMap.has(String(preselectedRepoId))) {
+          const directRepo = await getRepository(preselectedRepoId).catch(() => null);
+          if (directRepo && directRepo.id != null) {
+            repoMap.set(String(directRepo.id), directRepo);
+          }
+        }
+
+        if (!active) return;
         const myStudyList = Array.from(repoMap.values());
         setFollowedRepos(myStudyList);
         setQuota(quotaData);
 
         // Pre-selection strategy
         if (preselectedRepoId) {
-          const found = myStudyList.find((r) => r.id === preselectedRepoId);
+          const found = myStudyList.find((r) => String(r.id) === String(preselectedRepoId));
           if (found) {
             setSelectedRepo(found);
           }
