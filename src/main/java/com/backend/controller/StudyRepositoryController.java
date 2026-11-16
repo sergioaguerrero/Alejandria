@@ -1,9 +1,13 @@
 package com.backend.controller;
 
 import com.backend.domain.identity.User;
+import com.backend.dto.CollaboratorDto;
+import com.backend.dto.InviteCollaboratorRequest;
 import com.backend.dto.RepositoryPageResponse;
 import com.backend.dto.RepositoryRequestDto;
 import com.backend.dto.RepositoryResponseDto;
+import com.backend.dto.RespondCollaboratorRequest;
+import com.backend.service.CollaboratorService;
 import com.backend.service.JwtTokenService;
 import com.backend.service.StudyRepositoryService;
 import jakarta.validation.Valid;
@@ -25,20 +29,23 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Expone los endpoints REST para la gestión de repositorios de estudio.
+ * Expone los endpoints REST para la gestión de repositorios de estudio y sus colaboradores.
  */
 @RestController
 @RequestMapping("/api")
 public class StudyRepositoryController {
 
     private final StudyRepositoryService studyRepositoryService;
+    private final CollaboratorService collaboratorService;
     private final JwtTokenService jwtTokenService;
 
     public StudyRepositoryController(
             StudyRepositoryService studyRepositoryService,
+            CollaboratorService collaboratorService,
             JwtTokenService jwtTokenService
     ) {
         this.studyRepositoryService = studyRepositoryService;
+        this.collaboratorService = collaboratorService;
         this.jwtTokenService = jwtTokenService;
     }
 
@@ -47,23 +54,22 @@ public class StudyRepositoryController {
             @Valid @RequestBody RepositoryRequestDto dto,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
-        User currentUser = resolveUser(authorization);
-        RepositoryResponseDto created = studyRepositoryService.create(dto, currentUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        User user = resolveUser(authorization);
+        return ResponseEntity.status(HttpStatus.CREATED).body(studyRepositoryService.create(dto, user));
     }
 
     @GetMapping("/repositories")
-    public ResponseEntity<RepositoryPageResponse> getRepositories(
+    public ResponseEntity<RepositoryPageResponse> listRepositories(
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) Integer semester,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "recent") String order,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "9") int size,
+            @RequestParam(defaultValue = "6") int size,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
-        String effectiveSearch = (q != null && !q.isBlank()) ? q : search;
+        String effectiveSearch = (search != null && !search.isBlank()) ? search : q;
         RepositoryPageResponse response = studyRepositoryService.getAll(
                 subjectId,
                 semester,
@@ -134,12 +140,40 @@ public class StudyRepositoryController {
     }
 
     @GetMapping("/repositories/{id}/collaborators")
-    public ResponseEntity<List<Object>> listRepositoryCollaborators(
+    public ResponseEntity<List<CollaboratorDto>> listRepositoryCollaborators(
             @PathVariable Long id,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
-        studyRepositoryService.getById(id, resolveUser(authorization));
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(collaboratorService.listByRepository(id, resolveUser(authorization)));
+    }
+
+    @PostMapping("/repositories/{id}/collaborators")
+    public ResponseEntity<CollaboratorDto> inviteCollaborator(
+            @PathVariable Long id,
+            @RequestBody InviteCollaboratorRequest request,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(collaboratorService.invite(id, request.getUsername(), resolveUser(authorization)));
+    }
+
+    @PostMapping("/repositories/{id}/collaborators/respond")
+    public ResponseEntity<Map<String, String>> respondCollaboratorInvitation(
+            @PathVariable Long id,
+            @RequestBody RespondCollaboratorRequest request,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        return ResponseEntity.ok(collaboratorService.respond(id, request.isAccept(), resolveUser(authorization)));
+    }
+
+    @DeleteMapping("/repositories/{id}/collaborators/{username}")
+    public ResponseEntity<Void> removeCollaborator(
+            @PathVariable Long id,
+            @PathVariable String username,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        collaboratorService.remove(id, username, resolveUser(authorization));
+        return ResponseEntity.noContent().build();
     }
 
     private User resolveUser(String authorization) {

@@ -1,5 +1,7 @@
 package com.backend.service;
 
+import com.backend.cross.CollaboratorStatus;
+import com.backend.cross.NotificationType;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
 import com.backend.domain.repos.RepositoryFollow;
@@ -11,6 +13,7 @@ import com.backend.dto.RepositoryRequestDto;
 import com.backend.dto.RepositoryResponseDto;
 import com.backend.exception.AuthException;
 import com.backend.repository.CatalogRepository;
+import com.backend.repository.RepositoryCollaboratorRepository;
 import com.backend.repository.RepositoryFollowRepository;
 import com.backend.repository.RepositoryLikeRepository;
 import com.backend.repository.ResourceRepository;
@@ -42,19 +45,25 @@ public class StudyRepositoryService {
     private final ResourceRepository resourceRepository;
     private final RepositoryLikeRepository repositoryLikeRepository;
     private final RepositoryFollowRepository repositoryFollowRepository;
+    private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
+    private final NotificationService notificationService;
 
     public StudyRepositoryService(
             StudyRepositoryRepository studyRepositoryRepository,
             CatalogRepository catalogRepository,
             ResourceRepository resourceRepository,
             RepositoryLikeRepository repositoryLikeRepository,
-            RepositoryFollowRepository repositoryFollowRepository
+            RepositoryFollowRepository repositoryFollowRepository,
+            RepositoryCollaboratorRepository repositoryCollaboratorRepository,
+            NotificationService notificationService
     ) {
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.catalogRepository = catalogRepository;
         this.resourceRepository = resourceRepository;
         this.repositoryLikeRepository = repositoryLikeRepository;
         this.repositoryFollowRepository = repositoryFollowRepository;
+        this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -69,7 +78,7 @@ public class StudyRepositoryService {
                 author
         );
         StudyRepository saved = studyRepositoryRepository.save(repo);
-        return RepositoryResponseDto.fromEntity(saved, 0, false, false, 0L, true);
+        return RepositoryResponseDto.fromEntity(saved, 0, false, false, 0L, true, false, null);
     }
 
     @Transactional(readOnly = true)
@@ -93,7 +102,7 @@ public class StudyRepositoryService {
         Specification<StudyRepository> spec = buildFilterSpec(subjectId, normalizedSemester, normalizedSearch);
         Page<StudyRepository> result = studyRepositoryRepository.findAll(spec, pageRequest);
 
-        List<RepositoryResponseDto> items = mapList(result.getContent(), viewer);
+        List<RepositoryResponseDto> items = mapRepositories(result.getContent(), viewer);
         return new RepositoryPageResponse(
                 items,
                 result.getTotalElements(),
@@ -112,7 +121,7 @@ public class StudyRepositoryService {
     @Transactional(readOnly = true)
     public List<RepositoryResponseDto> getByAuthorUsername(String username, User viewer) {
         List<StudyRepository> list = studyRepositoryRepository.findByAuthorUsernameOrderByCreatedAtDesc(username);
-        return mapList(list, viewer);
+        return mapRepositories(list, viewer);
     }
 
     @Transactional
@@ -136,6 +145,7 @@ public class StudyRepositoryService {
         StudyRepository repo = findRepoOrThrow(id);
         requireOwner(repo, user, "Solo el dueño puede eliminar este repositorio.");
 
+        repositoryCollaboratorRepository.deleteByStudyRepositoryId(id);
         repositoryLikeRepository.deleteByIdRepositoryId(id);
         repositoryFollowRepository.deleteByIdRepositoryId(id);
         studyRepositoryRepository.delete(repo);
@@ -155,6 +165,15 @@ public class StudyRepositoryService {
         } else {
             repositoryLikeRepository.save(new RepositoryLike(id, user.getId()));
             repo.setLikes(repo.getLikes() + 1);
+            if (repo.getAuthor() != null && !repo.getAuthor().getId().equals(user.getId())) {
+                notificationService.create(
+                        repo.getAuthor(),
+                        NotificationType.LIKE,
+                        "Nuevo me gusta en tu repositorio",
+                        "@" + user.getUsername() + " le dio me gusta a \"" + repo.getName() + "\".",
+                        "/repositories/" + repo.getId()
+                );
+            }
         }
 
         studyRepositoryRepository.save(repo);
@@ -183,7 +202,65 @@ public class StudyRepositoryService {
     public List<RepositoryResponseDto> getFollowed(User currentUser) {
         User user = requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus repositorios seguidos.");
         List<StudyRepository> followed = repositoryFollowRepository.findFollowedRepositoriesByUserId(user.getId());
-        return mapList(followed, user);
+        return mapRepositories(followed, user);
+    }
+
+    public List<RepositoryResponseDto> mapRepositories(List<StudyRepository> repositories, User viewer) {
+        if (repositories.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> ids = repositories.stream().map(StudyRepository::getId).toList();
+
+        Map<Long, Integer> docCounts = new HashMap<>();
+        for (Object[] row : resourceRepository.countByStudyRepositoryIds(ids)) {
+            docCounts.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+
+        Map<Long, Long> followerCounts = new HashMap<>();
+        for (Object[] row : repositoryFollowRepository.countFollowersByRepositoryIds(ids)) {
+            followerCounts.put((Long) row[0], (Long) row[1]);
+        }
+
+        Set<Long> likedIds = viewer != null
+                ? new HashSet<>(repositoryLikeRepository.findLikedRepositoryIds(viewer.getId(), ids))
+                : Collections.emptySet();
+
+        Set<Long> followedIds = viewer != null
+                ? new HashSet<>(repositoryFollowRepository.findFollowedRepositoryIds(viewer.getId(), ids))
+                : Collections.emptySet();
+
+        Map<Long, CollaboratorStatus> collabStatuses = new HashMap<>();
+        if (viewer != null) {
+            for (Object[] row : repositoryCollaboratorRepository.findStatusesByUserIdAndRepositoryIds(viewer.getId(), ids)) {
+                collabStatuses.put((Long) row[0], (CollaboratorStatus) row[1]);
+            }
+        }
+
+        return repositories.stream()
+                .map(repo -> {
+                    boolean isOwner = viewer != null
+                            && repo.getAuthor() != null
+                            && repo.getAuthor().getId().equals(viewer.getId());
+                    CollaboratorStatus status = collabStatuses.get(repo.getId());
+                    boolean isCollaborator = !isOwner && status == CollaboratorStatus.ACEPTADO;
+                    String collaboratorStatus = isOwner || status == null
+                            ? null
+                            : (status == CollaboratorStatus.ACEPTADO ? "aceptado" : "pendiente");
+                    boolean canUpload = isOwner || isCollaborator;
+
+                    return RepositoryResponseDto.fromEntity(
+                            repo,
+                            docCounts.getOrDefault(repo.getId(), 0),
+                            likedIds.contains(repo.getId()),
+                            followedIds.contains(repo.getId()),
+                            followerCounts.getOrDefault(repo.getId(), 0L),
+                            canUpload,
+                            isCollaborator,
+                            collaboratorStatus
+                    );
+                })
+                .toList();
     }
 
     private StudyRepository findRepoOrThrow(Long id) {
@@ -253,48 +330,6 @@ public class StudyRepositoryService {
     }
 
     private RepositoryResponseDto mapSingle(StudyRepository repo, User viewer) {
-        return mapList(List.of(repo), viewer).get(0);
-    }
-
-    private List<RepositoryResponseDto> mapList(List<StudyRepository> repositories, User viewer) {
-        if (repositories.isEmpty()) {
-            return List.of();
-        }
-
-        List<Long> ids = repositories.stream().map(StudyRepository::getId).toList();
-
-        Map<Long, Integer> docCounts = new HashMap<>();
-        for (Object[] row : resourceRepository.countByStudyRepositoryIds(ids)) {
-            docCounts.put((Long) row[0], ((Long) row[1]).intValue());
-        }
-
-        Map<Long, Long> followerCounts = new HashMap<>();
-        for (Object[] row : repositoryFollowRepository.countFollowersByRepositoryIds(ids)) {
-            followerCounts.put((Long) row[0], (Long) row[1]);
-        }
-
-        Set<Long> likedIds = viewer != null
-                ? new HashSet<>(repositoryLikeRepository.findLikedRepositoryIds(viewer.getId(), ids))
-                : Collections.emptySet();
-
-        Set<Long> followedIds = viewer != null
-                ? new HashSet<>(repositoryFollowRepository.findFollowedRepositoryIds(viewer.getId(), ids))
-                : Collections.emptySet();
-
-        return repositories.stream()
-                .map(repo -> {
-                    boolean canUpload = viewer != null
-                            && repo.getAuthor() != null
-                            && repo.getAuthor().getId().equals(viewer.getId());
-                    return RepositoryResponseDto.fromEntity(
-                            repo,
-                            docCounts.getOrDefault(repo.getId(), 0),
-                            likedIds.contains(repo.getId()),
-                            followedIds.contains(repo.getId()),
-                            followerCounts.getOrDefault(repo.getId(), 0L),
-                            canUpload
-                    );
-                })
-                .toList();
+        return mapRepositories(List.of(repo), viewer).get(0);
     }
 }

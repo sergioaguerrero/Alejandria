@@ -1,5 +1,6 @@
 package com.backend.service;
 
+import com.backend.cross.CollaboratorStatus;
 import com.backend.cross.ResourceStatus;
 import com.backend.cross.ResourceType;
 import com.backend.domain.identity.User;
@@ -9,6 +10,7 @@ import com.backend.domain.repos.Tag;
 import com.backend.dto.DocumentDto;
 import com.backend.dto.DocumentPageResponse;
 import com.backend.exception.AuthException;
+import com.backend.repository.RepositoryCollaboratorRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.TagRepository;
@@ -71,17 +73,23 @@ public class DocumentService {
     private final ResourceRepository resourceRepository;
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final TagRepository tagRepository;
+    private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     public DocumentService(
             ResourceRepository resourceRepository,
             StudyRepositoryRepository studyRepositoryRepository,
             TagRepository tagRepository,
+            RepositoryCollaboratorRepository repositoryCollaboratorRepository,
+            NotificationService notificationService,
             ObjectMapper objectMapper
     ) {
         this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.tagRepository = tagRepository;
+        this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
+        this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
 
@@ -106,11 +114,14 @@ public class DocumentService {
                         "El repositorio no existe o fue eliminado."
                 ));
 
-        if (repo.getAuthor() == null || !repo.getAuthor().getId().equals(author.getId())) {
+        boolean isOwner = repo.getAuthor() != null && repo.getAuthor().getId().equals(author.getId());
+        boolean isCollaborator = !isOwner && repositoryCollaboratorRepository
+                .existsByStudyRepositoryIdAndUserIdAndStatus(repo.getId(), author.getId(), CollaboratorStatus.ACEPTADO);
+        if (!isOwner && !isCollaborator) {
             throw new AuthException(
                     HttpStatus.FORBIDDEN,
                     "FORBIDDEN",
-                    "Solo el dueño del repositorio puede subir documentos."
+                    "Solo el dueño o un colaborador aceptado puede subir documentos."
             );
         }
 
@@ -145,6 +156,7 @@ public class DocumentService {
         resource.setTags(resolveTags(tagsJson));
 
         Resource saved = resourceRepository.save(resource);
+        notificationService.notifyFollowersOfNewContent(author, repo, saved);
         return toDto(saved, baseUrl);
     }
 

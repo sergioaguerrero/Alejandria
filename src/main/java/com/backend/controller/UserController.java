@@ -2,11 +2,13 @@ package com.backend.controller;
 
 import com.backend.domain.identity.User;
 import com.backend.dto.ChangePasswordRequest;
+import com.backend.dto.CollaborationsResponseDto;
 import com.backend.dto.PublicUserProfileDto;
 import com.backend.dto.SubjectDto;
 import com.backend.dto.UpdateProfileRequest;
 import com.backend.dto.UpdateSubjectsOfInterestRequest;
 import com.backend.dto.UserDto;
+import com.backend.service.CollaboratorService;
 import com.backend.service.JwtTokenService;
 import com.backend.service.UserProfileService;
 import org.springframework.http.HttpHeaders;
@@ -24,17 +26,23 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Expone los endpoints REST del perfil propio, perfil público, red de amigos y materias de interés.
+ * Expone los endpoints REST del perfil propio, perfil público, red de amigos, colaboraciones y materias.
  */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
     private final UserProfileService userProfileService;
+    private final CollaboratorService collaboratorService;
     private final JwtTokenService jwtTokenService;
 
-    public UserController(UserProfileService userProfileService, JwtTokenService jwtTokenService) {
+    public UserController(
+            UserProfileService userProfileService,
+            CollaboratorService collaboratorService,
+            JwtTokenService jwtTokenService
+    ) {
         this.userProfileService = userProfileService;
+        this.collaboratorService = collaboratorService;
         this.jwtTokenService = jwtTokenService;
     }
 
@@ -91,6 +99,13 @@ public class UserController {
         return ResponseEntity.ok(
                 userProfileService.updateSubjectsOfInterest(request.getSubjectIds(), resolveUser(authorization))
         );
+    }
+
+    @GetMapping("/me/collaborations")
+    public ResponseEntity<CollaborationsResponseDto> getMyCollaborations(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        return ResponseEntity.ok(collaboratorService.getMyCollaborations(resolveUser(authorization)));
     }
 
     @GetMapping
