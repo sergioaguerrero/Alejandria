@@ -19,13 +19,13 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class EmailServiceImplTest {
 
     @Test
-    void sendsHtmlAndTextOtpViaSmtpWhenConfigured() throws Exception {
+    void sendsHtmlAndTextOtpViaSmtpAndDerivesGmailFromAddress() throws Exception {
         MailProperties props = new MailProperties();
         props.setProvider("smtp");
-        props.setFrom("Alejandria UPC <noreply@unicesar.edu.co>");
+        // Mantiene el valor por defecto para verificar que toma spring.mail.username automáticamente
 
         List<MimeMessage> sentMessages = new ArrayList<>();
-        JavaMailSender recordingMailSender = new JavaMailSenderImpl() {
+        JavaMailSenderImpl recordingMailSender = new JavaMailSenderImpl() {
             @Override
             public MimeMessage createMimeMessage() {
                 return new MimeMessage(Session.getInstance(new Properties()));
@@ -36,6 +36,8 @@ class EmailServiceImplTest {
                 sentMessages.add(mimeMessage);
             }
         };
+        recordingMailSender.setUsername("alejandria.test@gmail.com");
+        recordingMailSender.setPassword("abcd efgh ijkl mnop");
 
         EmailServiceImpl emailService = new EmailServiceImpl(props, providerOf(recordingMailSender));
         emailService.sendVerificationCodeEmail("estudiante@unicesar.edu.co", "Sergio", "482913", 15);
@@ -43,6 +45,7 @@ class EmailServiceImplTest {
         assertThat(sentMessages).hasSize(1);
         MimeMessage sent = sentMessages.get(0);
         assertThat(sent.getSubject()).contains("confirmación");
+        assertThat(sent.getFrom()[0].toString()).contains("alejandria.test@gmail.com");
         assertThat(sent.getAllRecipients()[0].toString()).isEqualTo("estudiante@unicesar.edu.co");
     }
 

@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.util.Map;
 public class EmailServiceImpl implements EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailServiceImpl.class);
+    private static final String DEFAULT_LOCAL_FROM_SUFFIX = "@alejandria.local>";
 
     private final MailProperties mailProperties;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
@@ -82,9 +84,23 @@ public class EmailServiceImpl implements EmailService {
             );
         }
 
+        String fromAddress = mailProperties.getFrom();
+        if (mailSender instanceof JavaMailSenderImpl impl) {
+            String smtpUser = impl.getUsername();
+            String smtpPass = impl.getPassword();
+            if (smtpUser == null || smtpUser.isBlank() || smtpPass == null || smtpPass.isBlank()) {
+                throw new IllegalStateException(
+                        "Falta configurar spring.mail.username y spring.mail.password (App Password de Gmail) en application-local.properties."
+                );
+            }
+            if (fromAddress == null || fromAddress.isBlank() || fromAddress.endsWith(DEFAULT_LOCAL_FROM_SUFFIX)) {
+                fromAddress = "Alejandría UPC <" + smtpUser.trim() + ">";
+            }
+        }
+
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-        helper.setFrom(mailProperties.getFrom());
+        helper.setFrom(fromAddress);
         helper.setTo(toEmail);
         helper.setSubject(subject);
         helper.setText(plainText, htmlBody);
