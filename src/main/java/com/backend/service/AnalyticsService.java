@@ -10,15 +10,20 @@ import com.backend.repository.DemandMetricRepository;
 import com.backend.repository.InteractionRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.LocalDateTime;
-import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class AnalyticsService {
@@ -43,12 +48,23 @@ public class AnalyticsService {
     @Transactional
     public void logInteraction(InteractionType type, Long userId, Long resourceId,
                                Long subjectId, String searchTerm) {
+        recordInteraction(type, userId, resourceId, subjectId, searchTerm);
+    }
+
+    /** Persiste una interacción de forma segura (acepta usuario, recurso o materia opcionales). */
+    @Transactional
+    public void recordInteraction(InteractionType type, Long userId, Long resourceId,
+                                  Long subjectId, String searchTerm) {
         try {
+            String cleanSearch = (searchTerm == null || searchTerm.isBlank()) ? null : searchTerm.trim();
+            if (cleanSearch != null && cleanSearch.length() > 200) {
+                cleanSearch = cleanSearch.substring(0, 200);
+            }
             Interaction interaction = new Interaction(
                     type,
-                    searchTerm,
-                    anonymize(userId),
-                    em.getReference(User.class, userId),
+                    cleanSearch,
+                    userId == null ? "anon" : anonymize(userId),
+                    userId == null ? null : em.getReference(User.class, userId),
                     resourceId == null ? null : em.getReference(Resource.class, resourceId),
                     subjectId == null ? null : em.getReference(Subject.class, subjectId)
             );
@@ -63,7 +79,7 @@ public class AnalyticsService {
     @Transactional
     public List<DemandMetric> calculateMetrics(String academicPeriod,
                                                LocalDateTime from, LocalDateTime to) {
-        Map<Long, int[]> totals = new HashMap<>();   // [vistas, descargas, búsquedas]
+        Map<Long, int[]> totals = new HashMap<>();
 
         for (Object[] row : interactionRepository.countBySubjectAndType(from, to)) {
             Long subjectId = (Long) row[0];
@@ -81,7 +97,7 @@ public class AnalyticsService {
         List<DemandMetric> result = new ArrayList<>();
         for (Map.Entry<Long, int[]> e : totals.entrySet()) {
             int[] t = e.getValue();
-            double index = t[0] * 1.0 + t[1] * 2.0 + t[2] * 1.5;   // pesos de ejemplo
+            double index = t[0] * 1.0 + t[1] * 2.0 + t[2] * 1.5;
 
             DemandMetric metric = demandMetricRepository
                     .findBySubject_IdAndAcademicPeriod(e.getKey(), academicPeriod)
@@ -125,7 +141,7 @@ public class AnalyticsService {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest((salt + userId).getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);   // 64 caracteres
+            return HexFormat.of().formatHex(hash);
         } catch (Exception e) {
             throw new IllegalStateException("No se pudo anonimizar el id", e);
         }

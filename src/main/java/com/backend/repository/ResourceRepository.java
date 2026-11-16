@@ -91,6 +91,14 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
             """)
     List<Resource> findByAuthorUsernameWithDetails(@Param("username") String username);
 
+    @Query("""
+            SELECT r.id, r.title, r.type, r.topic, r.totalViews, r.totalDownloads, r.uploadDate, r.uploadedBy.id, s.name
+            FROM Resource r
+            JOIN r.subject s
+            WHERE r.status = com.backend.cross.ResourceStatus.PUBLISHED
+            """)
+    List<Object[]> findPublishedStatisticsRows();
+
     @Override
     @EntityGraph(attributePaths = {"subject", "subject.semester", "uploadedBy", "studyRepository", "tags"})
     Page<Resource> findAll(Specification<Resource> spec, Pageable pageable);

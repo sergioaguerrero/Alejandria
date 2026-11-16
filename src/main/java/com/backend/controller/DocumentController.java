@@ -1,9 +1,11 @@
 package com.backend.controller;
 
+import com.backend.cross.InteractionType;
 import com.backend.domain.identity.User;
 import com.backend.domain.repos.Resource;
 import com.backend.dto.DocumentDto;
 import com.backend.dto.DocumentPageResponse;
+import com.backend.service.AnalyticsService;
 import com.backend.service.DocumentService;
 import com.backend.service.JwtTokenService;
 import org.springframework.http.ContentDisposition;
@@ -36,10 +38,16 @@ import java.util.List;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final AnalyticsService analyticsService;
     private final JwtTokenService jwtTokenService;
 
-    public DocumentController(DocumentService documentService, JwtTokenService jwtTokenService) {
+    public DocumentController(
+            DocumentService documentService,
+            AnalyticsService analyticsService,
+            JwtTokenService jwtTokenService
+    ) {
         this.documentService = documentService;
+        this.analyticsService = analyticsService;
         this.jwtTokenService = jwtTokenService;
     }
 
@@ -90,9 +98,20 @@ public class DocumentController {
             @RequestParam(required = false) String topic,
             @RequestParam(defaultValue = "recent") String order,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "8") int size
+            @RequestParam(defaultValue = "8") int size,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
         String effectiveQuery = (q != null && !q.isBlank()) ? q : search;
+        User viewer = resolveUser(authorization);
+        if (effectiveQuery != null && !effectiveQuery.isBlank()) {
+            analyticsService.recordInteraction(
+                    InteractionType.SEARCH,
+                    viewer != null ? viewer.getId() : null,
+                    null,
+                    subjectId,
+                    effectiveQuery
+            );
+        }
         return ResponseEntity.ok(documentService.search(
                 effectiveQuery,
                 subjectId,
@@ -113,8 +132,21 @@ public class DocumentController {
     }
 
     @GetMapping("/documents/{id}")
-    public ResponseEntity<DocumentDto> getDocument(@PathVariable Long id) {
-        return ResponseEntity.ok(documentService.getDetailAndIncrementView(id, currentBaseUrl()));
+    public ResponseEntity<DocumentDto> getDocument(
+            @PathVariable Long id,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User viewer = resolveUser(authorization);
+        DocumentDto dto = documentService.getDetailAndIncrementView(id, currentBaseUrl());
+        Long subjectId = dto.getSubject() != null ? dto.getSubject().getId() : null;
+        analyticsService.recordInteraction(
+                InteractionType.VIEW,
+                viewer != null ? viewer.getId() : null,
+                id,
+                subjectId,
+                null
+        );
+        return ResponseEntity.ok(dto);
     }
 
     @PutMapping(value = "/documents/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -153,8 +185,19 @@ public class DocumentController {
     }
 
     @GetMapping("/documents/{id}/download")
-    public ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
+    public ResponseEntity<byte[]> downloadDocument(
+            @PathVariable Long id,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        User viewer = resolveUser(authorization);
         Resource resource = documentService.getFileResource(id, true);
+        analyticsService.recordInteraction(
+                InteractionType.DOWNLOAD,
+                viewer != null ? viewer.getId() : null,
+                id,
+                resource.getSubject() != null ? resource.getSubject().getId() : null,
+                null
+        );
         return buildFileResponse(resource, false);
     }
 

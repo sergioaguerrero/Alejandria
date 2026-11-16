@@ -354,7 +354,7 @@ export async function getGlobalStatistics() {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get('/api/admin/statistics');
+    const { data } = await http.get('/admin/statistics');
     return data;
   }
 
