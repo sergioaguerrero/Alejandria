@@ -4,7 +4,7 @@
  *
  * Structure:
  *   - Private routes: go through <ProtectedRoute /> and then <AppLayout />.
- *   - Public routes: go through <AuthLayout /> (login, register, recovery).
+ *   - Public routes: go through <AuthLayout /> (login, register, verification, recovery).
  *   - Any other route falls into view 26 (404).
  *
  * Admin routes will be protected with roles={['admin']} when
@@ -18,6 +18,7 @@ import AuthLayout from './components/layout/AuthLayout.jsx';
 import AuthProvider from './context/AuthProvider.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
+import VerifyEmailPage from './pages/auth/VerifyEmailPage.jsx';
 import RecoverPasswordPage from './pages/auth/RecoverPasswordPage.jsx';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage.jsx';
 import ErrorPage from './pages/error/ErrorPage.jsx';
@@ -57,6 +58,7 @@ export default function App() {
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/recover" element={<RecoverPasswordPage />} />
             <Route path="/forgot-password" element={<RecoverPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

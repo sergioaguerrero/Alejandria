@@ -2,9 +2,11 @@ package com.backend.domain.identity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Entity
-@Table(name = "USER")
+@Table(name = "APP_USER")
 public class User {
 
     @Id
@@ -17,7 +19,7 @@ public class User {
     @Column(nullable = false, length = 150)
     private String first_name;
 
-    @Column(nullable = false, length = 150)
+    @Column(length = 150)
     private String second_name;
 
     @Column(nullable = false, length = 150)
@@ -38,13 +40,18 @@ public class User {
     @Column(name = "registration_date", nullable = false)
     private LocalDateTime registrationDate;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @Column
+    private Integer semester;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private Role role;
 
-    protected User (){}
+    protected User() {}
 
-    public User(String username, String first_name, String second_name, String first_lastname, String second_lastname, String institutionalEmail, String passwordHash, boolean verified, LocalDateTime registrationDate) {
+    public User(String username, String first_name, String second_name, String first_lastname,
+                String second_lastname, String institutionalEmail, String passwordHash,
+                boolean verified, LocalDateTime registrationDate) {
         this.username = username;
         this.first_name = first_name;
         this.second_name = second_name;
@@ -52,47 +59,61 @@ public class User {
         this.second_lastname = second_lastname;
         this.institutionalEmail = institutionalEmail;
         this.passwordHash = passwordHash;
-        this.verified = false;
-        this.registrationDate = LocalDateTime.now();
+        this.verified = verified;
+        this.registrationDate = registrationDate != null ? registrationDate : LocalDateTime.now();
     }
 
-    public Long getId() {return id;}
+    @PrePersist
+    public void prePersist() {
+        if (this.registrationDate == null) {
+            this.registrationDate = LocalDateTime.now();
+        }
+    }
 
-    public String getUsername() {return username;}
+    public Long getId() { return id; }
 
-    public void setUsername(String username) {this.username = username;}
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public String getFirst_name() {return first_name;}
+    public String getFirst_name() { return first_name; }
+    public void setFirst_name(String first_name) { this.first_name = first_name; }
 
-    public void setFirst_name(String first_name) {this.first_name = first_name;}
+    public String getSecond_name() { return second_name; }
+    public void setSecond_name(String second_name) { this.second_name = second_name; }
 
-    public String getSecond_name() {return second_name;}
+    public String getFirst_lastname() { return first_lastname; }
+    public void setFirst_lastname(String first_lastname) { this.first_lastname = first_lastname; }
 
-    public void setSecond_name(String second_name) {this.second_name = second_name;}
+    public String getSecond_lastname() { return second_lastname; }
+    public void setSecond_lastname(String second_lastname) { this.second_lastname = second_lastname; }
 
-    public String getFirst_lastname() {return first_lastname;}
+    public String getInstitutionalEmail() { return institutionalEmail; }
+    public void setInstitutionalEmail(String institutionalEmail) { this.institutionalEmail = institutionalEmail; }
 
-    public void setFirst_lastname(String first_lastname) {this.first_lastname = first_lastname;}
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
-    public String getSecond_lastname() {return second_lastname;}
+    public boolean isVerified() { return verified; }
+    public void setVerified(boolean verified) { this.verified = verified; }
 
-    public void setSecond_lastname(String second_lastname) {this.second_lastname = second_lastname;}
+    public LocalDateTime getRegistrationDate() { return registrationDate; }
+    public void setRegistrationDate(LocalDateTime registrationDate) { this.registrationDate = registrationDate; }
 
-    public String getInstitutionalEmail() {return institutionalEmail;}
+    public Integer getSemester() { return semester; }
+    public void setSemester(Integer semester) { this.semester = semester; }
 
-    public void setInstitutionalEmail(String institutionalEmail) {this.institutionalEmail = institutionalEmail;}
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
-    public String getPasswordHash() {return passwordHash;}
+    @Transient
+    public String getName() {
+        return Stream.of(first_name, second_name, first_lastname, second_lastname)
+                .filter(s -> s != null && !s.isBlank())
+                .collect(Collectors.joining(" "));
+    }
 
-    public void setPasswordHash(String passwordHash) {this.passwordHash = passwordHash;}
-
-    public boolean isVerified() {return verified;}
-
-    public void setVerified(boolean verified) {this.verified = verified;}
-
-    public LocalDateTime getRegistrationDate() {return registrationDate;}
-
-    public Role getRole() {return role;}
-
-    public void setRole(Role role) {this.role = role;}
+    @Transient
+    public String getEmail() {
+        return institutionalEmail;
+    }
 }

@@ -1,5 +1,6 @@
 package com.backend.repository;
 
+import com.backend.cross.ReportStatus;
 import com.backend.domain.governance.Report;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -9,5 +10,5 @@ import java.util.List;
 @Repository
 public interface ReportRepository extends JpaRepository<Report, Long> {
 
-    List<Report> findByRevisionStatus(String revisionStatus);
+    List<Report> findByStatus(ReportStatus status);
 }

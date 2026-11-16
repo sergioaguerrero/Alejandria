@@ -13,13 +13,17 @@ export class ApiError extends Error {
    * @param {object} [options]
    * @param {number} [options.status=0]  HTTP code (0 if there was no connection).
    * @param {Record<string, string>|null} [options.fields=null]  Errors per form field.
+   * @param {string|null} [options.code=null]  Machine-readable error code.
+   * @param {Record<string, unknown>|null} [options.meta=null]  Extra metadata from the API.
    * @param {unknown} [options.cause=null]  Original error, for debugging.
    */
-  constructor(message, { status = 0, fields = null, cause = null } = {}) {
+  constructor(message, { status = 0, fields = null, code = null, meta = null, cause = null } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.fields = fields;
+    this.code = code;
+    this.meta = meta;
     this.cause = cause;
   }
 }
@@ -44,6 +48,8 @@ function messageByStatus(status) {
       return 'Ya existe un registro con esos datos.';
     case 413:
       return 'El archivo es demasiado grande.';
+    case 429:
+      return 'Demasiados intentos. Espera un momento e intenta de nuevo.';
     case 500:
       return 'Ocurrió un error en el servidor. Intenta de nuevo.';
     default:
@@ -68,7 +74,13 @@ export function normalizeError(error) {
     const data = response.data ?? {};
     return new ApiError(
       data.message ?? messageByStatus(response.status),
-      { status: response.status, fields: data.fields ?? null, cause: error },
+      {
+        status: response.status,
+        fields: data.fields ?? null,
+        code: data.code ?? null,
+        meta: data.meta ?? null,
+        cause: error,
+      },
     );
   }
 

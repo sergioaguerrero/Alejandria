@@ -8,6 +8,7 @@
  *  - Live indicator of the password rules.
  *  - The terms checkbox is required: without it the button stays disabled.
  *  - Errors for existing email or username come from the API.
+ *  - On success, redirects to /verify-email to confirm the 6-digit OTP code.
  */
 
 import { useState } from 'react';
@@ -191,7 +192,7 @@ export default function RegisterPage() {
     try {
       setIsSubmitting(true);
 
-      await register({
+      const result = await register({
         first_name: values.first_name.trim(),
         second_name: values.second_name.trim(),
         first_lastname: values.first_lastname.trim(),
@@ -201,6 +202,19 @@ export default function RegisterPage() {
         password: values.password,
         semester: values.semester === '' ? null : Number(values.semester),
       });
+
+      if (result?.requiresVerification) {
+        navigate('/verify-email', {
+          replace: true,
+          state: {
+            email: values.email.trim().toLowerCase(),
+            notice: result.message,
+            resendCooldownSeconds: result.resendCooldownSeconds ?? 60,
+            testCode: result.testCode ?? null,
+          },
+        });
+        return;
+      }
 
       navigate('/', { replace: true });
     } catch (error) {

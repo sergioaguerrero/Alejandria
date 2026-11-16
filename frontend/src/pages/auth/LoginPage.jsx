@@ -8,7 +8,7 @@
  *  - Validate the identifier: if it looks like an email, only the
  *    @unicesar.edu.co domain is accepted; otherwise it must be a username.
  *  - An Alert with "Credenciales incorrectas" on 401, and a different
- *    message if the account is suspended (both come from the service).
+ *    message if the account is suspended or unverified (both come from the service).
  *  - On success, save the session and redirect: student to Home,
  *    admin to the reports inbox.
  *  - Links to Register (view 2) and Recover password (view 3).
@@ -80,6 +80,7 @@ export default function LoginPage() {
   const [values, setValues] = useState(INITIAL_VALUES);
   const [touched, setTouched] = useState(/** @type {Record<string, boolean>} */ ({}));
   const [generalError, setGeneralError] = useState('');
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validationErrors = validate(values);
@@ -109,6 +110,7 @@ export default function LoginPage() {
     const { value } = event.target;
     setValues((previous) => ({ ...previous, [field]: value }));
     setGeneralError('');
+    setUnverifiedEmail('');
   };
 
   /** Marks the field as touched on blur, to show its errors. */
@@ -118,6 +120,7 @@ export default function LoginPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setGeneralError('');
+    setUnverifiedEmail('');
 
     // On submit all field errors are shown.
     setTouched(Object.fromEntries(FIELDS.map((field) => [field, true])));
@@ -135,11 +138,15 @@ export default function LoginPage() {
       });
 
       // Back to the guarded route that sent us here, or Home.
-      // TODO(FE-22): admins should land on the reports inbox (view 22,
-      // /admin/reports) once that view and its route exist.
       const fallback = session?.user?.role === 'admin' ? '/admin/reports' : '/';
       navigate(location.state?.from ?? fallback, { replace: true });
     } catch (error) {
+      if (error?.code === 'EMAIL_NOT_VERIFIED') {
+        const fallbackEmail = values.identifier.includes('@')
+          ? values.identifier.trim().toLowerCase()
+          : '';
+        setUnverifiedEmail(String(error?.meta?.email ?? fallbackEmail));
+      }
       setGeneralError(error?.message ?? 'No se pudo iniciar sesión. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
@@ -162,7 +169,31 @@ export default function LoginPage() {
           <Alert severity="success">{location.state.notice}</Alert>
         )}
 
-        {generalError && <Alert severity="error">{generalError}</Alert>}
+        {generalError && (
+          <Alert
+            severity={unverifiedEmail ? 'warning' : 'error'}
+            action={
+              unverifiedEmail ? (
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() =>
+                    navigate('/verify-email', {
+                      state: {
+                        email: unverifiedEmail,
+                        resendCooldownSeconds: 0,
+                      },
+                    })
+                  }
+                >
+                  Verificar correo
+                </Button>
+              ) : null
+            }
+          >
+            {generalError}
+          </Alert>
+        )}
 
         <TextField
           label="Usuario o correo"

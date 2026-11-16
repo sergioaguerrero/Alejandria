@@ -62,6 +62,8 @@ function createInitialState() {
     interactions: /** @type {object[]} */ ([]),
     /** Password reset tokens generated in mock mode (FE-08, BE-10). */
     resetTokens: new Map(),
+    /** Email verification OTP codes generated in mock mode. */
+    verificationCodes: new Map(),
     /** AI-generated quizzes (FE-20, FE-21, FE-22, BE-35, BE-36). */
     quizzes: clone(QUIZZES),
     /** AI-generated summaries, study guides, and presentation slides (FE-34, BE-37). */

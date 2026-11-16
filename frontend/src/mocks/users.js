@@ -19,6 +19,7 @@
  * @property {number|null} semester
  * @property {'estudiante'|'admin'} role
  * @property {string} password        Only in the mock.
+ * @property {boolean} verified
  * @property {boolean} suspended
  */
 
@@ -32,6 +33,7 @@ export const USERS = [
     semester: 4,
     role: 'estudiante',
     password: 'Alejandria1',
+    verified: true,
     suspended: false,
   },
   {
@@ -42,6 +44,7 @@ export const USERS = [
     semester: 4,
     role: 'estudiante',
     password: 'Alejandria1',
+    verified: true,
     suspended: false,
   },
   {
@@ -52,6 +55,7 @@ export const USERS = [
     semester: 3,
     role: 'estudiante',
     password: 'Alejandria1',
+    verified: true,
     suspended: false,
   },
   {
@@ -62,6 +66,7 @@ export const USERS = [
     semester: 5,
     role: 'estudiante',
     password: 'Alejandria1',
+    verified: true,
     suspended: false,
   },
   {
@@ -72,6 +77,7 @@ export const USERS = [
     semester: 2,
     role: 'estudiante',
     password: 'Alejandria1',
+    verified: true,
     suspended: false,
   },
   {
@@ -82,6 +88,7 @@ export const USERS = [
     semester: 6,
     role: 'estudiante',
     password: 'Alejandria1',
+    verified: true,
     suspended: false,
   },
   {
@@ -92,6 +99,7 @@ export const USERS = [
     semester: null,
     role: 'admin',
     password: 'Admin1234',
+    verified: true,
     suspended: false,
   },
 ];

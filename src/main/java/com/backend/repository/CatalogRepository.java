@@ -14,6 +14,6 @@ public interface CatalogRepository extends JpaRepository<Subject, Long> {
     @Query("SELECT m FROM Subject m ORDER BY m.name")
     List<Subject> findAllSubject();
 
-    @Query("SELECT m FROM Materia m WHERE m.semester.id = :semesterId ORDER BY m.name")
+    @Query("SELECT m FROM Subject m WHERE m.semester.id = :semesterId ORDER BY m.name")
     List<Subject> findSubjectBySemester(@Param("semesterId") Long semesterId);
 }

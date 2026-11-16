@@ -16,6 +16,8 @@ export { default as http } from './http.js';
 export {
   login,
   register,
+  verifyEmail,
+  resendVerificationCode,
   logout,
   saveSession,
   getCurrentSession,

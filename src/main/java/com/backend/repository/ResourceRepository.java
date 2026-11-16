@@ -1,5 +1,6 @@
 package com.backend.repository;
 
+import com.backend.cross.ResourceType;
 import com.backend.domain.repos.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ResourceRepository extends JpaRepository<Resource, Long> {
 
-    Page<Resource> findByMateriaId(Long materiaId, Pageable pageable);
+    Page<Resource> findBySubjectId(Long subjectId, Pageable pageable);
 
     // Los filtros son opcionales: si llegan null, no se aplican.
     @Query("""
@@ -23,7 +24,7 @@ public interface ResourceRepository extends JpaRepository<Resource, Long> {
               AND (:type IS NULL OR r.type = :type)
             """)
     Page<Resource> searchByTextAndFilters(@Param("text") String text,
-                                          @Param("SubjectId") Long SubjectId,
-                                          @Param("type") String type,
+                                          @Param("subjectId") Long subjectId,
+                                          @Param("type") ResourceType type,
                                           Pageable pageable);
 }
