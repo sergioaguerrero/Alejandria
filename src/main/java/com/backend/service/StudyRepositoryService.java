@@ -19,6 +19,7 @@ import com.backend.repository.StudyRepositoryRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -89,12 +91,8 @@ public class StudyRepositoryService {
         String normalizedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         Integer normalizedSemester = (semester != null && semester > 0) ? semester : null;
 
-        Page<StudyRepository> result = studyRepositoryRepository.findWithFilters(
-                subjectId,
-                normalizedSemester,
-                normalizedSearch,
-                pageRequest
-        );
+        Specification<StudyRepository> spec = buildFilterSpec(subjectId, normalizedSemester, normalizedSearch);
+        Page<StudyRepository> result = studyRepositoryRepository.findAll(spec, pageRequest);
 
         List<RepositoryResponseDto> items = mapList(result.getContent(), viewer);
         return new RepositoryPageResponse(
@@ -225,6 +223,30 @@ public class StudyRepositoryService {
         if (repo.getAuthor() == null || !repo.getAuthor().getId().equals(user.getId())) {
             throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", message);
         }
+    }
+
+    private Specification<StudyRepository> buildFilterSpec(Long subjectId, Integer semester, String search) {
+        Specification<StudyRepository> spec = Specification.where(null);
+
+        if (subjectId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("subject").get("id"), subjectId));
+        }
+        if (semester != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("subject").get("semester").get("number"), semester));
+        }
+        if (search != null) {
+            String escaped = search.toLowerCase(Locale.ROOT)
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_");
+            String pattern = "%" + escaped + "%";
+            spec = spec.and((root, query, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("name")), pattern, '\\'),
+                    cb.like(cb.lower(root.get("description")), pattern, '\\'),
+                    cb.like(cb.lower(root.get("subject").get("name")), pattern, '\\')
+            ));
+        }
+        return spec;
     }
 
     private Sort resolveSort(String order) {
