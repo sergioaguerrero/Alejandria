@@ -3,14 +3,14 @@ package com.backend.domain.academy;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "FACULTY")
+@Table(name = "FACULTAD")
 public class Faculty {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "nombre", nullable = false, length = 150)
     private String name;
 
     protected Faculty() {}   // requerido por JPA

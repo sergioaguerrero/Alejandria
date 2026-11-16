@@ -8,7 +8,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "INTERACTION")
+@Table(name = "INTERACCION")
 public class Interaction {
 
     @Id
@@ -16,28 +16,28 @@ public class Interaction {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "interaction_type", nullable = false, length = 20)
+    @Column(name = "tipo_interaccion", nullable = false, length = 20)
     private InteractionType type;
 
-    @Column(name = "interaction_date", nullable = false)
+    @Column(name = "fecha_interaccion", nullable = false)
     private LocalDateTime date;
 
-    @Column(name = "search_term", length = 200)
+    @Column(name = "termino_busqueda", length = 200)
     private String searchTerm;
 
-    @Column(name = "anonymous_user_id", nullable = false, length = 64)
+    @Column(name = "usuario_anonimo_id", nullable = false, length = 64)
     private String anonymousUserId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "usuario_id")
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "resource_id")
+    @JoinColumn(name = "recurso_id")
     private Resource resource;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subject_id")
+    @JoinColumn(name = "materia_id")
     private Subject subject;
 
     protected Interaction() {}

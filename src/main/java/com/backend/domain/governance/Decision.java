@@ -14,21 +14,21 @@ public class Decision {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "moderation_action", nullable = false, length = 30)
+    @Column(name = "accion_moderacion", nullable = false, length = 30)
     private ModerationAction action;
 
-    @Column(nullable = false, length = 1000)
+    @Column(name = "justificacion", nullable = false, length = 1000)
     private String justification;
 
-    @Column(name = "decision_date", nullable = false)
+    @Column(name = "fecha_decision", nullable = false)
     private LocalDateTime date;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "report_id", unique = true)
+    @JoinColumn(name = "reporte_id", unique = true)
     private Report report;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "moderator_id")
+    @JoinColumn(name = "moderador_id")
     private User moderator;
 
     protected Decision() {}

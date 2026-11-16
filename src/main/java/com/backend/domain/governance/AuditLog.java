@@ -5,30 +5,30 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "AUDIT_LOG")
+@Table(name = "REGISTRO_AUDITORIA")
 public class AuditLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "action_name", nullable = false, length = 100)
+    @Column(name = "nombre_accion", nullable = false, length = 100)
     private String action;
 
-    @Column(name = "entity_name", nullable = false, length = 100)
+    @Column(name = "nombre_entidad", nullable = false, length = 100)
     private String entity;
 
-    @Column(name = "entity_id")
+    @Column(name = "entidad_id")
     private Long entityId;
 
-    @Column(name = "event_date", nullable = false)
+    @Column(name = "fecha_evento", nullable = false)
     private LocalDateTime date;
 
-    @Column(name = "origin_ip", length = 45)
+    @Column(name = "ip_origen", length = 45)
     private String originIp;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "usuario_id")
     private User user;
 
     protected AuditLog() {}

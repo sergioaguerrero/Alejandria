@@ -2,17 +2,17 @@ package com.backend.domain.academy;
 
 import jakarta.persistence.*;
 @Entity
-@Table(name = "PROGRAM")
+@Table(name = "PROGRAMA")
 public  class Program {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "nombre", nullable = false, length = 150)
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "faculty_id")
+    @JoinColumn(name = "facultad_id")
 
     private Faculty faculty;
     protected Program() {}
