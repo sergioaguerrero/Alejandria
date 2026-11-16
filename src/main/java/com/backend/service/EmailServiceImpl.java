@@ -93,8 +93,13 @@ public class EmailServiceImpl implements EmailService {
                         "Falta configurar spring.mail.username y spring.mail.password (App Password de Gmail) en application-local.properties."
                 );
             }
+            String normalizedUser = smtpUser.trim();
+            impl.setUsername(normalizedUser);
+            if (isGmailHost(impl.getHost())) {
+                impl.setPassword(smtpPass.replaceAll("\\s+", ""));
+            }
             if (fromAddress == null || fromAddress.isBlank() || fromAddress.endsWith(DEFAULT_LOCAL_FROM_SUFFIX)) {
-                fromAddress = "Alejandría UPC <" + smtpUser.trim() + ">";
+                fromAddress = "Alejandría UPC <" + normalizedUser + ">";
             }
         }
 
@@ -106,6 +111,14 @@ public class EmailServiceImpl implements EmailService {
         helper.setText(plainText, htmlBody);
         mailSender.send(message);
         log.info("Correo OTP enviado vía SMTP a {}", toEmail);
+    }
+
+    private boolean isGmailHost(String host) {
+        if (host == null) {
+            return false;
+        }
+        String normalized = host.trim().toLowerCase();
+        return normalized.equals("smtp.gmail.com") || normalized.equals("smtp.googlemail.com");
     }
 
     private void sendViaResend(String toEmail, String subject, String plainText, String htmlBody) {

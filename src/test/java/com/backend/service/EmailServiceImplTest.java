@@ -36,12 +36,14 @@ class EmailServiceImplTest {
                 sentMessages.add(mimeMessage);
             }
         };
+        recordingMailSender.setHost("smtp.gmail.com");
         recordingMailSender.setUsername("alejandria.test@gmail.com");
         recordingMailSender.setPassword("abcd efgh ijkl mnop");
 
         EmailServiceImpl emailService = new EmailServiceImpl(props, providerOf(recordingMailSender));
         emailService.sendVerificationCodeEmail("estudiante@unicesar.edu.co", "Sergio", "482913", 15);
 
+        assertThat(recordingMailSender.getPassword()).isEqualTo("abcdefghijklmnop");
         assertThat(sentMessages).hasSize(1);
         MimeMessage sent = sentMessages.get(0);
         assertThat(sent.getSubject()).contains("confirmación");
