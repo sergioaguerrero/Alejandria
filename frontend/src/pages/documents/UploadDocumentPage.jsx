@@ -26,7 +26,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 import DocumentForm from '../../components/forms/DocumentForm.jsx';
 import { useAuth } from '../../context/authContext.js';
-import { getRepository, uploadDocument } from '../../services/index.js';
+import { getRepository, listSubjectTopics, uploadDocument } from '../../services/index.js';
 
 export default function UploadDocumentPage() {
   const { id } = useParams();
@@ -37,6 +37,7 @@ export default function UploadDocumentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(/** @type {number|null} */ (null));
+  const [topicSuggestions, setTopicSuggestions] = useState(/** @type {string[]} */ ([]));
 
   // Loads the repository. The loading flag starts as true and the state is only
   // touched from the asynchronous callbacks.
@@ -45,7 +46,14 @@ export default function UploadDocumentPage() {
 
     getRepository(id)
       .then((loadedRepository) => {
-        if (active) setRepository(loadedRepository);
+        if (!active) return;
+        setRepository(loadedRepository);
+        const subjectId = loadedRepository?.subject?.id ?? loadedRepository?.subjectId;
+        listSubjectTopics(subjectId)
+          .then((topics) => {
+            if (active) setTopicSuggestions(topics);
+          })
+          .catch(() => {});
       })
       .catch((serviceError) => {
         if (active) setError(serviceError?.message ?? 'No se pudo cargar el repositorio.');
@@ -81,7 +89,10 @@ export default function UploadDocumentPage() {
     setProgress(0);
 
     try {
-      const document = await uploadDocument({ ...data, repositoryId: id }, setProgress);
+      const document = await uploadDocument(
+        { ...data, repositoryId: id, subjectId: repository?.subject?.id ?? repository?.subjectId },
+        setProgress,
+      );
       setProgress(null);
       // TODO(FE-16): the document detail (view 10) lands in Sprint 1.
       navigate(`/documents/${document.id}`);
@@ -164,7 +175,12 @@ export default function UploadDocumentPage() {
 
       <Card>
         <CardContent>
-          <DocumentForm progress={progress} onSubmit={handleSubmit} />
+          <DocumentForm
+            subjectId={subject?.id ?? repository.subjectId}
+            topicSuggestions={topicSuggestions}
+            progress={progress}
+            onSubmit={handleSubmit}
+          />
         </CardContent>
       </Card>
     </Box>

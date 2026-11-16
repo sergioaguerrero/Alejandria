@@ -10,6 +10,7 @@ import { store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
 import { REPORT_REASONS } from '../mocks/catalogs.js';
 import { AI_CONTENT_TYPES, getAiContentMeta } from '../utils/aiContentMeta.js';
+import { aggregateTopTopics } from '../utils/topics.js';
 
 /**
  * Gets personal statistics for the logged-in user.
@@ -350,16 +351,7 @@ export async function getGlobalStatistics() {
     .sort((a, b) => b.vistas - a.vistas)
     .slice(0, 5);
 
-  const topicCounts = new Map();
-  for (const doc of store.documents) {
-    if (doc.topic) {
-      topicCounts.set(doc.topic, (topicCounts.get(doc.topic) || 0) + 1);
-    }
-  }
-  const topTopics = Array.from(topicCounts.entries())
-    .map(([tema, documentos]) => ({ tema, documentos }))
-    .sort((a, b) => b.documentos - a.documentos)
-    .slice(0, 5);
+  const topTopics = aggregateTopTopics(store.documents, 5);
 
   const semesterMap = new Map();
   for (let s = 1; s <= 10; s += 1) {
