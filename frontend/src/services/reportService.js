@@ -130,7 +130,7 @@ export async function getReports(filters = {}) {
     return JSON.parse(JSON.stringify(result));
   }
 
-  const response = await http.get('/api/admin/reports', { params: filters });
+  const response = await http.get('/admin/reports', { params: filters });
   return response.data;
 }
 
@@ -192,7 +192,7 @@ export async function getReportById(id) {
     };
   }
 
-  const response = await http.get(`/api/admin/reports/${encodeURIComponent(id)}`);
+  const response = await http.get(`/admin/reports/${encodeURIComponent(id)}`);
   return response.data;
 }
 
@@ -286,7 +286,7 @@ export async function resolveReport(id, { action, note = '' }) {
     return { ...report };
   }
 
-  const response = await http.post(`/api/admin/reports/${encodeURIComponent(id)}/resolve`, {
+  const response = await http.post(`/admin/reports/${encodeURIComponent(id)}/resolve`, {
     action,
     note,
   });

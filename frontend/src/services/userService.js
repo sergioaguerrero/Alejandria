@@ -135,7 +135,7 @@ export async function getAdminUser(userId) {
     };
   }
 
-  const response = await http.get(`/api/admin/users/${encodeURIComponent(userId)}`);
+  const response = await http.get(`/admin/users/${encodeURIComponent(userId)}`);
   return response.data;
 }
 
@@ -196,7 +196,7 @@ export async function toggleUserSuspension(userId, { reason = '' } = {}) {
     };
   }
 
-  const response = await http.post(`/api/admin/users/${encodeURIComponent(userId)}/toggle-suspension`, {
+  const response = await http.post(`/admin/users/${encodeURIComponent(userId)}/toggle-suspension`, {
     reason,
   });
   return response.data;
