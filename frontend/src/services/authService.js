@@ -652,7 +652,7 @@ export async function requestPasswordReset(email) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post('/api/auth/recover', { email: cleanEmail });
+    const { data } = await http.post('/auth/recover', { email: cleanEmail });
     return data;
   }
 
@@ -702,7 +702,7 @@ export async function resetPassword({ token, newPassword }) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.post('/api/auth/reset', {
+    const { data } = await http.post('/auth/reset', {
       token: cleanToken,
       newPassword: cleanPassword,
     });
