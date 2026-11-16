@@ -2,7 +2,9 @@ package com.backend.service;
 
 import com.backend.config.MailProperties;
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -47,7 +49,7 @@ public class EmailServiceImpl implements EmailService {
                 : mailProperties.getProvider().trim().toLowerCase();
 
         String safeName = (recipientName == null || recipientName.isBlank()) ? "estudiante" : recipientName.trim();
-        String subject = "Tu código de confirmación — Alejandría UPC";
+        String subject = "Código de verificación — Alejandría";
         String plainText = buildPlainText(safeName, code, expirationMinutes);
         String htmlBody = buildHtmlBody(safeName, code, expirationMinutes);
 
@@ -99,16 +101,28 @@ public class EmailServiceImpl implements EmailService {
                 impl.setPassword(smtpPass.replaceAll("\\s+", ""));
             }
             if (fromAddress == null || fromAddress.isBlank() || fromAddress.endsWith(DEFAULT_LOCAL_FROM_SUFFIX)) {
-                fromAddress = "Alejandría UPC <" + normalizedUser + ">";
+                fromAddress = "Alejandria <" + normalizedUser + ">";
             }
         }
 
         MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+        MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
         helper.setFrom(fromAddress);
         helper.setTo(toEmail);
         helper.setSubject(subject);
-        helper.setText(plainText, htmlBody);
+
+        MimeBodyPart textPart = new MimeBodyPart();
+        textPart.setText(plainText, StandardCharsets.UTF_8.name());
+
+        MimeBodyPart htmlPart = new MimeBodyPart();
+        htmlPart.setContent(htmlBody, "text/html; charset=UTF-8");
+
+        MimeMultipart alternative = new MimeMultipart("alternative");
+        alternative.addBodyPart(textPart);
+        alternative.addBodyPart(htmlPart);
+        message.setContent(alternative);
+        message.saveChanges();
+
         mailSender.send(message);
         log.info("Correo OTP enviado vía SMTP a {}", toEmail);
     }
@@ -150,11 +164,9 @@ public class EmailServiceImpl implements EmailService {
         return """
                 Hola %s,
 
-                Usa este código para confirmar tu correo institucional en Alejandría UPC:
+                Tu código para completar el registro en Alejandría es: %s
 
-                %s
-
-                Este código expira en %d minutos y admite un máximo de 5 intentos.
+                Este código vence en %d minutos.
                 Si no solicitaste este registro, puedes ignorar este mensaje.
                 """.formatted(recipientName, code, expirationMinutes);
     }
@@ -165,23 +177,13 @@ public class EmailServiceImpl implements EmailService {
         return """
                 <!DOCTYPE html>
                 <html lang="es">
-                <body style="margin:0;padding:24px;background-color:#f4f6f9;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
-                  <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e2e8f0;">
-                    <h2 style="margin:0 0 8px;color:#0f172a;">Alejandría — UPC</h2>
-                    <p style="margin:0 0 20px;color:#475569;font-size:14px;">Repositorio virtual académico</p>
-                    <p style="margin:0 0 16px;font-size:15px;">Hola <strong>%s</strong>,</p>
-                    <p style="margin:0 0 20px;font-size:15px;">
-                      Ingresa el siguiente código de 6 dígitos para confirmar tu correo institucional y activar tu cuenta:
-                    </p>
-                    <div style="margin:24px 0;padding:18px;text-align:center;background:#f8fafc;border:1px dashed #94a3b8;border-radius:10px;">
-                      <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#0f172a;">%s</span>
-                    </div>
-                    <p style="margin:0 0 12px;font-size:13px;color:#475569;">
-                      Este código expira en <strong>%d minutos</strong>. Por seguridad, no lo compartas con nadie.
-                    </p>
-                    <p style="margin:0;font-size:12px;color:#64748b;">
-                      Si no solicitaste crear una cuenta en Alejandría, puedes ignorar este correo.
-                    </p>
+                <body>
+                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1f2937;line-height:1.6;">
+                    <p>Hola %s,</p>
+                    <p>Tu código para completar el registro en Alejandría es:</p>
+                    <p style="font-size:24px;font-weight:700;letter-spacing:4px;margin:16px 0;">%s</p>
+                    <p>Este código vence en %d minutos.</p>
+                    <p style="font-size:13px;color:#6b7280;">Si no solicitaste este registro, puedes ignorar este mensaje.</p>
                   </div>
                 </body>
                 </html>

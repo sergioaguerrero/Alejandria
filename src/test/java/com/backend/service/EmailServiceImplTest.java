@@ -1,6 +1,7 @@
 package com.backend.service;
 
 import com.backend.config.MailProperties;
+import jakarta.mail.Multipart;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
@@ -46,9 +47,11 @@ class EmailServiceImplTest {
         assertThat(recordingMailSender.getPassword()).isEqualTo("abcdefghijklmnop");
         assertThat(sentMessages).hasSize(1);
         MimeMessage sent = sentMessages.get(0);
-        assertThat(sent.getSubject()).contains("confirmación");
+        assertThat(sent.getSubject()).contains("verificación");
         assertThat(sent.getFrom()[0].toString()).contains("alejandria.test@gmail.com");
         assertThat(sent.getAllRecipients()[0].toString()).isEqualTo("estudiante@unicesar.edu.co");
+        assertThat(sent.getContent()).isInstanceOf(Multipart.class);
+        assertThat(((Multipart) sent.getContent()).getContentType()).contains("multipart/alternative");
     }
 
     @Test
