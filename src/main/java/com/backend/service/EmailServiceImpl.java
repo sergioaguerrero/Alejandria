@@ -44,37 +44,59 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Async
     public void sendVerificationCodeEmail(String toEmail, String recipientName, String code, int expirationMinutes) {
+        String safeName = sanitizeRecipientName(recipientName);
+        String subject = "Código de verificación — Alejandría";
+        String plainText = buildVerificationPlainText(safeName, code, expirationMinutes);
+        String htmlBody = buildVerificationHtmlBody(safeName, code, expirationMinutes);
+        String consoleSummary = "[DEV-MAIL] Código de verificación para %s (%s): %s (expira en %d min)"
+                .formatted(toEmail, safeName, code, expirationMinutes);
+
+        deliverEmail(toEmail, subject, plainText, htmlBody, consoleSummary);
+    }
+
+    @Override
+    @Async
+    public void sendPasswordResetEmail(String toEmail, String recipientName, String resetLink, int expirationMinutes) {
+        String safeName = sanitizeRecipientName(recipientName);
+        String subject = "Restablecer contraseña — Alejandría";
+        String plainText = buildPasswordResetPlainText(safeName, resetLink, expirationMinutes);
+        String htmlBody = buildPasswordResetHtmlBody(safeName, resetLink, expirationMinutes);
+        String consoleSummary = "[DEV-MAIL] Enlace de recuperación para %s (%s): %s (expira en %d min)"
+                .formatted(toEmail, safeName, resetLink, expirationMinutes);
+
+        deliverEmail(toEmail, subject, plainText, htmlBody, consoleSummary);
+    }
+
+    private void deliverEmail(
+            String toEmail,
+            String subject,
+            String plainText,
+            String htmlBody,
+            String consoleSummary
+    ) {
         String provider = mailProperties.getProvider() == null
                 ? "console"
                 : mailProperties.getProvider().trim().toLowerCase();
-
-        String safeName = (recipientName == null || recipientName.isBlank()) ? "estudiante" : recipientName.trim();
-        String subject = "Código de verificación — Alejandría";
-        String plainText = buildPlainText(safeName, code, expirationMinutes);
-        String htmlBody = buildHtmlBody(safeName, code, expirationMinutes);
 
         try {
             switch (provider) {
                 case "smtp" -> sendViaSmtp(toEmail, subject, plainText, htmlBody);
                 case "resend" -> sendViaResend(toEmail, subject, plainText, htmlBody);
-                case "console" -> log.info(
-                        "[DEV-MAIL] Código de verificación para {} ({}): {} (expira en {} min)",
-                        toEmail,
-                        safeName,
-                        code,
-                        expirationMinutes
-                );
+                case "console" -> log.info(consoleSummary);
                 default -> log.warn(
-                        "Proveedor de correo desconocido '{}'. Usa 'console', 'smtp' o 'resend'. Código para {}: {}",
+                        "Proveedor de correo desconocido '{}'. Usa 'console', 'smtp' o 'resend'. {}",
                         provider,
-                        toEmail,
-                        code
+                        consoleSummary
                 );
             }
         } catch (Exception ex) {
-            log.error("Error enviando el código de verificación a {} mediante proveedor '{}': {}",
-                    toEmail, provider, ex.getMessage(), ex);
+            log.error("Error enviando correo '{}' a {} mediante proveedor '{}': {}",
+                    subject, toEmail, provider, ex.getMessage(), ex);
         }
+    }
+
+    private String sanitizeRecipientName(String recipientName) {
+        return (recipientName == null || recipientName.isBlank()) ? "estudiante" : recipientName.trim();
     }
 
     private void sendViaSmtp(String toEmail, String subject, String plainText, String htmlBody)
@@ -124,7 +146,7 @@ public class EmailServiceImpl implements EmailService {
         message.saveChanges();
 
         mailSender.send(message);
-        log.info("Correo OTP enviado vía SMTP a {}", toEmail);
+        log.info("Correo '{}' enviado vía SMTP a {}", subject, toEmail);
     }
 
     private boolean isGmailHost(String host) {
@@ -157,10 +179,10 @@ public class EmailServiceImpl implements EmailService {
                 .retrieve()
                 .toBodilessEntity();
 
-        log.info("Correo OTP enviado vía Resend API a {}", toEmail);
+        log.info("Correo '{}' enviado vía Resend API a {}", subject, toEmail);
     }
 
-    private String buildPlainText(String recipientName, String code, int expirationMinutes) {
+    private String buildVerificationPlainText(String recipientName, String code, int expirationMinutes) {
         return """
                 Hola %s,
 
@@ -171,7 +193,7 @@ public class EmailServiceImpl implements EmailService {
                 """.formatted(recipientName, code, expirationMinutes);
     }
 
-    private String buildHtmlBody(String recipientName, String code, int expirationMinutes) {
+    private String buildVerificationHtmlBody(String recipientName, String code, int expirationMinutes) {
         String escapedName = HtmlUtils.htmlEscape(recipientName);
         String escapedCode = HtmlUtils.htmlEscape(code);
         return """
@@ -188,5 +210,43 @@ public class EmailServiceImpl implements EmailService {
                 </body>
                 </html>
                 """.formatted(escapedName, escapedCode, expirationMinutes);
+    }
+
+    private String buildPasswordResetPlainText(String recipientName, String resetLink, int expirationMinutes) {
+        return """
+                Hola %s,
+
+                Recibimos una solicitud para restablecer tu contraseña en Alejandría.
+                Abre el siguiente enlace para crear una nueva contraseña:
+
+                %s
+
+                Este enlace vence en %d minutos.
+                Si no solicitaste este cambio, puedes ignorar este mensaje.
+                """.formatted(recipientName, resetLink, expirationMinutes);
+    }
+
+    private String buildPasswordResetHtmlBody(String recipientName, String resetLink, int expirationMinutes) {
+        String escapedName = HtmlUtils.htmlEscape(recipientName);
+        String escapedLink = HtmlUtils.htmlEscape(resetLink);
+        return """
+                <!DOCTYPE html>
+                <html lang="es">
+                <body>
+                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1f2937;line-height:1.6;">
+                    <p>Hola %s,</p>
+                    <p>Recibimos una solicitud para restablecer tu contraseña en Alejandría.</p>
+                    <p style="margin:20px 0;">
+                      <a href="%s" style="background:#2563eb;color:#ffffff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;">
+                        Restablecer contraseña
+                      </a>
+                    </p>
+                    <p style="font-size:13px;color:#4b5563;">Si el botón no funciona, copia este enlace:<br>%s</p>
+                    <p>Este enlace vence en %d minutos.</p>
+                    <p style="font-size:13px;color:#6b7280;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+                  </div>
+                </body>
+                </html>
+                """.formatted(escapedName, escapedLink, escapedLink, expirationMinutes);
     }
 }
