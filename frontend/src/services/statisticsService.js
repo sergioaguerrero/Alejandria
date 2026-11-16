@@ -53,10 +53,13 @@ export async function getMyStatistics(period = 'week') {
   }
 
   const userDocuments = store.documents.filter((doc) => doc.authorUsername === user.username);
+  const userRepositories = store.repositories.filter(
+    (repo) => repo.authorUsername === user.username,
+  );
 
   const totalViews = userDocuments.reduce((acc, doc) => acc + (doc.views || 0), 0);
   const totalDownloads = userDocuments.reduce((acc, doc) => acc + (doc.downloads || 0), 0);
-  const totalLikes = userDocuments.reduce((acc, doc) => acc + (doc.likes || 0), 0);
+  const totalLikes = userRepositories.reduce((acc, repo) => acc + (repo.likes || 0), 0);
 
   // Real view and download counts added to current day or week
   const todayDayIndex = new Date().getDay();
@@ -179,7 +182,6 @@ export async function getMyStatistics(period = 'week') {
       type: doc.type,
       views: doc.views || 0,
       downloads: doc.downloads || 0,
-      likes: doc.likes || 0,
       createdAt: doc.createdAt,
     })),
   };
@@ -411,7 +413,6 @@ export async function getGlobalStatistics() {
       subjectName: resolveSubject.fromDocument(doc, '—'),
       views: doc.views || 0,
       downloads: doc.downloads || 0,
-      likes: doc.likes || 0,
     }));
 
   const reasonsSummary = REPORT_REASONS.map(({ value, label }) => ({

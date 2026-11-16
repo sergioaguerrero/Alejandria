@@ -53,7 +53,6 @@ export {
   updateDocument,
   deleteDocument,
   downloadDocument,
-  toggleDocumentLike,
 } from './documentService.js';
 
 export {

@@ -29,7 +29,6 @@
  * @property {string} authorUsername
  * @property {number} views
  * @property {number} downloads
- * @property {number} likes
  * @property {string} createdAt
  */
 
@@ -58,7 +57,6 @@ export const DOCUMENTS = [
     authorUsername: 'sergioaguerrero',
     views: 128,
     downloads: 41,
-    likes: 12,
     createdAt: '2026-08-13T09:30:00.000Z',
   },
   {
@@ -81,7 +79,6 @@ export const DOCUMENTS = [
     authorUsername: 'sergioaguerrero',
     views: 210,
     downloads: 87,
-    likes: 19,
     createdAt: '2026-09-02T15:10:00.000Z',
   },
   {
@@ -103,7 +100,6 @@ export const DOCUMENTS = [
     authorUsername: 'sergioaguerrero',
     views: 342,
     downloads: 156,
-    likes: 28,
     createdAt: '2026-09-24T18:00:00.000Z',
   },
 
@@ -128,7 +124,6 @@ export const DOCUMENTS = [
     authorUsername: 'lauramartinez',
     views: 189,
     downloads: 64,
-    likes: 21,
     createdAt: '2026-08-16T11:00:00.000Z',
   },
   {
@@ -151,7 +146,6 @@ export const DOCUMENTS = [
     authorUsername: 'lauramartinez',
     views: 275,
     downloads: 118,
-    likes: 33,
     createdAt: '2026-09-05T16:25:00.000Z',
   },
   {
@@ -173,7 +167,6 @@ export const DOCUMENTS = [
     authorUsername: 'lauramartinez',
     views: 431,
     downloads: 207,
-    likes: 45,
     createdAt: '2026-10-20T16:40:00.000Z',
   },
 
@@ -197,7 +190,6 @@ export const DOCUMENTS = [
     authorUsername: 'andrespineda',
     views: 96,
     downloads: 38,
-    likes: 6,
     createdAt: '2026-08-21T08:45:00.000Z',
   },
   {
@@ -219,7 +211,6 @@ export const DOCUMENTS = [
     authorUsername: 'andrespineda',
     views: 74,
     downloads: 22,
-    likes: 4,
     createdAt: '2026-10-11T11:15:00.000Z',
   },
 
@@ -243,7 +234,6 @@ export const DOCUMENTS = [
     authorUsername: 'camilodaza',
     views: 512,
     downloads: 231,
-    likes: 56,
     createdAt: '2026-08-06T19:20:00.000Z',
   },
   {
@@ -265,7 +255,6 @@ export const DOCUMENTS = [
     authorUsername: 'camilodaza',
     views: 340,
     downloads: 98,
-    likes: 27,
     createdAt: '2026-09-14T07:55:00.000Z',
   },
 
@@ -289,7 +278,6 @@ export const DOCUMENTS = [
     authorUsername: 'valentinarojas',
     views: 164,
     downloads: 72,
-    likes: 15,
     createdAt: '2026-08-23T13:50:00.000Z',
   },
   {
@@ -311,7 +299,6 @@ export const DOCUMENTS = [
     authorUsername: 'valentinarojas',
     views: 223,
     downloads: 91,
-    likes: 24,
     createdAt: '2026-10-19T18:30:00.000Z',
   },
 
@@ -335,7 +322,6 @@ export const DOCUMENTS = [
     authorUsername: 'valentinarojas',
     views: 118,
     downloads: 44,
-    likes: 9,
     createdAt: '2026-08-29T15:30:00.000Z',
   },
 
@@ -359,7 +345,6 @@ export const DOCUMENTS = [
     authorUsername: 'danielaospino',
     views: 97,
     downloads: 51,
-    likes: 8,
     createdAt: '2026-09-02T09:10:00.000Z',
   },
   {
@@ -381,7 +366,6 @@ export const DOCUMENTS = [
     authorUsername: 'danielaospino',
     views: 143,
     downloads: 37,
-    likes: 11,
     createdAt: '2026-10-16T10:25:00.000Z',
   },
 
@@ -405,7 +389,6 @@ export const DOCUMENTS = [
     authorUsername: 'lauramartinez',
     views: 205,
     downloads: 112,
-    likes: 19,
     createdAt: '2026-09-04T17:40:00.000Z',
   },
   {
@@ -427,7 +410,6 @@ export const DOCUMENTS = [
     authorUsername: 'lauramartinez',
     views: 66,
     downloads: 29,
-    likes: 3,
     createdAt: '2026-10-21T20:10:00.000Z',
   },
 
@@ -451,7 +433,6 @@ export const DOCUMENTS = [
     authorUsername: 'sergioaguerrero',
     views: 132,
     downloads: 47,
-    likes: 13,
     createdAt: '2026-09-11T11:50:00.000Z',
   },
 
@@ -475,7 +456,6 @@ export const DOCUMENTS = [
     authorUsername: 'camilodaza',
     views: 88,
     downloads: 33,
-    likes: 5,
     createdAt: '2026-09-13T08:20:00.000Z',
   },
   {
@@ -497,7 +477,6 @@ export const DOCUMENTS = [
     authorUsername: 'camilodaza',
     views: 176,
     downloads: 94,
-    likes: 17,
     createdAt: '2026-10-09T09:45:00.000Z',
   },
 ];

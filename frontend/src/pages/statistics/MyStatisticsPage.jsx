@@ -343,7 +343,6 @@ export default function MyStatisticsPage() {
                         <TableCell>Documento</TableCell>
                         <TableCell align="center">Vistas</TableCell>
                         <TableCell align="center">Descargas</TableCell>
-                        <TableCell align="center">Me gusta</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -361,7 +360,6 @@ export default function MyStatisticsPage() {
                           </TableCell>
                           <TableCell align="center">{document.views}</TableCell>
                           <TableCell align="center">{document.downloads}</TableCell>
-                          <TableCell align="center">{document.likes}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

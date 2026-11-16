@@ -466,9 +466,7 @@ export default function MyContentPage() {
                   <TableCell>{document.topic}</TableCell>
                   <TableCell align="center">
                     <Typography variant="caption" color="text.secondary">
-                      {`${document.views || 0} vistas · ${document.downloads || 0} descargas · ${
-                        document.likes || 0
-                      } me gusta`}
+                      {`${document.views || 0} vistas · ${document.downloads || 0} descargas`}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">

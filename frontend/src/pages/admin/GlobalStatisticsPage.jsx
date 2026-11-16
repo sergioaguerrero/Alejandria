@@ -486,7 +486,6 @@ export default function GlobalStatisticsPage() {
                       <TableCell>Materia</TableCell>
                       <TableCell align="right">Vistas</TableCell>
                       <TableCell align="right">Descargas</TableCell>
-                      <TableCell align="right">Me gusta</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -510,7 +509,6 @@ export default function GlobalStatisticsPage() {
                         </TableCell>
                         <TableCell align="right">{doc.views}</TableCell>
                         <TableCell align="right">{doc.downloads}</TableCell>
-                        <TableCell align="right">{doc.likes}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
