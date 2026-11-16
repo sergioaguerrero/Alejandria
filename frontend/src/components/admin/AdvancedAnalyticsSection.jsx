@@ -47,6 +47,24 @@ import {
 import AiTypeIcon from '../ai/AiTypeIcon.jsx';
 import { createRechartsThemeProps } from '../../utils/rechartsTheme.js';
 
+const STRETCH_CARD_CONTENT_SX = { height: '100%', display: 'flex', flexDirection: 'column' };
+
+/**
+ * Stretches a Recharts chart to fill the remaining height of a flex CardContent
+ * while avoiding ResponsiveContainer measurement feedback loops.
+ */
+function StretchChartBox({ minHeight, children }) {
+  return (
+    <Box sx={{ width: '100%', flex: 1, minHeight, position: 'relative' }}>
+      <Box sx={{ position: 'absolute', inset: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          {children}
+        </ResponsiveContainer>
+      </Box>
+    </Box>
+  );
+}
+
 const PERIOD_LABELS = {
   day: 'Hoy',
   week: 'Última semana',
@@ -185,15 +203,14 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 7 }}>
               <Card variant="outlined" sx={{ height: '100%' }}>
-                <CardContent>
+                <CardContent sx={STRETCH_CARD_CONTENT_SX}>
                   <Typography variant="h6" fontWeight={600} gutterBottom>
                     Usuarios activos por periodo ({periodLabel})
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
                     Comparativa de estudiantes activos únicos y sesiones de estudio
                   </Typography>
-                  <Box sx={{ width: '100%', height: 260 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                  <StretchChartBox minHeight={260}>
                       <BarChart data={data.activeUsers.timeline} margin={{ top: 10, right: 10, left: -12, bottom: 5 }}>
                         <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="label" {...getChartAxisProps(12)} />
@@ -212,8 +229,7 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
                           radius={[4, 4, 0, 0]}
                         />
                       </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
+                  </StretchChartBox>
                 </CardContent>
               </Card>
             </Grid>
@@ -257,7 +273,7 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined" sx={{ height: '100%' }}>
-                <CardContent>
+                <CardContent sx={STRETCH_CARD_CONTENT_SX}>
                   <Typography variant="h6" fontWeight={600} gutterBottom>
                     Uso de IA por tipo de contenido ({periodLabel})
                   </Typography>
@@ -278,8 +294,7 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
                     ))}
                   </Stack>
 
-                  <Box sx={{ width: '100%', height: 220 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                  <StretchChartBox minHeight={220}>
                       <BarChart data={data.aiUsage.byType} margin={{ top: 10, right: 10, left: -12, bottom: 5 }}>
                         <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="label" {...getChartAxisProps(12)} />
@@ -294,8 +309,7 @@ export default function AdvancedAnalyticsSection({ period, onPeriodChange, data,
                           ))}
                         </Bar>
                       </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
+                  </StretchChartBox>
                 </CardContent>
               </Card>
             </Grid>
