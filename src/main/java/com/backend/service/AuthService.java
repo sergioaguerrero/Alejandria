@@ -22,7 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
@@ -38,17 +37,20 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
+    private final JwtTokenService jwtTokenService;
 
     public AuthService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            JwtTokenService jwtTokenService
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationService = emailVerificationService;
+        this.jwtTokenService = jwtTokenService;
     }
 
     @Transactional
@@ -126,7 +128,7 @@ public class AuthService {
 
     public AuthResponse verifyEmail(VerifyEmailRequest request) {
         User verifiedUser = emailVerificationService.verifyCode(request.getEmail(), request.getCode());
-        String token = generateSessionToken();
+        String token = jwtTokenService.generateToken(verifiedUser);
         return AuthResponse.authenticated(
                 token,
                 UserDto.fromEntity(verifiedUser),
@@ -177,7 +179,7 @@ public class AuthService {
             );
         }
 
-        return AuthResponse.authenticated(generateSessionToken(), UserDto.fromEntity(user), null);
+        return AuthResponse.authenticated(jwtTokenService.generateToken(user), UserDto.fromEntity(user), null);
     }
 
     private User createNewStudentUser(String email) {
@@ -243,10 +245,6 @@ public class AuthService {
                 && UPPERCASE_PATTERN.matcher(password).find()
                 && LOWERCASE_PATTERN.matcher(password).find()
                 && DIGIT_PATTERN.matcher(password).find();
-    }
-
-    private String generateSessionToken() {
-        return "alejandria-jwt-" + UUID.randomUUID();
     }
 
     private String normalize(String value) {
