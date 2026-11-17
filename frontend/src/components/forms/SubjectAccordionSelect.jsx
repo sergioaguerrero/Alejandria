@@ -169,7 +169,7 @@ export default function SubjectAccordionSelect({
               mt: 0.5,
               width: Math.max(anchorWidth, 300),
               maxWidth: 'calc(100vw - 32px)',
-              maxHeight: 400,
+              maxHeight: 'min(560px, calc(100vh - 96px))',
               overflowY: 'auto',
             },
           },
@@ -217,10 +217,10 @@ export default function SubjectAccordionSelect({
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon fontSize="small" />}
                 sx={{
-                  minHeight: 42,
+                  minHeight: 36,
                   px: 2,
                   '& .MuiAccordionSummary-content': {
-                    my: 0.75,
+                    my: 0.5,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
