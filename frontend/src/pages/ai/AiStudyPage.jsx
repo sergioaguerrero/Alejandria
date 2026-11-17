@@ -484,7 +484,6 @@ export default function AiStudyPage() {
                             Materia seleccionada: <strong>{selectedRepo.name}</strong> ({selectedRepo.subject?.name ?? 'General'})
                           </Typography>
                         </Stack>
-                        <Chip size="small" color="primary" label="Listo para evaluar" />
                       </Box>
                     )}
 
