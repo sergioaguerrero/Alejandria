@@ -37,6 +37,7 @@ export default function DownloadAiPdfButton({ material, onDownloaded, onError })
       startIcon={<PictureAsPdfOutlinedIcon />}
       onClick={handleDownload}
       disabled={!material}
+      sx={{ whiteSpace: 'nowrap' }}
     >
       {label}
     </Button>

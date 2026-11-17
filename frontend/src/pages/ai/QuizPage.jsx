@@ -30,8 +30,6 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
-import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
-import BookmarkOutlinedIcon from '@mui/icons-material/BookmarkOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
@@ -48,6 +46,7 @@ import {
 } from '../../services/index.js';
 
 import DownloadAiPdfButton from '../../components/ai/DownloadAiPdfButton.jsx';
+import SaveAiStudyButton from '../../components/ai/SaveAiStudyButton.jsx';
 import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
 
 export default function QuizPage() {
@@ -271,7 +270,7 @@ export default function QuizPage() {
             direction={{ xs: 'column', sm: 'row' }}
             sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}
           >
-            <Box>
+            <Box sx={{ minWidth: 0, flex: '1 1 240px' }}>
               <Typography variant="h5" component="h1" fontWeight={700} gutterBottom>
                 {quiz.title}
               </Typography>
@@ -284,7 +283,13 @@ export default function QuizPage() {
               direction="row"
               useFlexGap
               spacing={1}
-              sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexWrap: 'wrap' }}
+              sx={{
+                alignSelf: { xs: 'flex-start', sm: 'center' },
+                justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                flexShrink: 0,
+              }}
             >
               <DownloadAiPdfButton
                 material={{ ...quiz, contentType: 'quiz' }}
@@ -304,16 +309,11 @@ export default function QuizPage() {
                 }
               />
               {!quiz.isSharedWithMe && (
-                <Button
-                  variant={savedInMyStudy ? 'contained' : 'outlined'}
-                  color={savedInMyStudy ? 'primary' : 'inherit'}
-                  size="small"
-                  startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
-                  onClick={handleToggleSave}
+                <SaveAiStudyButton
+                  saved={savedInMyStudy}
                   disabled={isSaving}
-                >
-                  {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
-                </Button>
+                  onClick={handleToggleSave}
+                />
               )}
             </Stack>
           </Stack>

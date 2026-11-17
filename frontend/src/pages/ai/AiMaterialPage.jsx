@@ -29,8 +29,6 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
-import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
-import BookmarkOutlinedIcon from '@mui/icons-material/BookmarkOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import NavigateBeforeOutlinedIcon from '@mui/icons-material/NavigateBeforeOutlined';
@@ -41,6 +39,7 @@ import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlin
 
 import AiTypeIcon from '../../components/ai/AiTypeIcon.jsx';
 import DownloadAiPdfButton from '../../components/ai/DownloadAiPdfButton.jsx';
+import SaveAiStudyButton from '../../components/ai/SaveAiStudyButton.jsx';
 import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
 import {
   getAiMaterialById,
@@ -213,7 +212,7 @@ export default function AiMaterialPage() {
             direction={{ xs: 'column', md: 'row' }}
             sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between', gap: 2 }}
           >
-            <Box>
+            <Box sx={{ minWidth: 0, flex: '1 1 240px' }}>
               <Typography variant="h5" component="h1" fontWeight={700} gutterBottom>
                 {material.title}
               </Typography>
@@ -231,7 +230,14 @@ export default function AiMaterialPage() {
               direction="row"
               useFlexGap
               spacing={1}
-              sx={{ alignSelf: { xs: 'flex-start', md: 'center' }, flexWrap: 'wrap', alignItems: 'center' }}
+              sx={{
+                alignSelf: { xs: 'flex-start', md: 'center' },
+                justifyContent: { xs: 'flex-start', md: 'flex-end' },
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                maxWidth: { md: 410 },
+                flexShrink: 0,
+              }}
             >
               <DownloadAiPdfButton
                 material={material}
@@ -259,22 +265,18 @@ export default function AiMaterialPage() {
                 />
               ) : (
                 <>
-                  <Button
-                    variant={savedInMyStudy ? 'contained' : 'outlined'}
-                    color={savedInMyStudy ? 'primary' : 'inherit'}
-                    size="small"
-                    startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
-                    onClick={handleToggleSave}
+                  <SaveAiStudyButton
+                    saved={savedInMyStudy}
                     disabled={isSaving}
-                  >
-                    {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
-                  </Button>
+                    onClick={handleToggleSave}
+                  />
                   <Button
                     variant="outlined"
                     color="primary"
                     size="small"
                     startIcon={<ShareOutlinedIcon />}
                     onClick={() => setShareOpen(true)}
+                    sx={{ whiteSpace: 'nowrap' }}
                   >
                     Compartir con amigos
                   </Button>
