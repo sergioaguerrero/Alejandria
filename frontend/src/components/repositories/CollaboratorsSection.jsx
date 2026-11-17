@@ -249,13 +249,6 @@ export default function CollaboratorsSection({
           </Alert>
         )}
 
-        {/* Active contributor notice */}
-        {!isOwner && repository.isCollaborator && (
-          <Alert severity="success" sx={{ mb: 2, borderRadius: 1.5 }}>
-            Eres colaborador aceptado: puedes subir documentos a este repositorio.
-          </Alert>
-        )}
-
         {/* Owner invite form */}
         {isOwner && (
           <Stack
@@ -454,6 +447,13 @@ export default function CollaboratorsSection({
               );
             })}
           </Stack>
+        )}
+
+        {/* Active contributor notice */}
+        {!isOwner && repository.isCollaborator && (
+          <Alert severity="success" sx={{ mt: 2, borderRadius: 1.5 }}>
+            Eres colaborador aceptado: puedes subir documentos a este repositorio.
+          </Alert>
         )}
       </CardContent>
 
