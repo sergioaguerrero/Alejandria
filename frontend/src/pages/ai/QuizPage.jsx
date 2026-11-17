@@ -280,18 +280,15 @@ export default function QuizPage() {
             </Box>
 
             <Stack
-              direction="row"
-              useFlexGap
               spacing={1}
               sx={{
-                alignSelf: { xs: 'flex-start', sm: 'center' },
-                justifyContent: { xs: 'flex-start', sm: 'flex-end' },
-                alignItems: 'center',
-                flexWrap: 'wrap',
+                width: { xs: '100%', sm: 350 },
+                alignSelf: { xs: 'stretch', sm: 'center' },
                 flexShrink: 0,
               }}
             >
               <DownloadAiPdfButton
+                fullWidth
                 material={{ ...quiz, contentType: 'quiz' }}
                 onDownloaded={() =>
                   setSnackbar({
@@ -310,6 +307,7 @@ export default function QuizPage() {
               />
               {!quiz.isSharedWithMe && (
                 <SaveAiStudyButton
+                  fullWidth
                   saved={savedInMyStudy}
                   disabled={isSaving}
                   onClick={handleToggleSave}

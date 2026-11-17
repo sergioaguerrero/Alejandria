@@ -13,10 +13,11 @@ import { exportAiMaterialToPdf } from '../../utils/aiPdfExport.js';
 /**
  * @param {object} props
  * @param {object|null} props.material
+ * @param {boolean} [props.fullWidth=false]
  * @param {(filename: string) => void} [props.onDownloaded]
  * @param {(error: Error) => void} [props.onError]
  */
-export default function DownloadAiPdfButton({ material, onDownloaded, onError }) {
+export default function DownloadAiPdfButton({ material, fullWidth = false, onDownloaded, onError }) {
   const meta = getAiContentMeta(material?.contentType || 'quiz');
   const label = meta.downloadPdfLabel || `Descargar ${meta.shortLabel.toLowerCase()} en formato PDF`;
 
@@ -34,6 +35,7 @@ export default function DownloadAiPdfButton({ material, onDownloaded, onError })
       variant="outlined"
       color="primary"
       size="small"
+      fullWidth={fullWidth}
       startIcon={<PictureAsPdfOutlinedIcon />}
       onClick={handleDownload}
       disabled={!material}

@@ -227,19 +227,15 @@ export default function AiMaterialPage() {
             </Box>
 
             <Stack
-              direction="row"
-              useFlexGap
               spacing={1}
               sx={{
-                alignSelf: { xs: 'flex-start', md: 'center' },
-                justifyContent: { xs: 'flex-start', md: 'flex-end' },
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                maxWidth: { md: 410 },
+                width: { xs: '100%', md: 350 },
+                alignSelf: { xs: 'stretch', md: 'center' },
                 flexShrink: 0,
               }}
             >
               <DownloadAiPdfButton
+                fullWidth
                 material={material}
                 onDownloaded={() =>
                   setSnackbar({
@@ -261,11 +257,12 @@ export default function AiMaterialPage() {
                   color="info"
                   variant="outlined"
                   label={`Compartido por @${material.sharedBy}`}
-                  sx={{ fontWeight: 600 }}
+                  sx={{ fontWeight: 600, alignSelf: { xs: 'flex-start', md: 'flex-end' } }}
                 />
               ) : (
                 <>
                   <SaveAiStudyButton
+                    fullWidth
                     saved={savedInMyStudy}
                     disabled={isSaving}
                     onClick={handleToggleSave}
@@ -274,6 +271,7 @@ export default function AiMaterialPage() {
                     variant="outlined"
                     color="primary"
                     size="small"
+                    fullWidth
                     startIcon={<ShareOutlinedIcon />}
                     onClick={() => setShareOpen(true)}
                     sx={{ whiteSpace: 'nowrap' }}
