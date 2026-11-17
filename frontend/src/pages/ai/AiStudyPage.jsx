@@ -32,7 +32,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -462,31 +461,6 @@ export default function AiStudyPage() {
 
                     </Box>
 
-                    {/* Selected Repository Confirmation pill */}
-                    {selectedRepo && (
-                      <Box
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 1.5,
-                          border: 1,
-                          borderColor: 'primary.dark',
-                          bgcolor: 'action.selected',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: 1,
-                        }}
-                      >
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                          <AutoAwesomeIcon color="primary" fontSize="small" />
-                          <Typography variant="body2">
-                            Materia seleccionada: <strong>{selectedRepo.name}</strong> ({selectedRepo.subject?.name ?? 'General'})
-                          </Typography>
-                        </Stack>
-                      </Box>
-                    )}
-
                     {/* 2. Scope Selector */}
                     <Box>
                       <Typography variant="subtitle1" fontWeight={700} gutterBottom>
@@ -577,10 +551,9 @@ export default function AiStudyPage() {
                         variant="contained"
                         size="large"
                         fullWidth
-                        startIcon={<AutoAwesomeIcon />}
                         disabled={!selectedRepo || quota.remaining <= 0}
                       >
-                        {getAiContentMeta(contentType).submitLabel}
+                        Generar
                       </Button>
                     </Box>
                   </Stack>
