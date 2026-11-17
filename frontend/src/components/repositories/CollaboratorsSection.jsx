@@ -191,8 +191,8 @@ export default function CollaboratorsSection({
           }}
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <PeopleOutlinedIcon color="primary" fontSize="small" />
-            <Typography variant="subtitle1" fontWeight={700}>
+            <PeopleOutlinedIcon color="primary" sx={{ fontSize: 24 }} />
+            <Typography variant="h6" fontWeight={700}>
               Colaboradores
             </Typography>
           </Stack>
