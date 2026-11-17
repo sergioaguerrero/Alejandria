@@ -362,8 +362,17 @@ export default function RepositoryDetailPage() {
                     onClick={handleFollow}
                     disabled={isFollowing}
                     startIcon={repository.followed ? <BookmarkAddedIcon /> : <BookmarkAddOutlinedIcon />}
+                    aria-label={
+                      repository.followed ? 'Dejar de seguir repositorio' : 'Seguir repositorio'
+                    }
+                    sx={{
+                      minWidth: 142,
+                      whiteSpace: 'nowrap',
+                      border: '1px solid',
+                      ...(repository.followed ? { borderColor: 'primary.main' } : {}),
+                    }}
                   >
-                    {repository.followed ? 'Siguiendo' : 'Seguir repositorio'}
+                    {repository.followed ? 'Siguiendo' : 'Seguir'}
                   </Button>
                 )}
 
