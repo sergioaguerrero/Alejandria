@@ -47,6 +47,7 @@ import {
   toggleSaveQuizToMyStudy,
 } from '../../services/index.js';
 
+import DownloadAiPdfButton from '../../components/ai/DownloadAiPdfButton.jsx';
 import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
 
 export default function QuizPage() {
@@ -279,17 +280,42 @@ export default function QuizPage() {
               </Typography>
             </Box>
 
-            <Button
-              variant={savedInMyStudy ? 'contained' : 'outlined'}
-              color={savedInMyStudy ? 'primary' : 'inherit'}
-              size="small"
-              startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
-              onClick={handleToggleSave}
-              disabled={isSaving}
-              sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, display: quiz.isSharedWithMe ? 'none' : 'inline-flex' }}
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={1}
+              sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexWrap: 'wrap' }}
             >
-              {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
-            </Button>
+              <DownloadAiPdfButton
+                material={{ ...quiz, contentType: 'quiz' }}
+                onDownloaded={() =>
+                  setSnackbar({
+                    open: true,
+                    message: 'Cuestionario descargado en formato PDF.',
+                    severity: 'success',
+                  })
+                }
+                onError={(err) =>
+                  setSnackbar({
+                    open: true,
+                    message: err?.message || 'No se pudo generar el archivo PDF.',
+                    severity: 'error',
+                  })
+                }
+              />
+              {!quiz.isSharedWithMe && (
+                <Button
+                  variant={savedInMyStudy ? 'contained' : 'outlined'}
+                  color={savedInMyStudy ? 'primary' : 'inherit'}
+                  size="small"
+                  startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
+                  onClick={handleToggleSave}
+                  disabled={isSaving}
+                >
+                  {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
+                </Button>
+              )}
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
