@@ -165,6 +165,7 @@ export default function ProfileBioAndContacts({
                 variant="outlined"
                 startIcon={<AddIcon fontSize="small" />}
                 onClick={() => onEdit('profile')}
+                sx={{ width: { xs: '100%', sm: 215 }, flexShrink: 0, whiteSpace: 'nowrap' }}
               >
                 Agregar descripción
               </Button>
@@ -320,6 +321,7 @@ export default function ProfileBioAndContacts({
                 variant="outlined"
                 startIcon={<AddIcon fontSize="small" />}
                 onClick={() => onEdit('contacts')}
+                sx={{ width: { xs: '100%', sm: 215 }, flexShrink: 0, whiteSpace: 'nowrap' }}
               >
                 Agregar contactos
               </Button>
