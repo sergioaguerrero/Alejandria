@@ -212,20 +212,6 @@ export default function AiStudyPage() {
         </Typography>
       </Box>
 
-      {/* Permanent AI Disclaimer Notice */}
-      <Alert
-        severity="info"
-        icon={<InfoOutlinedIcon />}
-        sx={{ mb: 3, border: 1, borderColor: 'primary.dark' }}
-      >
-        <Typography variant="subtitle2" fontWeight={600}>
-          Aviso sobre el uso de Inteligencia Artificial
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-          Las preguntas y explicaciones son generadas de forma automática por modelos de IA con fines de práctica y autoevaluación. Pueden contener imprecisiones conceptuales.
-        </Typography>
-      </Alert>
-
       {/* Loading State */}
       {isLoading && (
         <Stack spacing={3}>
@@ -563,6 +549,20 @@ export default function AiStudyPage() {
           </Card>
         </Stack>
       )}
+
+      {/* Permanent AI Disclaimer Notice */}
+      <Alert
+        severity="info"
+        icon={<InfoOutlinedIcon />}
+        sx={{ mt: 3, border: 1, borderColor: 'primary.dark' }}
+      >
+        <Typography variant="subtitle2" fontWeight={600}>
+          Aviso sobre el uso de Inteligencia Artificial
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+          Las preguntas y explicaciones son generadas de forma automática por modelos de IA con fines de práctica y autoevaluación. Pueden contener imprecisiones conceptuales.
+        </Typography>
+      </Alert>
     </Box>
   );
 }
