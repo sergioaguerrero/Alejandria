@@ -1,27 +1,68 @@
-# Copia este archivo como application-local.properties (ignorado por Git)
-# y completa las credenciales según el proveedor de correo que elijas.
+# ==============================================================================
+# Plantilla de configuración local — Alejandría UPC (Backend Spring Boot)
+# ==============================================================================
+# 1. Copia este archivo en la misma carpeta con el nombre:
+#      application-local.properties
+#    (Este archivo está en .gitignore y NUNCA debe subirse a Git)
+# 2. Completa los valores según tu entorno local.
+# 3. Consulta REQUIREMENTS.txt en la raíz del proyecto para más detalles.
+# ==============================================================================
 
-# Base de datos Oracle (si no usas variables de entorno)
-# spring.datasource.password=TU_PASSWORD_DE_ORACLE
+# ------------------------------------------------------------------------------
+# 1. BASE DE DATOS ORACLE (Obligatorio para correr el backend real)
+# ------------------------------------------------------------------------------
+# Si usas Oracle Autonomous Database Cloud, apunta TNS_ADMIN a tu carpeta Wallet
+# usando "/" en Windows.
+spring.datasource.url=jdbc:oracle:thin:@alejandriabd2026_high?TNS_ADMIN=C:/oracle/Wallet_AlejandriaBD2026
+spring.datasource.username=alejandria
+spring.datasource.password=TU_PASSWORD_DE_ORACLE
 
-# --- Opción 1: SMTP (Gmail con App Password, Brevo SMTP, Mailpit, etc.) ---
-app.mail.provider=smtp
-app.mail.from=Alejandria UPC <tu_correo@gmail.com>
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=tu_correo@gmail.com
-spring.mail.password=tu_app_password_de_16_caracteres
+# ------------------------------------------------------------------------------
+# 2. INTELIGENCIA ARTIFICIAL — GOOGLE GEMINI (Obligatorio para módulo Estudio IA)
+# ------------------------------------------------------------------------------
+# Obtén tu API Key en: https://aistudio.google.com/apikey
+ai.api.key=TU_GEMINI_API_KEY_AIzaSy
+ai.api.url=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=
+ai.daily-limit=5
+ia.timeout=60000
 
-# --- Opción 2: API HTTP de Resend (recomendada para producción/nube) ---
+# ------------------------------------------------------------------------------
+# 3. CORREO TRANSACCIONAL (OTP de verificación y recuperación de contraseña)
+# ------------------------------------------------------------------------------
+# Elige UNA de las tres opciones y deja las demás comentadas:
+
+# --- Opción A: Consola local (por defecto — no envía correos reales) ---
+# Imprime los códigos OTP y enlaces de recuperación en la consola de Spring Boot.
+app.mail.provider=console
+app.mail.from=Alejandria UPC <noreply@alejandria.local>
+
+# --- Opción B: SMTP (ej. Gmail con App Password de 16 caracteres) ---
+# app.mail.provider=smtp
+# app.mail.from=Alejandria UPC <tu_correo@gmail.com>
+# spring.mail.host=smtp.gmail.com
+# spring.mail.port=587
+# spring.mail.username=tu_correo@gmail.com
+# spring.mail.password=tu_app_password_de_16_caracteres
+
+# --- Opción C: API HTTP de Resend (recomendada para nube / producción) ---
+# Obtén tu API Key en: https://resend.com/api-keys
 # app.mail.provider=resend
 # app.mail.from=Alejandria UPC <no-reply@tudominio.edu.co>
 # app.mail.resend-api-key=re_xxxxxxxxxxxxxxxxx
+# app.mail.resend-url=https://api.resend.com/emails
 
-# --- Opción 3: Consola local (imprime el código OTP en logs, sin enviar correo) ---
-# app.mail.provider=console
+# ------------------------------------------------------------------------------
+# 4. SECRETOS DE SEGURIDAD, VERIFICACIÓN Y ANALÍTICA
+# ------------------------------------------------------------------------------
+# En desarrollo puedes dejar estos valores o cambiarlos por cadenas aleatorias.
+# En producción es OBLIGATORIO usar secretos únicos y largos (32+ caracteres).
+jwt.secret=alejandria-dev-jwt-secret-change-in-production
+jwt.expiration=86400000
+app.verification.hash-secret=alejandria-dev-verification-secret-change-in-prod
+analytics.salt=alejandria_analytics_salt_key_2026
 
-
-# --- Inteligencia Artificial (Google Gemini) ---
-# ai.api.key=AIzaSy...
-# ai.api.url=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=
-# ai.daily-limit=5
+# ------------------------------------------------------------------------------
+# 5. URL DEL FRONTEND Y CORS
+# ------------------------------------------------------------------------------
+app.frontend.url=http://localhost:5173
+cors.allowed.origins=http://localhost:5173
