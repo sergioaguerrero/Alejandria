@@ -18,7 +18,6 @@ import {
   FormControl,
   Grid,
   InputLabel,
-  ListSubheader,
   MenuItem,
   Pagination,
   Select,
@@ -35,6 +34,7 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
+import SubjectAccordionSelect from '../../components/forms/SubjectAccordionSelect.jsx';
 import DocumentItem from '../../components/documents/DocumentItem.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import UserCard from '../../components/users/UserCard.jsx';
@@ -43,7 +43,6 @@ import {
   getDocuments,
   getRepositories,
   getSubjects,
-  groupBySemester,
   searchUsers,
   toggleFollowUser,
 } from '../../services/index.js';
@@ -333,32 +332,18 @@ export default function SearchPage() {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" sx={{ minWidth: 200, flex: 2 }}>
-                  <InputLabel id="search-sub-label">Materia</InputLabel>
-                  <Select
-                    labelId="search-sub-label"
-                    label="Materia"
-                    value={subjectId}
-                    onChange={(e) => {
-                      setSubjectId(e.target.value);
-                      updateUrlParams({ subject: e.target.value });
-                      setPages({ documents: 1, repositories: 1 });
-                    }}
-                    MenuProps={SELECT_MENU_PROPS}
-                  >
-                    <MenuItem value="">Todas las materias</MenuItem>
-                    {groupBySemester(visibleSubjects).flatMap((group) => [
-                      <ListSubheader key={`s-${group.semester}`}>
-                        {`Semestre ${group.semester}`}
-                      </ListSubheader>,
-                      ...group.subjects.map((sub) => (
-                        <MenuItem key={sub.id} value={sub.id}>
-                          {sub.name}
-                        </MenuItem>
-                      )),
-                    ])}
-                  </Select>
-                </FormControl>
+                <SubjectAccordionSelect
+                  size="small"
+                  subjects={visibleSubjects}
+                  value={subjectId}
+                  onChange={(nextSubjectId) => {
+                    setSubjectId(nextSubjectId);
+                    updateUrlParams({ subject: nextSubjectId });
+                    setPages({ documents: 1, repositories: 1 });
+                  }}
+                  emptyLabel="Todas las materias"
+                  sx={{ minWidth: 200, flex: 2 }}
+                />
 
                 {activeTab === 'documents' && (
                   <>

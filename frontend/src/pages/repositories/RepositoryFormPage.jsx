@@ -16,12 +16,6 @@ import {
   Card,
   CardContent,
   Divider,
-  FormControl,
-  FormHelperText,
-  InputLabel,
-  ListSubheader,
-  MenuItem,
-  Select,
   Skeleton,
   Stack,
   TextField,
@@ -32,16 +26,15 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import SaveIcon from '@mui/icons-material/Save';
 
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
+import SubjectAccordionSelect from '../../components/forms/SubjectAccordionSelect.jsx';
 import { useAuth } from '../../context/authContext.js';
 import {
   createRepository,
   deleteRepository,
   getRepository,
   getSubjects,
-  groupBySemester,
   updateRepository,
 } from '../../services/index.js';
-import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 
 export default function RepositoryFormPage() {
   const { id } = useParams();
@@ -224,34 +217,17 @@ export default function RepositoryFormPage() {
                 disabled={isSubmitting}
               />
 
-              <FormControl fullWidth required error={Boolean(fieldErrors.subjectId)}>
-                <InputLabel id="repository-subject-label">Materia</InputLabel>
-                <Select
-                  labelId="repository-subject-label"
-                  label="Materia"
-                  value={subjectId}
-                  onChange={(e) => setSubjectId(e.target.value)}
-                  MenuProps={SELECT_MENU_PROPS}
-                  disabled={isSubmitting}
-                >
-                  <MenuItem value="">
-                    <em>Selecciona una materia</em>
-                  </MenuItem>
-                  {groupBySemester(subjects).flatMap((group) => [
-                    <ListSubheader key={`sem-${group.semester}`}>
-                      {`Semestre ${group.semester}`}
-                    </ListSubheader>,
-                    ...group.subjects.map((sub) => (
-                      <MenuItem key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </MenuItem>
-                    )),
-                  ])}
-                </Select>
-                {fieldErrors.subjectId && (
-                  <FormHelperText>{fieldErrors.subjectId}</FormHelperText>
-                )}
-              </FormControl>
+              <SubjectAccordionSelect
+                fullWidth
+                required
+                subjects={subjects}
+                value={subjectId}
+                onChange={setSubjectId}
+                emptyLabel="Selecciona una materia"
+                error={Boolean(fieldErrors.subjectId)}
+                helperText={fieldErrors.subjectId || ''}
+                disabled={isSubmitting}
+              />
 
               <Divider />
 
