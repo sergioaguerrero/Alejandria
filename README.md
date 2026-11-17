@@ -122,10 +122,8 @@ Make sure the following tools are installed on your machine (see also `REQUIREME
 ### 1. Clone the Repository
 
 ```bash
-git clone <REPO_URL>
-cd AlejandriaUPC
-git checkout develop
-git pull origin develop
+git clone https://github.com/sergioaguerrero/Alejandria.git
+cd Alejandria
 ```
 
 ---
