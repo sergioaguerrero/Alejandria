@@ -48,6 +48,31 @@ import {
 } from '../../services/index.js';
 import { getAiContentMeta } from '../../utils/aiContentMeta.js';
 
+/** Renders a unified, sharp-edged academic document sheet for summaries and study guides. */
+function StudyDocumentSheet({ accentColor = 'primary.main', children }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: 0,
+        bgcolor: 'background.paper',
+        borderColor: 'divider',
+        borderTop: 4,
+        borderTopColor: accentColor,
+        p: { xs: 2.5, sm: 4, md: 5 },
+        boxShadow: (theme) =>
+          theme.palette.mode === 'light'
+            ? '0 4px 20px rgba(15, 23, 42, 0.07)'
+            : '0 8px 24px rgba(0, 0, 0, 0.32)',
+      }}
+    >
+      <Stack spacing={3.5} divider={<Divider />}>
+        {children}
+      </Stack>
+    </Paper>
+  );
+}
+
 export default function AiMaterialPage() {
   const { id } = useParams();
 
@@ -291,61 +316,59 @@ export default function AiMaterialPage() {
 
       {/* Content View 1: Summary */}
       {material.contentType === 'summary' && (
-        <Stack spacing={2.5}>
+        <StudyDocumentSheet accentColor="primary.main">
           {material.overview && (
-            <Card variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-                  <AiTypeIcon type="summary" color="primary" fontSize="small" />
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    Síntesis general
-                  </Typography>
-                  {material.estimatedReadMinutes && (
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      label={`${material.estimatedReadMinutes} min lectura`}
-                    />
-                  )}
-                </Stack>
-                <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                  {material.overview}
+            <Box>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
+                <AiTypeIcon type="summary" color="primary" fontSize="small" />
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Síntesis general
                 </Typography>
-              </CardContent>
-            </Card>
+                {material.estimatedReadMinutes && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={`${material.estimatedReadMinutes} min lectura`}
+                  />
+                )}
+              </Stack>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.75 }}>
+                {material.overview}
+              </Typography>
+            </Box>
           )}
 
           {(material.sections || []).map((section, idx) => (
-            <Card key={idx} variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography variant="h6" fontWeight={700} gutterBottom>
-                  {section.heading}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.65 }}>
-                  {section.body}
-                </Typography>
-                {section.keyPoints?.length > 0 && (
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 1.5,
-                      bgcolor: 'action.hover',
-                    }}
-                  >
-                    <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-                      Puntos clave
-                    </Typography>
-                    <Stack spacing={0.75}>
-                      {section.keyPoints.map((pt, pIdx) => (
-                        <Typography key={pIdx} variant="body2">
-                          • {pt}
-                        </Typography>
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
+            <Box key={idx}>
+              <Typography variant="h6" fontWeight={700} gutterBottom>
+                {section.heading}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.7 }}>
+                {section.body}
+              </Typography>
+              {section.keyPoints?.length > 0 && (
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 0,
+                    borderLeft: 3,
+                    borderColor: 'primary.main',
+                    bgcolor: 'action.hover',
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                    Puntos clave
+                  </Typography>
+                  <Stack spacing={0.75}>
+                    {section.keyPoints.map((pt, pIdx) => (
+                      <Typography key={pIdx} variant="body2">
+                        • {pt}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Box>
           ))}
 
           {material.keyConcepts?.length > 0 && (
@@ -356,7 +379,16 @@ export default function AiMaterialPage() {
               <Grid container spacing={2}>
                 {material.keyConcepts.map((concept, idx) => (
                   <Grid key={idx} size={{ xs: 12, sm: 4 }}>
-                    <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        height: '100%',
+                        borderRadius: 0,
+                        borderLeft: 3,
+                        borderLeftColor: 'primary.main',
+                      }}
+                    >
                       <Typography variant="subtitle2" fontWeight={700} color="primary" gutterBottom>
                         {concept.term}
                       </Typography>
@@ -369,99 +401,93 @@ export default function AiMaterialPage() {
               </Grid>
             </Box>
           )}
-        </Stack>
+        </StudyDocumentSheet>
       )}
 
       {/* Content View 2: Study Guide */}
       {material.contentType === 'guide' && (
-        <Stack spacing={2.5}>
-          <Card variant="outlined" sx={{ borderRadius: 2 }}>
-            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-                Propósito de la guía
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.65 }}>
-                {material.introduction}
-              </Typography>
-              {material.objectives?.length > 0 && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-                    Objetivos de aprendizaje
-                  </Typography>
-                  <Stack spacing={1}>
-                    {material.objectives.map((obj, idx) => (
-                      <Stack key={idx} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
-                        <CheckCircleOutlinedIcon color="success" fontSize="small" sx={{ mt: 0.25 }} />
-                        <Typography variant="body2">{obj}</Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {(material.modules || []).map((mod, idx) => (
-            <Card key={idx} variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography variant="h6" fontWeight={700} gutterBottom>
-                  {mod.title}
+        <StudyDocumentSheet accentColor="success.main">
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+              Propósito de la guía
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.7 }}>
+              {material.introduction}
+            </Typography>
+            {material.objectives?.length > 0 && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                  Objetivos de aprendizaje
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  {mod.summary}
-                </Typography>
-
-                <Stack spacing={0.75} sx={{ mb: 2 }}>
-                  {(mod.keyTakeaways || []).map((tk, tIdx) => (
-                    <Typography key={tIdx} variant="body2">
-                      • {tk}
-                    </Typography>
+                <Stack spacing={1}>
+                  {material.objectives.map((obj, idx) => (
+                    <Stack key={idx} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                      <CheckCircleOutlinedIcon color="success" fontSize="small" sx={{ mt: 0.25 }} />
+                      <Typography variant="body2">{obj}</Typography>
+                    </Stack>
                   ))}
                 </Stack>
+              </>
+            )}
+          </Box>
 
-                {mod.practicePrompt && (
-                  <Alert
-                    severity="info"
-                    icon={<TipsAndUpdatesOutlinedIcon />}
-                    sx={{ borderRadius: 1.5 }}
-                  >
-                    <Typography variant="subtitle2" fontWeight={700}>
-                      Actividad sugerida
-                    </Typography>
-                    <Typography variant="body2">{mod.practicePrompt}</Typography>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
+          {(material.modules || []).map((mod, idx) => (
+            <Box key={idx}>
+              <Typography variant="h6" fontWeight={700} gutterBottom>
+                {mod.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.7 }}>
+                {mod.summary}
+              </Typography>
+
+              <Stack spacing={0.75} sx={{ mb: 2 }}>
+                {(mod.keyTakeaways || []).map((tk, tIdx) => (
+                  <Typography key={tIdx} variant="body2">
+                    • {tk}
+                  </Typography>
+                ))}
+              </Stack>
+
+              {mod.practicePrompt && (
+                <Alert
+                  severity="info"
+                  icon={<TipsAndUpdatesOutlinedIcon />}
+                  sx={{ borderRadius: 0 }}
+                >
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Actividad sugerida
+                  </Typography>
+                  <Typography variant="body2">{mod.practicePrompt}</Typography>
+                </Alert>
+              )}
+            </Box>
           ))}
 
           {material.checklist?.length > 0 && (
-            <Card variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-                  Checklist de preparación
-                </Typography>
-                <Stack>
-                  {material.checklist.map((item, idx) => (
-                    <FormControlLabel
-                      key={idx}
-                      control={
-                        <Checkbox
-                          checked={Boolean(checkedItems[idx])}
-                          onChange={(e) =>
-                            setCheckedItems((prev) => ({ ...prev, [idx]: e.target.checked }))
-                          }
-                        />
-                      }
-                      label={item}
-                    />
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                Checklist de preparación
+              </Typography>
+              <Stack>
+                {material.checklist.map((item, idx) => (
+                  <FormControlLabel
+                    key={idx}
+                    control={
+                      <Checkbox
+                        checked={Boolean(checkedItems[idx])}
+                        onChange={(e) =>
+                          setCheckedItems((prev) => ({ ...prev, [idx]: e.target.checked }))
+                        }
+                      />
+                    }
+                    label={item}
+                  />
+                ))}
+              </Stack>
+            </Box>
           )}
-        </Stack>
+        </StudyDocumentSheet>
       )}
 
       {/* Content View 3: Presentation Slides */}
