@@ -1,0 +1,303 @@
+================================================================================
+ALEJANDRÍA UPC — REQUIREMENTS, CONFIGURACIÓN DE API KEYS Y GUÍA DE EJECUCIÓN
+================================================================================
+
+Proyecto: Alejandría UPC (Repositorio Académico Colaborativo, Analítica e IA)
+Stack:    Backend Spring Boot 3.4.13 (Java 17 + Maven + Oracle DB)
+          Frontend React 19 + Vite 8 + Material UI 9 (Node.js + npm)
+
+--------------------------------------------------------------------------------
+1. PRERREQUISITOS DEL SISTEMA
+--------------------------------------------------------------------------------
+
+- Java JDK 17 o superior
+  Verificar con:
+    java -version
+
+- Apache Maven 3.8+ (el repositorio NO incluye wrapper mvnw/mvnw.cmd)
+  Verificar con:
+    mvn -version
+  Nota: Si usas IntelliJ IDEA y no tienes "mvn" en el PATH de Windows, puedes
+  ejecutar los mismos objetivos desde la pestaña "Maven" del IDE.
+
+- Node.js 18+ (recomendado 20+ / 22+) y npm
+  Verificar con:
+    node -v
+    npm -v
+
+- Base de Datos Oracle (solo para correr el backend real):
+  * Oracle Autonomous Database Cloud (requiere carpeta del Wallet descargada y
+    descomprimida en tu PC, ej: C:/oracle/Wallet_AlejandriaBD2026)
+  * O una instancia local de Oracle XE / Oracle DB.
+  * IMPORTANTE: El proyecto usa modo Database-First
+    (spring.jpa.hibernate.ddl-auto=validate), por lo que las tablas deben
+    existir previamente en la base de datos.
+  * Las pruebas automatizadas (mvn test) usan H2 en memoria en modo Oracle
+    (src/test/resources/schema-test.sql), así que NO necesitan Oracle.
+
+- Git para control de versiones.
+
+--------------------------------------------------------------------------------
+2. DEPENDENCIAS DEL PROYECTO (EQUIVALENTE A REQUIREMENTS)
+--------------------------------------------------------------------------------
+
+2.1. BACKEND (Maven — pom.xml)
+  Parent: org.springframework.boot:spring-boot-starter-parent:3.4.13
+  Java:   17
+
+  Dependencias principales:
+  - spring-boot-starter-web         -> API REST, Tomcat embebido (puerto 8080), Jackson, RestTemplate
+  - spring-boot-starter-data-jpa    -> Persistencia JPA / Hibernate
+  - spring-boot-starter-security    -> Seguridad HTTP, BCryptPasswordEncoder, CORS
+  - spring-boot-starter-validation  -> Validación de DTOs (@Valid)
+  - spring-boot-starter-mail        -> Envío de correos vía SMTP (JavaMailSender)
+  - ojdbc11-production (23.5.0.24.07) -> Driver JDBC Oracle + soporte Wallet/PKI/OSDT
+
+  Dependencias de testing:
+  - spring-boot-starter-test        -> JUnit 5, MockMvc, Mockito
+  - com.h2database:h2               -> Base de datos en memoria (MODE=Oracle) para tests
+
+2.2. FRONTEND (npm — frontend/package.json)
+  Dependencias de producción:
+  - react (^19.2.8) & react-dom (^19.2.8)
+  - react-router-dom (^7.18.4)
+  - @mui/material (^9.5.0) & @mui/icons-material (^9.5.0)
+  - @emotion/react (^11.14.0) & @emotion/styled (^11.14.1)
+  - axios (^1.20.0)
+  - recharts (^3.10.1)
+
+  Dependencias de desarrollo:
+  - vite (^8.3.0) & @vitejs/plugin-react (^6.1.1)
+  - eslint (^10.10.0), eslint-plugin-react-hooks, eslint-plugin-react-refresh
+  - @types/react, @types/react-dom, globals
+
+--------------------------------------------------------------------------------
+3. ARCHIVOS DE CONFIGURACIÓN (.example) Y REGLAS DE SEGURIDAD
+--------------------------------------------------------------------------------
+
+NUNCA subas credenciales, contraseñas, API keys ni el Wallet de Oracle a Git.
+Los archivos reales de configuración local están ignorados en .gitignore:
+
+  1) Backend:
+     Plantilla:     src/main/resources/application-local.properties.example
+     Archivo real:  src/main/resources/application-local.properties
+     Cómo crearlo (desde la raíz del proyecto):
+       Windows (PowerShell):
+         Copy-Item src/main/resources/application-local.properties.example src/main/resources/application-local.properties
+       Git Bash / Linux / macOS:
+         cp src/main/resources/application-local.properties.example src/main/resources/application-local.properties
+
+     Spring Boot carga primero src/main/resources/application.properties y luego
+     importa automáticamente application-local.properties si existe
+     (spring.config.import=optional:classpath:application-local.properties).
+     También acepta variables de entorno del sistema operativo.
+
+  2) Frontend:
+     Plantilla:     frontend/.env.example
+     Archivo real:  frontend/.env.local
+     Cómo crearlo (desde la carpeta frontend/):
+       Windows (PowerShell):
+         Copy-Item .env.example .env.local
+       Git Bash / Linux / macOS:
+         cp .env.example .env.local
+
+--------------------------------------------------------------------------------
+4. ESPECIFICACIÓN COMPLETA DE API KEYS, CREDENCIALES Y VARIABLES
+--------------------------------------------------------------------------------
+
+4.1. BASE DE DATOS ORACLE (Obligatorio para correr el Backend)
+--------------------------------------------------------------------------------
+  Propiedad                              | Variable de entorno        | Descripción / Ejemplo
+  ---------------------------------------+----------------------------+--------------------------------------------------
+  spring.datasource.url                  | SPRING_DATASOURCE_URL      | URL JDBC con ruta al Wallet (usar "/" en Windows):
+                                         |                            | jdbc:oracle:thin:@alejandriabd2026_high?TNS_ADMIN=C:/oracle/Wallet_AlejandriaBD2026
+  spring.datasource.username             | SPRING_DATASOURCE_USERNAME | Usuario de Oracle (por defecto: alejandria)
+  spring.datasource.password             | SPRING_DATASOURCE_PASSWORD | Contraseña del usuario Oracle (SIN valor por defecto)
+
+4.2. API KEY DE INTELIGENCIA ARTIFICIAL — GOOGLE GEMINI (Módulo Estudio IA)
+--------------------------------------------------------------------------------
+  Propiedad        | Variable de entorno | Valor por defecto / Descripción
+  -----------------+---------------------+--------------------------------------------------------
+  ai.api.key       | AI_API_KEY          | API Key de Google AI Studio (ej: AIzaSy...)
+                   | (o IA_API_KEY)      | Nota: application.properties también enlaza ia.api-key
+                   |                     | como respaldo, pero usa siempre ai.api.key.
+  ai.api.url       | AI_API_URL          | https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=
+                   |                     | (GeminiAiClient tiene fallback automático a gemini-3.5-flash,
+                   |                     | gemini-3.1-flash-lite, gemini-3.8-flash y gemini-flash-lite-latest)
+  ai.daily-limit   | AI_DAILY_LIMIT      | 5 (límite diario de generaciones de estudio IA por usuario)
+  ia.timeout       | IA_TIMEOUT          | 60000 (timeout HTTP en milisegundos hacia Gemini)
+
+  ¿Dónde obtener la API Key de Gemini?
+  1. Entra a https://aistudio.google.com/apikey con tu cuenta de Google.
+  2. Crea una nueva API Key y cópiala en ai.api.key dentro de application-local.properties.
+  3. Si dejas ai.api.key vacía, el backend arranca sin error, pero cualquier
+     petición a /api/ai/* responderá HTTP 503 (AI_NOT_CONFIGURED).
+
+4.3. CORREO TRANSACCIONAL (OTP de registro y recuperación de contraseña)
+--------------------------------------------------------------------------------
+  Propiedad                  | Variable de entorno | Descripción
+  ---------------------------+---------------------+------------------------------------------------
+  app.mail.provider          | APP_MAIL_PROVIDER   | console | smtp | resend (por defecto: console)
+  app.mail.from              | APP_MAIL_FROM       | Remitente (ej: Alejandria UPC <noreply@alejandria.local>)
+
+  Según el proveedor elegido:
+
+  [Opción A] console (Recomendada para desarrollo local rápido)
+    - No requiere API keys ni contraseña de correo.
+    - Imprime el código OTP de 6 dígitos y el link de recuperación en la
+      consola/logs del backend con el prefijo [DEV-MAIL].
+
+  [Opción B] smtp (Envío real usando Gmail u otro servidor SMTP)
+    - spring.mail.host       | MAIL_HOST           | Ej: smtp.gmail.com
+    - spring.mail.port       | MAIL_PORT           | Ej: 587 (STARTTLS habilitado)
+    - spring.mail.username   | MAIL_USERNAME       | Tu correo (ej: tucorreo@gmail.com)
+    - spring.mail.password   | MAIL_PASSWORD       | App Password de 16 caracteres de Google
+      IMPORTANTE (Gmail): NO uses tu contraseña normal de Gmail. Debes activar
+      la verificación en 2 pasos en tu cuenta Google y generar una "Contraseña
+      de aplicación" (App Password) de 16 caracteres.
+
+  [Opción C] resend (API HTTP — Recomendada para despliegue en nube/producción)
+    - app.mail.resend-api-key| RESEND_API_KEY      | API Key de Resend (formato: re_xxxxxxxxx)
+    - app.mail.resend-url    | RESEND_API_URL      | https://api.resend.com/emails
+    ¿Dónde obtenerla? En https://resend.com/api-keys (requiere remitente/dominio
+    configurado en app.mail.from).
+
+4.4. SECRETOS DE SEGURIDAD, VERIFICACIÓN Y ANALÍTICA
+--------------------------------------------------------------------------------
+  Propiedad                      | Variable de entorno      | Valor dev por defecto / Uso
+  -------------------------------+--------------------------+------------------------------------------------
+  jwt.secret                     | JWT_SECRET               | Firma HMAC-SHA256 para tokens JWT (HS256).
+                                 |                          | En producción usar clave aleatoria larga (32+ chars).
+  jwt.expiration                 | JWT_EXPIRATION           | 86400000 (24 horas en milisegundos).
+  app.verification.hash-secret   | VERIFICATION_HASH_SECRET | Secreto HMAC-SHA256 para códigos OTP y tokens
+                                 |                          | de recuperación de contraseña.
+  analytics.salt                 | ANALYTICS_SALT           | Salt SHA-256 para anonimizar métricas/interacciones.
+
+  Parámetros adicionales de OTP (con defaults seguros en application.properties):
+  - app.verification.code-length=6
+  - app.verification.expiration-minutes=15
+  - app.verification.max-attempts=5
+  - app.verification.resend-cooldown-seconds=60
+  - app.verification.unverified-cleanup-hours=48
+
+4.5. URLS, CORS Y LÍMITES DE ARCHIVOS
+--------------------------------------------------------------------------------
+  Propiedad                                | Variable de entorno    | Valor por defecto
+  -----------------------------------------+------------------------+-----------------------
+  app.frontend.url                         | (sin env var propia)   | http://localhost:5173
+    (Se usa para construir el enlace de restablecimiento de contraseña enviado por correo)
+  cors.allowed.origins                     | CORS_ALLOWED_ORIGINS   | http://localhost:5173
+    (Nota: SecurityConfig además permite http://localhost:* y http://127.0.0.1:*)
+  spring.servlet.multipart.max-file-size   | FILE_MAX_SIZE          | 25MB
+  spring.servlet.multipart.max-request-size| FILE_MAX_REQUEST_SIZE  | 25MB
+
+4.6. VARIABLES DEL FRONTEND (frontend/.env.local)
+--------------------------------------------------------------------------------
+  Variable        | Valor por defecto          | Descripción
+  ----------------+----------------------------+----------------------------------------------
+  VITE_API_URL    | http://localhost:8080/api  | URL base del backend Spring Boot (sin "/" final).
+  VITE_USE_MOCK   | true (si no se define!)    | false -> consume el backend real con Axios.
+                  |                            | true  -> usa datos simulados en frontend/src/mocks.
+  VITE_MOCK_DELAY | 400                        | Retardo artificial en ms cuando VITE_USE_MOCK=true.
+
+  IMPORTANTE: Cada vez que cambies frontend/.env.local debes reiniciar "npm run dev"
+  para que Vite recargue las variables.
+
+--------------------------------------------------------------------------------
+5. CÓMO COMPILAR, PROBAR Y CORRER EL PROYECTO
+--------------------------------------------------------------------------------
+
+5.1. PREPARAR EL REPOSITORIO
+  git clone <URL_DEL_REPO>
+  cd AlejandriaUPC
+  git checkout develop
+  git pull origin develop
+
+5.2. BACKEND CON MAVEN Y SPRING BOOT (Puerto 8080)
+  Asegúrate de haber creado y llenado src/main/resources/application-local.properties.
+
+  - Instalar dependencias y compilar:
+      mvn clean compile
+
+  - Ejecutar suite de pruebas unitarias y de integración (usa H2, no Oracle):
+      mvn test
+
+  - Empaquetar el proyecto (.jar ejecutable en target/alejandria-1.0.0.jar):
+      mvn clean package
+    (O saltando tests: mvn clean package -DskipTests)
+
+  - Correr el servidor Spring Boot en desarrollo:
+      mvn spring-boot:run
+
+  - Alternativa si ya generaste el JAR:
+      java -jar target/alejandria-1.0.0.jar
+
+  URL del Backend activo: http://localhost:8080
+
+5.3. FRONTEND CON VITE Y NPM (Puerto 5173)
+  Abre otra terminal en la carpeta frontend/:
+
+  - Ir al directorio del frontend:
+      cd frontend
+
+  - Instalar dependencias (solo la primera vez o cuando cambie package.json):
+      npm install
+
+  - Asegurar que frontend/.env.local tenga:
+      VITE_API_URL=http://localhost:8080/api
+      VITE_USE_MOCK=false
+      VITE_MOCK_DELAY=400
+
+  - Levantar servidor de desarrollo Vite:
+      npm run dev
+
+  URL del Frontend activo: http://localhost:5173
+  (Nota: frontend/vite.config.js también incluye un proxy /api -> http://localhost:8080)
+
+  Otros comandos útiles en frontend/:
+  - Verificar linter (ESLint):
+      npm run lint
+  - Compilar bundle de producción (carpeta frontend/dist):
+      npm run build
+  - Previsualizar el build de producción:
+      npm run preview
+
+5.4. RESUMEN PARA LEVANTAR TODO EN LOCAL (FULL-STACK)
+  Terminal 1 (raíz AlejandriaUPC/):
+    mvn spring-boot:run
+
+  Terminal 2 (carpeta AlejandriaUPC/frontend/):
+    npm run dev
+
+  Luego abre en tu navegador: http://localhost:5173
+
+--------------------------------------------------------------------------------
+6. SOLUCIÓN DE PROBLEMAS COMUNES
+--------------------------------------------------------------------------------
+
+1) "mvn no se reconoce como comando" (Windows):
+   - Instala Apache Maven y agrega la carpeta \bin al PATH del sistema, o usa
+     el panel "Maven" integrado en IntelliJ IDEA (Lifecycle / Plugins -> spring-boot:run).
+
+2) El frontend carga datos falsos aunque Spring Boot esté encendido:
+   - Revisa frontend/.env.local y confirma que VITE_USE_MOCK=false.
+   - Si la variable no existe o falta .env.local, por diseño usa mocks (true).
+   - Reinicia "npm run dev" después de editar .env.local.
+
+3) Error de conexión a Oracle / ORA / TNS_ADMIN:
+   - Verifica que el Wallet esté descomprimido en la ruta exacta indicada en
+     spring.datasource.url (en Windows usa barras "/" en lugar de "\").
+   - Verifica que spring.datasource.username y spring.datasource.password sean correctos.
+
+4) Error 503 AI_NOT_CONFIGURED al usar Estudio IA:
+   - Falta configurar ai.api.key en src/main/resources/application-local.properties
+     (o la variable de entorno AI_API_KEY).
+
+5) No llegan los correos de verificación OTP:
+   - Si usas app.mail.provider=console, el código aparece en la consola donde
+     corre Spring Boot (busca "[DEV-MAIL]").
+   - Si usas smtp con Gmail, verifica que spring.mail.password sea un App Password
+     de 16 caracteres (no tu clave personal) y que app.mail.from coincida con tu correo.
+   - Si usas resend, verifica app.mail.resend-api-key y que el dominio/remitente
+     esté habilitado en tu cuenta de Resend.
+================================================================================
