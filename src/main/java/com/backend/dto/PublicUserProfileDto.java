@@ -1,7 +1,11 @@
 package com.backend.dto;
 
 import com.backend.domain.identity.User;
+import com.backend.domain.identity.UserContact;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Perfil público de un usuario sin exponer correo institucional ni nombre completo privado.
@@ -12,6 +16,8 @@ public class PublicUserProfileDto {
     private String username;
     private Integer semester;
     private String role;
+    private String bio;
+    private List<UserContactDto> contacts = Collections.emptyList();
 
     @JsonProperty("isSelf")
     private boolean self;
@@ -38,12 +44,28 @@ public class PublicUserProfileDto {
             boolean isFollowing,
             boolean followsMe
     ) {
+        return fromEntity(user, isSelf, followersCount, followingCount, isFollowing, followsMe, Collections.emptyList());
+    }
+
+    public static PublicUserProfileDto fromEntity(
+            User user,
+            boolean isSelf,
+            long followersCount,
+            long followingCount,
+            boolean isFollowing,
+            boolean followsMe,
+            List<UserContact> contacts
+    ) {
         PublicUserProfileDto dto = new PublicUserProfileDto();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setSemester(user.getSemester());
         String roleName = user.getRole() != null ? user.getRole().getName().toLowerCase() : "estudiante";
         dto.setRole(roleName.contains("admin") ? "admin" : "estudiante");
+        dto.setBio(user.getBio());
+        dto.setContacts(contacts == null
+                ? Collections.emptyList()
+                : contacts.stream().map(UserContactDto::fromEntity).toList());
         dto.setSelf(isSelf);
         dto.setFollowersCount(followersCount);
         dto.setFollowingCount(followingCount);
@@ -64,6 +86,12 @@ public class PublicUserProfileDto {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+
+    public List<UserContactDto> getContacts() { return contacts; }
+    public void setContacts(List<UserContactDto> contacts) { this.contacts = contacts; }
 
     @JsonProperty("isSelf")
     public boolean isSelf() { return self; }

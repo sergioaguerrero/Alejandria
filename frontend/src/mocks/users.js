@@ -18,6 +18,8 @@
  * @property {string} email
  * @property {number|null} semester
  * @property {'estudiante'|'admin'} role
+ * @property {string|null} [bio]
+ * @property {Array<{ id: string, type: string, value: string, label?: string|null }>} [contacts]
  * @property {string} password        Only in the mock.
  * @property {boolean} verified
  * @property {boolean} suspended
@@ -32,6 +34,12 @@ export const USERS = [
     email: 'sergioaguerrero@unicesar.edu.co',
     semester: 4,
     role: 'estudiante',
+    bio: 'Estudiante de Ingeniería de Sistemas interesado en desarrollo backend con Java/Spring Boot, bases de datos Oracle y grupos de estudio para parciales.',
+    contacts: [
+      { id: 'cnt-1', type: 'GITHUB', value: '@sergioaguerrero', label: null },
+      { id: 'cnt-2', type: 'WHATSAPP', value: '+57 300 412 8890', label: 'Grupos de estudio' },
+      { id: 'cnt-3', type: 'DISCORD', value: 'sergio.dev', label: null },
+    ],
     password: 'Alejandria1',
     verified: true,
     suspended: false,
@@ -43,6 +51,11 @@ export const USERS = [
     email: 'lauramartinez@unicesar.edu.co',
     semester: 4,
     role: 'estudiante',
+    bio: 'Apasionada por algoritmos, estructuras de datos y diseño de interfaces. Siempre abierta a colaborar en repositorios de estudio.',
+    contacts: [
+      { id: 'cnt-4', type: 'LINKEDIN', value: 'https://linkedin.com/in/lauramartinez', label: null },
+      { id: 'cnt-5', type: 'TELEGRAM', value: '@lauramartinez', label: null },
+    ],
     password: 'Alejandria1',
     verified: true,
     suspended: false,

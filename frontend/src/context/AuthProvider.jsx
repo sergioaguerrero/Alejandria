@@ -14,6 +14,7 @@ import {
   logout as logoutService,
   login as loginService,
   getCurrentSession,
+  refreshCurrentUser as refreshCurrentUserService,
   register as registerService,
   resendVerificationCode as resendVerificationCodeService,
   updateProfile as updateProfileService,
@@ -64,6 +65,14 @@ export default function AuthProvider({ children }) {
     return updatedUser;
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const freshUser = await refreshCurrentUserService();
+    if (freshUser) {
+      setSession((current) => (current ? { ...current, user: freshUser } : current));
+    }
+    return freshUser;
+  }, []);
+
   const changePassword = useCallback((data) => changePasswordService(data), []);
 
   const value = useMemo(
@@ -78,6 +87,7 @@ export default function AuthProvider({ children }) {
       resendVerificationCode,
       logout,
       updateProfile,
+      refreshUser,
       changePassword,
     }),
     [
@@ -88,6 +98,7 @@ export default function AuthProvider({ children }) {
       resendVerificationCode,
       logout,
       updateProfile,
+      refreshUser,
       changePassword,
     ],
   );

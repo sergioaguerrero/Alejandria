@@ -1,18 +1,22 @@
 package com.backend.service;
 
+import com.backend.cross.ContactMethodType;
 import com.backend.cross.NotificationType;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
+import com.backend.domain.identity.UserContact;
 import com.backend.domain.identity.UserFollow;
 import com.backend.domain.identity.UserFollowId;
 import com.backend.domain.identity.UserSubjectInterest;
 import com.backend.dto.ChangePasswordRequest;
+import com.backend.dto.ContactItemRequest;
 import com.backend.dto.PublicUserProfileDto;
 import com.backend.dto.SubjectDto;
 import com.backend.dto.UpdateProfileRequest;
 import com.backend.dto.UserDto;
 import com.backend.exception.AuthException;
 import com.backend.repository.CatalogRepository;
+import com.backend.repository.UserContactRepository;
 import com.backend.repository.UserFollowRepository;
 import com.backend.repository.UserRepository;
 import com.backend.repository.UserSubjectInterestRepository;
@@ -21,6 +25,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -39,7 +46,18 @@ import java.util.stream.Collectors;
 @Service
 public class UserProfileService {
 
+    public static final int MAX_BIO_LENGTH = 500;
+    public static final int MAX_CONTACTS = 8;
+    public static final int MAX_CONTACT_VALUE_LENGTH = 255;
+    public static final int MAX_CONTACT_LABEL_LENGTH = 60;
+
+    private static final Pattern CONTACT_EMAIL_PATTERN =
+            Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$");
+    private static final Pattern WHATSAPP_PATTERN =
+            Pattern.compile("^\\+?[0-9\\s\\-()]{7,20}$");
+
     private final UserRepository userRepository;
+    private final UserContactRepository userContactRepository;
     private final UserFollowRepository userFollowRepository;
     private final UserSubjectInterestRepository userSubjectInterestRepository;
     private final CatalogRepository catalogRepository;
@@ -48,6 +66,7 @@ public class UserProfileService {
 
     public UserProfileService(
             UserRepository userRepository,
+            UserContactRepository userContactRepository,
             UserFollowRepository userFollowRepository,
             UserSubjectInterestRepository userSubjectInterestRepository,
             CatalogRepository catalogRepository,
@@ -55,11 +74,19 @@ public class UserProfileService {
             NotificationService notificationService
     ) {
         this.userRepository = userRepository;
+        this.userContactRepository = userContactRepository;
         this.userFollowRepository = userFollowRepository;
         this.userSubjectInterestRepository = userSubjectInterestRepository;
         this.catalogRepository = catalogRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
+    }
+
+    @Transactional(readOnly = true)
+    public UserDto getMyProfile(User currentUser) {
+        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu perfil.");
+        List<UserContact> contacts = userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(user.getId());
+        return UserDto.fromEntity(user, contacts);
     }
 
     @Transactional
@@ -69,6 +96,8 @@ public class UserProfileService {
         String cleanName = request.getName() == null ? "" : request.getName().trim().replaceAll("\\s+", " ");
         String cleanUsername = request.getUsername() == null ? "" : request.getUsername().trim().toLowerCase(Locale.ROOT);
         Integer semester = request.getSemester();
+        String rawBio = request.getBio();
+        String cleanBio = rawBio == null ? null : rawBio.replace("\r\n", "\n").trim();
 
         Map<String, String> fields = new LinkedHashMap<>();
         if (cleanName.length() < 3 || cleanName.length() > 80) {
@@ -90,6 +119,15 @@ public class UserProfileService {
             }
         }
 
+        if (cleanBio != null && cleanBio.length() > MAX_BIO_LENGTH) {
+            fields.put("bio", "La descripción no puede superar los " + MAX_BIO_LENGTH + " caracteres.");
+        }
+
+        List<UserContact> validatedContacts = null;
+        if (request.getContacts() != null) {
+            validatedContacts = validateAndBuildContacts(user, request.getContacts(), fields);
+        }
+
         if (!fields.isEmpty()) {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST,
@@ -104,9 +142,24 @@ public class UserProfileService {
         if (!isAdmin) {
             user.setSemester(semester);
         }
+        if (cleanBio != null) {
+            user.setBio(cleanBio.isEmpty() ? null : cleanBio);
+        }
 
         User saved = userRepository.save(user);
-        return UserDto.fromEntity(saved);
+
+        List<UserContact> savedContacts;
+        if (validatedContacts != null) {
+            userContactRepository.deleteByUserId(saved.getId());
+            userContactRepository.flush();
+            savedContacts = validatedContacts.isEmpty()
+                    ? Collections.emptyList()
+                    : userContactRepository.saveAll(validatedContacts);
+        } else {
+            savedContacts = userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(saved.getId());
+        }
+
+        return UserDto.fromEntity(saved, savedContacts);
     }
 
     @Transactional
@@ -337,6 +390,13 @@ public class UserProfileService {
                 ? new HashSet<>(userFollowRepository.findFollowerUserIds(viewer.getId(), ids))
                 : Collections.emptySet();
 
+        Map<Long, List<UserContact>> contactsByUser = new HashMap<>();
+        for (UserContact contact : userContactRepository.findByUserIdInOrderByDisplayOrderAscIdAsc(ids)) {
+            contactsByUser
+                    .computeIfAbsent(contact.getUser().getId(), ignored -> new ArrayList<>())
+                    .add(contact);
+        }
+
         return users.stream()
                 .map(target -> {
                     boolean isSelf = viewer != null && viewer.getId().equals(target.getId());
@@ -348,9 +408,123 @@ public class UserProfileService {
                             followersCounts.getOrDefault(target.getId(), 0L),
                             followingCounts.getOrDefault(target.getId(), 0L),
                             isFollowing,
-                            followsMe
+                            followsMe,
+                            contactsByUser.getOrDefault(target.getId(), Collections.emptyList())
                     );
                 })
                 .toList();
+    }
+
+    private List<UserContact> validateAndBuildContacts(
+            User user,
+            List<ContactItemRequest> rawContacts,
+            Map<String, String> fields
+    ) {
+        if (rawContacts.size() > MAX_CONTACTS) {
+            fields.put("contacts", "Puedes registrar como máximo " + MAX_CONTACTS + " medios de contacto.");
+            return Collections.emptyList();
+        }
+
+        List<UserContact> built = new ArrayList<>();
+        for (int i = 0; i < rawContacts.size(); i++) {
+            ContactItemRequest item = rawContacts.get(i);
+            if (item == null) {
+                fields.put("contacts." + i + ".value", "Completa o elimina este medio de contacto.");
+                continue;
+            }
+
+            ContactMethodType type = ContactMethodType.fromValue(item.getType()).orElse(null);
+            if (type == null) {
+                fields.put("contacts." + i + ".type", "Selecciona un tipo de contacto válido.");
+            }
+
+            String cleanValue = item.getValue() == null ? "" : item.getValue().trim();
+            String cleanLabel = item.getLabel() == null ? "" : item.getLabel().trim();
+
+            if (cleanLabel.length() > MAX_CONTACT_LABEL_LENGTH) {
+                fields.put(
+                        "contacts." + i + ".label",
+                        "La etiqueta no puede superar " + MAX_CONTACT_LABEL_LENGTH + " caracteres."
+                );
+            }
+
+            String valueError = validateContactValue(type, cleanValue);
+            if (valueError != null) {
+                fields.put("contacts." + i + ".value", valueError);
+            }
+
+            if (type != null && valueError == null && cleanLabel.length() <= MAX_CONTACT_LABEL_LENGTH) {
+                built.add(new UserContact(
+                        user,
+                        type,
+                        cleanValue,
+                        cleanLabel.isEmpty() ? null : cleanLabel,
+                        i
+                ));
+            }
+        }
+        return built;
+    }
+
+    private String validateContactValue(ContactMethodType type, String value) {
+        if (value.isEmpty()) {
+            return "Escribe el dato o enlace de contacto.";
+        }
+        if (value.length() > MAX_CONTACT_VALUE_LENGTH) {
+            return "No puede superar " + MAX_CONTACT_VALUE_LENGTH + " caracteres.";
+        }
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+            return "Ese formato de enlace no está permitido.";
+        }
+        if (type == null) {
+            return null;
+        }
+        return switch (type) {
+            case EMAIL -> CONTACT_EMAIL_PATTERN.matcher(value).matches()
+                    ? null
+                    : "Escribe un correo electrónico válido.";
+            case WHATSAPP -> {
+                long digits = value.chars().filter(Character::isDigit).count();
+                yield WHATSAPP_PATTERN.matcher(value).matches() && digits >= 7 && digits <= 15
+                        ? null
+                        : "Escribe un número de WhatsApp válido (ej. +57 300 123 4567).";
+            }
+            case WEBSITE -> isSafeHttpUrl(value)
+                    ? null
+                    : "Ingresa una URL válida que comience con https:// o http://.";
+            case INSTAGRAM, GITHUB, TELEGRAM, LINKEDIN -> validateSocialHandleOrUrl(value);
+            case DISCORD -> value.length() >= 2 && value.length() <= 60
+                    ? null
+                    : "Escribe tu usuario de Discord (entre 2 y 60 caracteres).";
+            case OTHER -> value.length() >= 2
+                    ? null
+                    : "Escribe al menos 2 caracteres.";
+        };
+    }
+
+    private String validateSocialHandleOrUrl(String value) {
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return isSafeHttpUrl(value) ? null : "Ingresa una URL válida.";
+        }
+        if (value.contains(" ") || value.length() < 2) {
+            return "Escribe un usuario válido (sin espacios) o una URL completa.";
+        }
+        return null;
+    }
+
+    private boolean isSafeHttpUrl(String value) {
+        try {
+            URI uri = URI.create(value);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            return scheme != null
+                    && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                    && host != null
+                    && host.contains(".");
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 }
