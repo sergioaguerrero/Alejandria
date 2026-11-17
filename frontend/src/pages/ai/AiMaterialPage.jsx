@@ -40,6 +40,7 @@ import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined';
 
 import AiTypeIcon from '../../components/ai/AiTypeIcon.jsx';
+import DownloadAiPdfButton from '../../components/ai/DownloadAiPdfButton.jsx';
 import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
 import {
   getAiMaterialById,
@@ -226,41 +227,60 @@ export default function AiMaterialPage() {
               </Typography>
             </Box>
 
-            {material.isSharedWithMe ? (
-              <Chip
-                color="info"
-                variant="outlined"
-                label={`Compartido por @${material.sharedBy}`}
-                sx={{ alignSelf: { xs: 'flex-start', md: 'center' }, fontWeight: 600 }}
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={1}
+              sx={{ alignSelf: { xs: 'flex-start', md: 'center' }, flexWrap: 'wrap', alignItems: 'center' }}
+            >
+              <DownloadAiPdfButton
+                material={material}
+                onDownloaded={() =>
+                  setSnackbar({
+                    open: true,
+                    message: 'Archivo PDF descargado.',
+                    severity: 'success',
+                  })
+                }
+                onError={(err) =>
+                  setSnackbar({
+                    open: true,
+                    message: err?.message || 'No se pudo generar el archivo PDF.',
+                    severity: 'error',
+                  })
+                }
               />
-            ) : (
-              <Stack
-                direction="row"
-                useFlexGap
-                spacing={1}
-                sx={{ alignSelf: { xs: 'flex-start', md: 'center' }, flexWrap: 'wrap' }}
-              >
-                <Button
-                  variant={savedInMyStudy ? 'contained' : 'outlined'}
-                  color={savedInMyStudy ? 'primary' : 'inherit'}
-                  size="small"
-                  startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
-                  onClick={handleToggleSave}
-                  disabled={isSaving}
-                >
-                  {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
-                </Button>
-                <Button
+              {material.isSharedWithMe ? (
+                <Chip
+                  color="info"
                   variant="outlined"
-                  color="primary"
-                  size="small"
-                  startIcon={<ShareOutlinedIcon />}
-                  onClick={() => setShareOpen(true)}
-                >
-                  Compartir con amigos
-                </Button>
-              </Stack>
-            )}
+                  label={`Compartido por @${material.sharedBy}`}
+                  sx={{ fontWeight: 600 }}
+                />
+              ) : (
+                <>
+                  <Button
+                    variant={savedInMyStudy ? 'contained' : 'outlined'}
+                    color={savedInMyStudy ? 'primary' : 'inherit'}
+                    size="small"
+                    startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
+                    onClick={handleToggleSave}
+                    disabled={isSaving}
+                  >
+                    {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<ShareOutlinedIcon />}
+                    onClick={() => setShareOpen(true)}
+                  >
+                    Compartir con amigos
+                  </Button>
+                </>
+              )}
+            </Stack>
           </Stack>
         </CardContent>
       </Card>

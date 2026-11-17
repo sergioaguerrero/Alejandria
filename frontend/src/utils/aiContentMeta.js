@@ -14,6 +14,7 @@ export const AI_CONTENT_TYPES = [
     generatingSubtitle:
       'Procesando apuntes, extrayendo conceptos clave y formulando preguntas con sus respectivas explicaciones.',
     submitLabel: 'Generar cuestionario con IA',
+    downloadPdfLabel: 'Descargar cuestionario en formato PDF',
   },
   {
     value: 'summary',
@@ -25,6 +26,7 @@ export const AI_CONTENT_TYPES = [
     generatingSubtitle:
       'Sintetizando ideas principales, definiciones esenciales y conclusiones clave de los apuntes seleccionados.',
     submitLabel: 'Generar resumen con IA',
+    downloadPdfLabel: 'Descargar resumen en formato PDF',
   },
   {
     value: 'guide',
@@ -36,6 +38,7 @@ export const AI_CONTENT_TYPES = [
     generatingSubtitle:
       'Organizando objetivos de aprendizaje, módulos de repaso, preguntas prácticas y lista de verificación.',
     submitLabel: 'Generar guía de estudio con IA',
+    downloadPdfLabel: 'Descargar guía en formato PDF',
   },
   {
     value: 'slides',
@@ -47,6 +50,7 @@ export const AI_CONTENT_TYPES = [
     generatingSubtitle:
       'Estructurando láminas visuales con puntos clave, mensajes resumen y notas de exposición.',
     submitLabel: 'Generar diapositivas con IA',
+    downloadPdfLabel: 'Descargar diapositivas en formato PDF',
   },
 ];
 
