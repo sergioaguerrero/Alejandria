@@ -282,7 +282,7 @@ export default function QuizPage() {
             <Stack
               spacing={1}
               sx={{
-                width: { xs: '100%', sm: 350 },
+                width: { xs: '100%', sm: 170 },
                 alignSelf: { xs: 'stretch', sm: 'center' },
                 flexShrink: 0,
               }}

@@ -4,7 +4,7 @@
  * guides, or slides directly as a formatted PDF file.
  */
 
-import { Button } from '@mui/material';
+import { Button, Tooltip } from '@mui/material';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 
 import { getAiContentMeta } from '../../utils/aiContentMeta.js';
@@ -19,7 +19,8 @@ import { exportAiMaterialToPdf } from '../../utils/aiPdfExport.js';
  */
 export default function DownloadAiPdfButton({ material, fullWidth = false, onDownloaded, onError }) {
   const meta = getAiContentMeta(material?.contentType || 'quiz');
-  const label = meta.downloadPdfLabel || `Descargar ${meta.shortLabel.toLowerCase()} en formato PDF`;
+  const tooltipLabel =
+    meta.downloadPdfLabel || `Descargar ${meta.shortLabel.toLowerCase()} en formato PDF`;
 
   const handleDownload = () => {
     try {
@@ -31,17 +32,22 @@ export default function DownloadAiPdfButton({ material, fullWidth = false, onDow
   };
 
   return (
-    <Button
-      variant="outlined"
-      color="primary"
-      size="small"
-      fullWidth={fullWidth}
-      startIcon={<PictureAsPdfOutlinedIcon />}
-      onClick={handleDownload}
-      disabled={!material}
-      sx={{ whiteSpace: 'nowrap' }}
-    >
-      {label}
-    </Button>
+    <Tooltip title={tooltipLabel}>
+      <span style={fullWidth ? { display: 'block', width: '100%' } : undefined}>
+        <Button
+          variant="outlined"
+          color="primary"
+          size="small"
+          fullWidth={fullWidth}
+          startIcon={<PictureAsPdfOutlinedIcon />}
+          onClick={handleDownload}
+          disabled={!material}
+          aria-label={tooltipLabel}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Descargar
+        </Button>
+      </span>
+    </Tooltip>
   );
 }

@@ -26,6 +26,7 @@ import {
   Skeleton,
   Snackbar,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
@@ -229,7 +230,7 @@ export default function AiMaterialPage() {
             <Stack
               spacing={1}
               sx={{
-                width: { xs: '100%', md: 350 },
+                width: { xs: '100%', md: 170 },
                 alignSelf: { xs: 'stretch', md: 'center' },
                 flexShrink: 0,
               }}
@@ -267,17 +268,20 @@ export default function AiMaterialPage() {
                     disabled={isSaving}
                     onClick={handleToggleSave}
                   />
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    fullWidth
-                    startIcon={<ShareOutlinedIcon />}
-                    onClick={() => setShareOpen(true)}
-                    sx={{ whiteSpace: 'nowrap' }}
-                  >
-                    Compartir con amigos
-                  </Button>
+                  <Tooltip title="Compartir con amigos">
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      fullWidth
+                      startIcon={<ShareOutlinedIcon />}
+                      onClick={() => setShareOpen(true)}
+                      aria-label="Compartir con amigos"
+                      sx={{ whiteSpace: 'nowrap' }}
+                    >
+                      Compartir
+                    </Button>
+                  </Tooltip>
                 </>
               )}
             </Stack>
