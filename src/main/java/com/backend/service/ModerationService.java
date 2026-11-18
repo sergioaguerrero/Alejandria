@@ -75,7 +75,7 @@ public class ModerationService {
 
     @Transactional
     public ReportResponseDto createReport(CreateReportRequest request, User currentUser) {
-        User reporter = requireAuthenticated(currentUser, "Debes iniciar sesión para enviar un reporte.");
+        User reporter = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para enviar un reporte.");
 
         ReportTargetType targetType = parseTargetType(request.getTargetType());
         String rawTargetId = request.getTargetId() == null ? "" : request.getTargetId().trim();
@@ -152,7 +152,7 @@ public class ModerationService {
 
     @Transactional(readOnly = true)
     public List<ReportResponseDto> getReports(String statusFilter, String reasonFilter, User currentUser) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar la bandeja de reportes.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar la bandeja de reportes.");
 
         List<Report> allReports = reportRepository.findAllWithDetails();
         Map<Long, Decision> decisionMap = loadDecisions(allReports);
@@ -184,7 +184,7 @@ public class ModerationService {
 
     @Transactional(readOnly = true)
     public ReportResponseDto getReportById(Long id, User currentUser, String baseUrl) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar el detalle de un reporte.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar el detalle de un reporte.");
 
         Report report = reportRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPORT_NOT_FOUND", "Reporte no encontrado."));
@@ -202,7 +202,7 @@ public class ModerationService {
             User currentUser,
             String baseUrl
     ) {
-        User admin = requireAdmin(currentUser, "Solo los administradores pueden resolver reportes.");
+        User admin = AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden resolver reportes.");
 
         ModerationAction action = parseAction(request.getAction());
         String note = request.getNote() == null ? "" : request.getNote().trim();
@@ -384,16 +384,14 @@ public class ModerationService {
     }
 
     private void notifyAdminsOfNewReport(Report saved) {
-        for (User candidate : userRepository.findVerifiedUsers()) {
-            if (isAdminUser(candidate)) {
-                notificationService.create(
-                        candidate,
-                        NotificationType.REPORT_PENDING,
-                        "Nuevo reporte pendiente",
-                        "@" + saved.getReporter().getUsername() + " reportó \"" + saved.getTargetLabel() + "\".",
-                        "/admin/reports/" + saved.getId()
-                );
-            }
+        for (User admin : userRepository.findVerifiedAdmins()) {
+            notificationService.create(
+                    admin,
+                    NotificationType.REPORT_PENDING,
+                    "Nuevo reporte pendiente",
+                    "@" + saved.getReporter().getUsername() + " reportó \"" + saved.getTargetLabel() + "\".",
+                    "/admin/reports/" + saved.getId()
+            );
         }
     }
 
@@ -464,26 +462,5 @@ public class ModerationService {
                 "DUPLICATE_REPORT",
                 "Ya reportaste este contenido. El equipo de administración lo revisará."
         );
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
-    }
-
-    private User requireAdmin(User user, String forbiddenMessage) {
-        User current = requireAuthenticated(user, "Debes iniciar sesión para realizar esta acción.");
-        if (!isAdminUser(current)) {
-            throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage);
-        }
-        return current;
-    }
-
-    private boolean isAdminUser(User user) {
-        return user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
     }
 }

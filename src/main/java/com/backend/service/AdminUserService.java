@@ -46,7 +46,7 @@ public class AdminUserService {
 
     @Transactional(readOnly = true)
     public AdminUserResponseDto getAdminUser(String idOrUsername, User currentUser) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar la información de gestión de usuarios.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar la información de gestión de usuarios.");
         User target = findUserOrThrow(idOrUsername);
         long repoCount = studyRepositoryRepository.countByAuthorId(target.getId());
         long docCount = resourceRepository.countByUploadedById(target.getId());
@@ -56,7 +56,7 @@ public class AdminUserService {
 
     @Transactional
     public Map<String, Object> toggleSuspension(String idOrUsername, String rawReason, User currentUser) {
-        User admin = requireAdmin(currentUser, "Solo los administradores pueden suspender o reactivar cuentas.");
+        User admin = AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden suspender o reactivar cuentas.");
         User target = findUserOrThrow(idOrUsername);
 
         if (target.getId().equals(admin.getId())) {
@@ -115,18 +115,5 @@ public class AdminUserService {
             return userRepository.findByUsernameIgnoreCase(clean.toLowerCase(Locale.ROOT))
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
         }
-    }
-
-    private User requireAdmin(User user, String forbiddenMessage) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Debes iniciar sesión para continuar.");
-        }
-        boolean isAdmin = user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
-        if (!isAdmin) {
-            throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage);
-        }
-        return user;
     }
 }

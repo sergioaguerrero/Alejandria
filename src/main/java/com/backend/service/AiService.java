@@ -83,7 +83,7 @@ public class AiService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getDailyQuota(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para usar el generador con IA.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para usar el generador con IA.");
         long used = countTodayGenerations(user.getId());
         long remaining = Math.max(0L, dailyLimit - used);
 
@@ -99,7 +99,7 @@ public class AiService {
             Map<String, Object> body,
             User currentUser
     ) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para generar materiales con IA.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para generar materiales con IA.");
         Map<String, Object> safeBody = body == null ? Map.of() : body;
 
         AiContentType contentType = resolveContentType(forcedType, safeBody.get("contentType"));
@@ -171,7 +171,7 @@ public class AiService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getQuizById(String rawId, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para acceder a este cuestionario.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para acceder a este cuestionario.");
         AiMaterial material = findMaterialOrThrow(rawId, "El cuestionario no existe o fue eliminado.");
         if (material.getContentType() != AiContentType.QUIZ) {
             throw new AuthException(HttpStatus.NOT_FOUND, "QUIZ_NOT_FOUND", "El cuestionario no existe o fue eliminado.");
@@ -182,7 +182,7 @@ public class AiService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getMaterialById(String rawId, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para acceder a este material.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para acceder a este material.");
         AiMaterial material = findMaterialOrThrow(rawId, "El material generado no existe o fue eliminado.");
         AiShare share = resolveReadableShare(material, user, "No tienes permiso para ver este material de IA.");
         return toMaterialDto(material, share);
@@ -190,7 +190,7 @@ public class AiService {
 
     @Transactional
     public Map<String, Object> submitQuizScore(String rawId, Map<String, Object> body, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para registrar tu puntaje.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para registrar tu puntaje.");
         AiMaterial material = findMaterialOrThrow(rawId, "Cuestionario no encontrado.");
         if (material.getContentType() != AiContentType.QUIZ) {
             throw new AuthException(HttpStatus.NOT_FOUND, "QUIZ_NOT_FOUND", "Cuestionario no encontrado.");
@@ -210,7 +210,7 @@ public class AiService {
 
     @Transactional
     public Map<String, Object> toggleSaveToMyStudy(String rawId, Map<String, Object> body, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para guardar contenidos.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para guardar contenidos.");
         AiMaterial material = findMaterialOrThrow(rawId, "Material no encontrado.");
         requireOwner(material, user, "Solo el autor puede guardar este contenido en Mi estudio.");
 
@@ -226,7 +226,7 @@ public class AiService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getMyStudyMaterials(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para ver tu material de estudio guardado.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver tu material de estudio guardado.");
         return aiMaterialRepository.findSavedByOwnerId(user.getId())
                 .stream()
                 .map(m -> toMaterialDto(m, null))
@@ -235,7 +235,7 @@ public class AiService {
 
     @Transactional
     public Map<String, Object> removeFromMyStudy(String rawId, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para realizar esta acción.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para realizar esta acción.");
         AiMaterial material = findMaterialOrThrow(rawId, "Material no encontrado.");
         requireOwner(material, user, "Solo puedes modificar tu propia biblioteca de estudio.");
 
@@ -246,7 +246,7 @@ public class AiService {
 
     @Transactional(readOnly = true)
     public List<String> getSharedFriends(String rawId, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para consultar compartidos.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para consultar compartidos.");
         AiMaterial material = findMaterialOrThrow(rawId, "El contenido de IA no existe o fue eliminado.");
         requireOwner(material, user, "Solo puedes consultar compartidos de tu propio material.");
 
@@ -258,7 +258,7 @@ public class AiService {
 
     @Transactional
     public Map<String, Object> shareWithMutualFriends(String rawId, Map<String, Object> body, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para compartir contenido con tus amigos.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para compartir contenido con tus amigos.");
         AiMaterial material = findMaterialOrThrow(rawId, "El contenido de IA no existe o fue eliminado.");
         requireOwner(material, user, "Solo puedes compartir contenido de IA generado por ti.");
 
@@ -322,7 +322,7 @@ public class AiService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getSharedWithMe(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para ver el contenido compartido contigo.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver el contenido compartido contigo.");
         return aiShareRepository.findSharedWithRecipient(user.getId())
                 .stream()
                 .map(share -> toMaterialDto(share.getMaterial(), share))
@@ -553,13 +553,6 @@ public class AiService {
         if (!material.getOwner().getId().equals(user.getId())) {
             throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage);
         }
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
     }
 
     private Long parseRequiredId(Object rawId, String errorMessage) {

@@ -65,7 +65,7 @@ public class CollaboratorService {
 
     @Transactional
     public CollaboratorDto invite(Long repositoryId, String rawUsername, User currentUser) {
-        User owner = requireAuthenticated(currentUser, "Inicia sesión para invitar colaboradores.");
+        User owner = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para invitar colaboradores.");
         StudyRepository repo = findRepoOrThrow(repositoryId);
         if (repo.getAuthor() == null || !repo.getAuthor().getId().equals(owner.getId())) {
             throw new AuthException(
@@ -130,7 +130,7 @@ public class CollaboratorService {
 
     @Transactional
     public Map<String, String> respond(Long repositoryId, boolean accept, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para responder la invitación.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para responder la invitación.");
         StudyRepository repo = findRepoOrThrow(repositoryId);
 
         RepositoryCollaborator invite = collaboratorRepository.findByStudyRepositoryIdAndUserId(repositoryId, user.getId())
@@ -167,7 +167,7 @@ public class CollaboratorService {
 
     @Transactional
     public void remove(Long repositoryId, String usernameToRemove, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para gestionar colaboradores.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para gestionar colaboradores.");
         StudyRepository repo = findRepoOrThrow(repositoryId);
 
         String cleanTarget = usernameToRemove == null
@@ -190,7 +190,7 @@ public class CollaboratorService {
 
     @Transactional(readOnly = true)
     public CollaborationsResponseDto getMyCollaborations(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para ver tus colaboraciones.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver tus colaboraciones.");
         List<RepositoryCollaborator> records = collaboratorRepository.findByUserIdWithDetails(user.getId());
         if (records.isEmpty()) {
             return new CollaborationsResponseDto(List.of(), List.of());
@@ -229,12 +229,5 @@ public class CollaboratorService {
                         "REPOSITORY_NOT_FOUND",
                         "No encontramos ese repositorio."
                 ));
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
     }
 }

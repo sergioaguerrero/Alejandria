@@ -6,7 +6,6 @@ import com.backend.cross.ResourceType;
 import com.backend.domain.identity.User;
 import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.DocumentDto;
-import com.backend.exception.AuthException;
 import com.backend.repository.AiMaterialRepository;
 import com.backend.repository.AiShareRepository;
 import com.backend.repository.InteractionRepository;
@@ -15,7 +14,6 @@ import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,7 +69,7 @@ public class StatisticsService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getMyStatistics(String rawPeriod, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus estadísticas.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus estadísticas.");
         String period = "month".equalsIgnoreCase(rawPeriod) ? "month" : "week";
 
         List<Object[]> myResourceRows = resourceRepository.findPublishedStatisticsRowsByAuthorId(user.getId());
@@ -162,10 +160,10 @@ public class StatisticsService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getGlobalStatistics(User currentUser) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar las estadísticas globales.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar las estadísticas globales.");
 
         List<User> verifiedUsers = userRepository.findVerifiedUsers();
-        List<User> students = verifiedUsers.stream().filter(u -> !isAdmin(u)).toList();
+        List<User> students = verifiedUsers.stream().filter(u -> !AuthGuards.isAdmin(u)).toList();
 
         long totalRepositories = studyRepositoryRepository.count();
         List<Object[]> resourceRows = resourceRepository.findPublishedStatisticsRows();
@@ -279,14 +277,14 @@ public class StatisticsService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getAdvancedAdminStatistics(String rawPeriod, User currentUser) {
-        requireAdmin(currentUser, "No tienes permisos de administrador.");
+        AuthGuards.requireAdmin(currentUser, "No tienes permisos de administrador.");
         String period = switch (rawPeriod == null ? "" : rawPeriod.trim().toLowerCase(Locale.ROOT)) {
             case "day" -> "day";
             case "month" -> "month";
             default -> "week";
         };
 
-        List<User> students = userRepository.findVerifiedUsers().stream().filter(u -> !isAdmin(u)).toList();
+        List<User> students = userRepository.findVerifiedUsers().stream().filter(u -> !AuthGuards.isAdmin(u)).toList();
         long totalStudents = students.size();
 
         LocalDate today = LocalDate.now();
@@ -616,27 +614,6 @@ public class StatisticsService {
             case "CORRUPTED_FILE" -> "Archivo corrupto";
             default -> "Otros";
         };
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
-    }
-
-    private User requireAdmin(User user, String forbiddenMessage) {
-        User current = requireAuthenticated(user, "Debes iniciar sesión para continuar.");
-        if (!isAdmin(current)) {
-            throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage);
-        }
-        return current;
-    }
-
-    private boolean isAdmin(User user) {
-        return user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
     }
 
     private static final class TopicBucket {
