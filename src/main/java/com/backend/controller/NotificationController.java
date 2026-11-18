@@ -2,14 +2,12 @@ package com.backend.controller;
 
 import com.backend.domain.identity.User;
 import com.backend.dto.NotificationDto;
-import com.backend.service.JwtTokenService;
 import com.backend.service.NotificationService;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,45 +22,39 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService notificationService;
-    private final JwtTokenService jwtTokenService;
 
-    public NotificationController(NotificationService notificationService, JwtTokenService jwtTokenService) {
+    public NotificationController(NotificationService notificationService) {
         this.notificationService = notificationService;
-        this.jwtTokenService = jwtTokenService;
     }
 
     @GetMapping
     public ResponseEntity<List<NotificationDto>> listMyNotifications(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(notificationService.listForUser(resolveUser(authorization)));
+        return ResponseEntity.ok(notificationService.listForUser(currentUser));
     }
 
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Object>> getUnreadCount(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(Map.of("count", notificationService.countUnread(resolveUser(authorization))));
+        return ResponseEntity.ok(Map.of("count", notificationService.countUnread(currentUser)));
     }
 
     @PutMapping("/{id}/read")
     public ResponseEntity<Map<String, Object>> markAsRead(
             @PathVariable Long id,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        notificationService.markAsRead(id, resolveUser(authorization));
+        notificationService.markAsRead(id, currentUser);
         return ResponseEntity.ok(Map.of("success", true));
     }
 
     @PutMapping("/read-all")
     public ResponseEntity<Map<String, Object>> markAllAsRead(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        notificationService.markAllAsRead(resolveUser(authorization));
+        notificationService.markAllAsRead(currentUser);
         return ResponseEntity.ok(Map.of("success", true));
-    }
-
-    private User resolveUser(String authorization) {
-        return jwtTokenService.resolveUserFromAuthorizationHeader(authorization).orElse(null);
     }
 }

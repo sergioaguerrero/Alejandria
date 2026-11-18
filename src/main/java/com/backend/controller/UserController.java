@@ -9,17 +9,15 @@ import com.backend.dto.UpdateProfileRequest;
 import com.backend.dto.UpdateSubjectsOfInterestRequest;
 import com.backend.dto.UserDto;
 import com.backend.service.CollaboratorService;
-import com.backend.service.JwtTokenService;
 import com.backend.service.StatisticsService;
 import com.backend.service.UserProfileService;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,122 +35,115 @@ public class UserController {
     private final UserProfileService userProfileService;
     private final CollaboratorService collaboratorService;
     private final StatisticsService statisticsService;
-    private final JwtTokenService jwtTokenService;
 
     public UserController(
             UserProfileService userProfileService,
             CollaboratorService collaboratorService,
-            StatisticsService statisticsService,
-            JwtTokenService jwtTokenService
+            StatisticsService statisticsService
     ) {
         this.userProfileService = userProfileService;
         this.collaboratorService = collaboratorService;
         this.statisticsService = statisticsService;
-        this.jwtTokenService = jwtTokenService;
     }
 
     @GetMapping("/me")
     public ResponseEntity<UserDto> getMyProfile(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(userProfileService.getMyProfile(resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.getMyProfile(currentUser));
     }
 
     @PutMapping("/me")
     public ResponseEntity<UserDto> updateMyProfile(
             @RequestBody UpdateProfileRequest request,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(userProfileService.updateProfile(request, resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.updateProfile(request, currentUser));
     }
 
     @PutMapping("/me/password")
     public ResponseEntity<Void> changeMyPassword(
             @RequestBody ChangePasswordRequest request,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        userProfileService.changePassword(request, resolveUser(authorization));
+        userProfileService.changePassword(request, currentUser);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me/friends")
     public ResponseEntity<List<PublicUserProfileDto>> getMyFriends(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(userProfileService.getFriends(resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.getFriends(currentUser));
     }
 
     @GetMapping("/me/following")
     public ResponseEntity<List<PublicUserProfileDto>> getMyFollowing(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(userProfileService.getFollowing(resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.getFollowing(currentUser));
     }
 
     @GetMapping("/me/followers")
     public ResponseEntity<List<PublicUserProfileDto>> getMyFollowers(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(userProfileService.getFollowers(resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.getFollowers(currentUser));
     }
 
     @GetMapping("/me/subjects")
     public ResponseEntity<List<SubjectDto>> getMySubjects(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(userProfileService.getSubjectsOfInterest(resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.getSubjectsOfInterest(currentUser));
     }
 
     @PutMapping("/me/subjects")
     public ResponseEntity<List<SubjectDto>> updateMySubjects(
             @RequestBody UpdateSubjectsOfInterestRequest request,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(
-                userProfileService.updateSubjectsOfInterest(request.getSubjectIds(), resolveUser(authorization))
+                userProfileService.updateSubjectsOfInterest(request.getSubjectIds(), currentUser)
         );
     }
 
     @GetMapping("/me/collaborations")
     public ResponseEntity<CollaborationsResponseDto> getMyCollaborations(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(collaboratorService.getMyCollaborations(resolveUser(authorization)));
+        return ResponseEntity.ok(collaboratorService.getMyCollaborations(currentUser));
     }
 
     @GetMapping("/me/statistics")
     public ResponseEntity<Map<String, Object>> getMyStatistics(
             @RequestParam(defaultValue = "week") String period,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(statisticsService.getMyStatistics(period, resolveUser(authorization)));
+        return ResponseEntity.ok(statisticsService.getMyStatistics(period, currentUser));
     }
 
     @GetMapping
     public ResponseEntity<List<PublicUserProfileDto>> searchUsers(
             @RequestParam(required = false) String q,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User viewer
     ) {
-        return ResponseEntity.ok(userProfileService.searchUsers(q, resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.searchUsers(q, viewer));
     }
 
     @GetMapping("/{username}")
     public ResponseEntity<PublicUserProfileDto> getPublicProfile(
             @PathVariable String username,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User viewer
     ) {
-        return ResponseEntity.ok(userProfileService.getPublicProfile(username, resolveUser(authorization)));
+        return ResponseEntity.ok(userProfileService.getPublicProfile(username, viewer));
     }
 
     @PostMapping("/{username}/follow")
     public ResponseEntity<PublicUserProfileDto> toggleFollow(
             @PathVariable String username,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(userProfileService.toggleFollow(username, resolveUser(authorization)));
-    }
-
-    private User resolveUser(String authorization) {
-        return jwtTokenService.resolveUserFromAuthorizationHeader(authorization).orElse(null);
+        return ResponseEntity.ok(userProfileService.toggleFollow(username, currentUser));
     }
 }
