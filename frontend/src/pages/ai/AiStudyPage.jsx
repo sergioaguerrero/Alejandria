@@ -32,6 +32,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -55,6 +56,33 @@ import {
   getRepositoriesByUser,
   getRepository,
 } from '../../services/index.js';
+
+function getSelectableCardSx(isSelected, interactiveLift = false) {
+  return (theme) => ({
+    p: 2,
+    height: '100%',
+    borderRadius: 2,
+    cursor: 'pointer',
+    border: '1.5px solid',
+    borderColor: isSelected ? theme.palette.primary.main : theme.palette.divider,
+    bgcolor: isSelected
+      ? alpha(theme.palette.primary.main, 0.1)
+      : theme.palette.background.paper,
+    boxShadow: isSelected
+      ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.35)}`
+      : 'none',
+    transition: 'all 0.15s ease-in-out',
+    '&:hover': {
+      borderColor: isSelected
+        ? theme.palette.primary.main
+        : alpha(theme.palette.primary.main, 0.55),
+      bgcolor: isSelected
+        ? alpha(theme.palette.primary.main, 0.14)
+        : alpha(theme.palette.primary.main, 0.04),
+      ...(interactiveLift ? { transform: 'translateY(-2px)' } : {}),
+    },
+  });
+}
 
 export default function AiStudyPage() {
   const navigate = useNavigate();
@@ -310,20 +338,7 @@ export default function AiStudyPage() {
                                     setContentType(typeOption.value);
                                   }
                                 }}
-                                sx={{
-                                  p: 2,
-                                  height: '100%',
-                                  borderRadius: 2,
-                                  cursor: 'pointer',
-                                  border: 2,
-                                  borderColor: isSelected ? 'primary.main' : 'divider',
-                                  bgcolor: isSelected ? 'action.selected' : 'background.paper',
-                                  transition: 'all 0.15s ease-in-out',
-                                  '&:hover': {
-                                    borderColor: 'primary.main',
-                                    bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                                  },
-                                }}
+                                sx={getSelectableCardSx(isSelected)}
                               >
                                 <Stack
                                   direction="row"
@@ -372,20 +387,7 @@ export default function AiStudyPage() {
                               <Grid key={repo.id} size={{ xs: 12, sm: 6 }}>
                                 <Box
                                   onClick={() => setSelectedRepo(repo)}
-                                  sx={{
-                                    p: 2,
-                                    borderRadius: 2,
-                                    cursor: 'pointer',
-                                    border: 2,
-                                    borderColor: isSelected ? 'primary.main' : 'divider',
-                                    bgcolor: isSelected ? 'action.selected' : 'background.paper',
-                                    transition: 'all 0.15s ease-in-out',
-                                    '&:hover': {
-                                      borderColor: 'primary.main',
-                                      bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                                      transform: 'translateY(-2px)',
-                                    },
-                                  }}
+                                  sx={getSelectableCardSx(isSelected, true)}
                                 >
                                   <Stack
                                     direction="row"
