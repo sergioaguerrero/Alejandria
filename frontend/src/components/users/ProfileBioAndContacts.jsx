@@ -30,6 +30,22 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
 import { resolveContactAction } from '../../utils/contactMethods.js';
 
+function AddSectionButton({ label, onClick }) {
+  return (
+    <Tooltip title={label}>
+      <Button
+        size="small"
+        variant="outlined"
+        aria-label={label}
+        onClick={onClick}
+        sx={{ minWidth: 36, width: 36, height: 36, p: 0, flexShrink: 0 }}
+      >
+        <AddIcon fontSize="small" />
+      </Button>
+    </Tooltip>
+  );
+}
+
 /**
  * Returns the Material UI icon element for a contact method type.
  * @param {string} type
@@ -153,22 +169,16 @@ export default function ProfileBioAndContacts({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 1,
+                gap: 1.5,
               }}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 0 }}>
                 Aún no has agregado una descripción personal para tu perfil.
               </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<AddIcon fontSize="small" />}
+              <AddSectionButton
+                label="Agregar descripción"
                 onClick={() => onEdit('profile')}
-                sx={{ width: { xs: '100%', sm: 215 }, flexShrink: 0, whiteSpace: 'nowrap' }}
-              >
-                Agregar descripción
-              </Button>
+              />
             </Box>
           )
         )}
@@ -309,22 +319,16 @@ export default function ProfileBioAndContacts({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 1,
+                gap: 1.5,
               }}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 0 }}>
                 Agrega tus medios de contacto (WhatsApp, GitHub, LinkedIn, correo, etc.) para colaborar con otros estudiantes.
               </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<AddIcon fontSize="small" />}
+              <AddSectionButton
+                label="Agregar contactos"
                 onClick={() => onEdit('contacts')}
-                sx={{ width: { xs: '100%', sm: 215 }, flexShrink: 0, whiteSpace: 'nowrap' }}
-              >
-                Agregar contactos
-              </Button>
+              />
             </Box>
           )
         )}
