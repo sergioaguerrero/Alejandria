@@ -12,8 +12,6 @@ import { useNavigate } from 'react-router-dom';
 
 import {
   Alert,
-  Avatar,
-  Badge,
   Box,
   Button,
   Chip,
@@ -47,21 +45,6 @@ import {
 } from '../../services/index.js';
 import { formatRelativeDate } from '../../utils/formatDate.js';
 import { notificationTypeLabel } from '../../utils/notificationMeta.js';
-
-const AVATAR_TONES = ['primary', 'info', 'secondary', 'success'];
-
-function extractMention(text) {
-  const match = text?.match(/@([a-zA-Z0-9._-]+)/);
-  return match ? match[1] : null;
-}
-
-function getToneForUsername(username) {
-  let hash = 0;
-  for (let i = 0; i < username.length; i += 1) {
-    hash = (hash * 31 + username.charCodeAt(i)) % AVATAR_TONES.length;
-  }
-  return AVATAR_TONES[Math.abs(hash) % AVATAR_TONES.length];
-}
 
 function renderMessageWithMentions(message) {
   if (!message) return null;
@@ -311,7 +294,6 @@ export default function NotificationsPage() {
         <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <List disablePadding>
             {filteredNotifications.map((item, idx) => {
-              const mention = extractMention(item.message);
               const accent = getTypeAccent(item.type);
 
               return (
@@ -379,61 +361,20 @@ export default function NotificationsPage() {
                         },
                       })}
                     >
-                      {mention ? (
-                        <Badge
-                          overlap="circular"
-                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                          badgeContent={
-                            <Box
-                              sx={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: '50%',
-                                bgcolor: 'background.paper',
-                                border: '2px solid',
-                                borderColor: 'background.paper',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: 1,
-                              }}
-                            >
-                              <NotificationTypeIcon type={item.type} sx={{ fontSize: 12 }} />
-                            </Box>
-                          }
-                        >
-                          <Avatar
-                            sx={(theme) => {
-                              const tone = getToneForUsername(mention);
-                              return {
-                                width: 42,
-                                height: 42,
-                                fontSize: '0.85rem',
-                                fontWeight: 700,
-                                bgcolor: theme.palette[tone].main,
-                                color: theme.palette[tone].contrastText,
-                              };
-                            }}
-                          >
-                            {mention.slice(0, 2).toUpperCase()}
-                          </Avatar>
-                        </Badge>
-                      ) : (
-                        <Box
-                          sx={(theme) => ({
-                            width: 42,
-                            height: 42,
-                            borderRadius: '50%',
-                            flexShrink: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            bgcolor: alpha(theme.palette[accent].main, 0.14),
-                          })}
-                        >
-                          <NotificationTypeIcon type={item.type} sx={{ fontSize: 20 }} />
-                        </Box>
-                      )}
+                      <Box
+                        sx={(theme) => ({
+                          width: 42,
+                          height: 42,
+                          borderRadius: '50%',
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: alpha(theme.palette[accent].main, 0.14),
+                        })}
+                      >
+                        <NotificationTypeIcon type={item.type} sx={{ fontSize: 21 }} />
+                      </Box>
 
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Box
