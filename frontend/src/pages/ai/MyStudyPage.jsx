@@ -237,13 +237,6 @@ export default function MyStudyPage() {
             const scoreColor =
               item.lastScore >= 80 ? 'success' : item.lastScore >= 60 ? 'warning' : 'error';
             const dateToShow = isSharedTab ? item.sharedAt || item.createdAt : item.createdAt;
-            const actionText = isQuiz
-              ? isSharedTab
-                ? 'Resolver cuestionario'
-                : hasScore
-                  ? 'Repasar'
-                  : 'Resolver'
-              : `Abrir ${typeMeta.shortLabel.toLowerCase()}`;
 
             return (
               <Grid key={item.shareId || item.id} size={{ xs: 12, sm: 6, md: 4 }}>
@@ -361,7 +354,7 @@ export default function MyStudyPage() {
                       size="small"
                       startIcon={<PlayArrowOutlinedIcon />}
                     >
-                      {actionText}
+                      Abrir
                     </Button>
 
                     {!isSharedTab && (
