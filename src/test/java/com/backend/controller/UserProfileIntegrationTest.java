@@ -6,20 +6,21 @@ import com.backend.domain.academy.Semester;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.Role;
 import com.backend.domain.identity.User;
+import com.backend.service.EmailService;
 import com.backend.service.JwtTokenService;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
@@ -28,6 +29,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -55,6 +58,9 @@ class UserProfileIntegrationTest {
 
     @Autowired
     private JwtTokenService jwtTokenService;
+
+    @MockitoBean
+    private EmailService emailService;
 
     private String sergioToken;
     private String lauraToken;
@@ -189,20 +195,26 @@ class UserProfileIntegrationTest {
                         ))))
                 .andExpect(status().isNoContent());
 
-        // 5. Recuperación de contraseña y restablecimiento
-        MvcResult recoverResult = mockMvc.perform(post("/api/auth/recover")
+        // 5. Recuperación de contraseña y restablecimiento (sin exponer testToken en HTTP)
+        mockMvc.perform(post("/api/auth/recover")
                         .header(HttpHeaders.ORIGIN, "http://localhost:5174")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", "sergio.profile@unicesar.edu.co"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.testToken").isNotEmpty())
-                .andReturn();
+                .andExpect(jsonPath("$.testToken").doesNotExist());
 
-        JsonNode recoverJson = objectMapper.readTree(recoverResult.getResponse().getContentAsString());
-        String resetToken = recoverJson.get("testToken").asText();
+        ArgumentCaptor<String> linkCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailService).sendPasswordResetEmail(
+                eq("sergio.profile@unicesar.edu.co"),
+                eq("Sergio"),
+                linkCaptor.capture(),
+                eq(60)
+        );
+        String resetLink = linkCaptor.getValue();
+        String resetToken = resetLink.substring(resetLink.lastIndexOf('/') + 1);
 
-        // Correo no registrado devuelve respuesta neutra sin testToken
+        // Correo no registrado devuelve la misma respuesta neutra
         mockMvc.perform(post("/api/auth/recover")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", "noexiste@unicesar.edu.co"))))

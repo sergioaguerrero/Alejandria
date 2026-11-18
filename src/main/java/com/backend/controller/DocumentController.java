@@ -7,18 +7,17 @@ import com.backend.dto.DocumentDto;
 import com.backend.dto.DocumentPageResponse;
 import com.backend.service.AnalyticsService;
 import com.backend.service.DocumentService;
-import com.backend.service.JwtTokenService;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -39,16 +38,13 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final AnalyticsService analyticsService;
-    private final JwtTokenService jwtTokenService;
 
     public DocumentController(
             DocumentService documentService,
-            AnalyticsService analyticsService,
-            JwtTokenService jwtTokenService
+            AnalyticsService analyticsService
     ) {
         this.documentService = documentService;
         this.analyticsService = analyticsService;
-        this.jwtTokenService = jwtTokenService;
     }
 
     @PostMapping(value = "/repositories/{repositoryId}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -61,9 +57,8 @@ public class DocumentController {
             @RequestParam(value = "topic", required = false) String topic,
             @RequestParam(value = "tags", required = false) String tagsJson,
             @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) throws IOException {
-        User currentUser = resolveUser(authorization);
         DocumentDto created = documentService.upload(
                 repositoryId,
                 title,
@@ -99,10 +94,9 @@ public class DocumentController {
             @RequestParam(defaultValue = "recent") String order,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "8") int size,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User viewer
     ) {
         String effectiveQuery = (q != null && !q.isBlank()) ? q : search;
-        User viewer = resolveUser(authorization);
         if (effectiveQuery != null && !effectiveQuery.isBlank()) {
             analyticsService.recordInteraction(
                     InteractionType.SEARCH,
@@ -134,9 +128,8 @@ public class DocumentController {
     @GetMapping("/documents/{id}")
     public ResponseEntity<DocumentDto> getDocument(
             @PathVariable Long id,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User viewer
     ) {
-        User viewer = resolveUser(authorization);
         DocumentDto dto = documentService.getDetailAndIncrementView(id, currentBaseUrl());
         Long subjectId = dto.getSubject() != null ? dto.getSubject().getId() : null;
         analyticsService.recordInteraction(
@@ -159,7 +152,7 @@ public class DocumentController {
             @RequestParam(value = "topic", required = false) String topic,
             @RequestParam(value = "tags", required = false) String tagsJson,
             @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) throws IOException {
         return ResponseEntity.ok(documentService.update(
                 id,
@@ -170,7 +163,7 @@ public class DocumentController {
                 topic,
                 tagsJson,
                 file,
-                resolveUser(authorization),
+                currentUser,
                 currentBaseUrl()
         ));
     }
@@ -178,18 +171,17 @@ public class DocumentController {
     @DeleteMapping("/documents/{id}")
     public ResponseEntity<Void> deleteDocument(
             @PathVariable Long id,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User currentUser
     ) {
-        documentService.delete(id, resolveUser(authorization));
+        documentService.delete(id, currentUser);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/documents/{id}/download")
     public ResponseEntity<byte[]> downloadDocument(
             @PathVariable Long id,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @AuthenticationPrincipal User viewer
     ) {
-        User viewer = resolveUser(authorization);
         Resource resource = documentService.getFileResource(id, true);
         analyticsService.recordInteraction(
                 InteractionType.DOWNLOAD,
@@ -227,11 +219,8 @@ public class DocumentController {
                 .contentType(mediaType)
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
                 .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+                .header("X-Content-Type-Options", "nosniff")
                 .body(resource.getFileBytes());
-    }
-
-    private User resolveUser(String authorization) {
-        return jwtTokenService.resolveUserFromAuthorizationHeader(authorization).orElse(null);
     }
 
     private String currentBaseUrl() {

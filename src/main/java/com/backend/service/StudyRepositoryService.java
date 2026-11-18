@@ -80,7 +80,7 @@ public class StudyRepositoryService {
 
     @Transactional
     public RepositoryResponseDto create(RepositoryRequestDto dto, User currentUser) {
-        User author = requireAuthenticated(currentUser, "Debes iniciar sesión para crear un repositorio.");
+        User author = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para crear un repositorio.");
         Subject subject = resolveSubject(dto.getSubjectId());
 
         StudyRepository repo = new StudyRepository(
@@ -138,7 +138,7 @@ public class StudyRepositoryService {
 
     @Transactional
     public RepositoryResponseDto update(Long id, RepositoryRequestDto dto, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para editar este repositorio.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para editar este repositorio.");
         StudyRepository repo = findRepoOrThrow(id);
         requireOwner(repo, user, "Solo el dueño puede editar este repositorio.");
 
@@ -153,7 +153,7 @@ public class StudyRepositoryService {
 
     @Transactional
     public void delete(Long id, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para eliminar este repositorio.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para eliminar este repositorio.");
         StudyRepository repo = findRepoOrThrow(id);
         requireOwner(repo, user, "Solo el dueño puede eliminar este repositorio.");
 
@@ -179,18 +179,19 @@ public class StudyRepositoryService {
 
     @Transactional
     public Map<String, Object> toggleLike(Long id, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para dar me gusta.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para dar me gusta.");
         StudyRepository repo = findRepoOrThrow(id);
 
         RepositoryReactionId reactionId = new RepositoryReactionId(id, user.getId());
         boolean alreadyLiked = repositoryLikeRepository.existsById(reactionId);
+        int updatedLikes;
 
         if (alreadyLiked) {
             repositoryLikeRepository.deleteById(reactionId);
-            repo.setLikes(Math.max(0, repo.getLikes() - 1));
+            studyRepositoryRepository.decrementLikes(id);
+            updatedLikes = Math.max(0, repo.getLikes() - 1);
         } else {
             repositoryLikeRepository.save(new RepositoryLike(id, user.getId()));
-            repo.setLikes(repo.getLikes() + 1);
             if (repo.getAuthor() != null && !repo.getAuthor().getId().equals(user.getId())) {
                 notificationService.create(
                         repo.getAuthor(),
@@ -200,15 +201,16 @@ public class StudyRepositoryService {
                         "/repositories/" + repo.getId()
                 );
             }
+            studyRepositoryRepository.incrementLikes(id);
+            updatedLikes = repo.getLikes() + 1;
         }
 
-        studyRepositoryRepository.save(repo);
-        return Map.of("liked", !alreadyLiked, "likes", repo.getLikes());
+        return Map.of("liked", !alreadyLiked, "likes", updatedLikes);
     }
 
     @Transactional
     public Map<String, Object> toggleFollow(Long id, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para seguir este repositorio.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para seguir este repositorio.");
         findRepoOrThrow(id);
 
         RepositoryReactionId reactionId = new RepositoryReactionId(id, user.getId());
@@ -226,7 +228,7 @@ public class StudyRepositoryService {
 
     @Transactional(readOnly = true)
     public List<RepositoryResponseDto> getFollowed(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus repositorios seguidos.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus repositorios seguidos.");
         List<StudyRepository> followed = repositoryFollowRepository.findFollowedRepositoriesByUserId(user.getId());
         return mapRepositories(followed, user);
     }
@@ -306,13 +308,6 @@ public class StudyRepositoryService {
                         "La materia seleccionada no existe.",
                         Map.of("subjectId", "Selecciona una materia válida.")
                 ));
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
     }
 
     private void requireOwner(StudyRepository repo, User user, String message) {

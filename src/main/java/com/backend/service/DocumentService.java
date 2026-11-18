@@ -22,6 +22,8 @@ import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -46,6 +48,7 @@ import java.util.regex.Pattern;
 @Service
 public class DocumentService {
 
+    private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
     private static final long MAX_FILE_SIZE_BYTES = 25L * 1024L * 1024L;
     private static final int MIN_TOPIC_LENGTH = 3;
     private static final int MAX_TOPIC_LENGTH = 60;
@@ -114,7 +117,7 @@ public class DocumentService {
             User currentUser,
             String baseUrl
     ) throws IOException {
-        User author = requireAuthenticated(currentUser, "Debes iniciar sesión para subir documentos.");
+        User author = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para subir documentos.");
         StudyRepository repo = studyRepositoryRepository.findByIdWithDetails(repositoryId)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
@@ -231,9 +234,9 @@ public class DocumentService {
     @Transactional
     public DocumentDto getDetailAndIncrementView(Long id, String baseUrl) {
         Resource resource = findResourceOrThrow(id);
+        resourceRepository.incrementViews(id);
         resource.setTotalViews(resource.getTotalViews() + 1);
-        Resource saved = resourceRepository.save(resource);
-        return toDto(saved, baseUrl);
+        return toDto(resource, baseUrl);
     }
 
     @Transactional
@@ -249,7 +252,7 @@ public class DocumentService {
             User currentUser,
             String baseUrl
     ) throws IOException {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para editar este documento.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para editar este documento.");
         Resource resource = findResourceOrThrow(id);
         requireAuthor(resource, user, "Solo el autor puede editar este documento.");
 
@@ -284,7 +287,7 @@ public class DocumentService {
 
     @Transactional
     public void delete(Long id, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para eliminar este documento.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para eliminar este documento.");
         Resource resource = findResourceOrThrow(id);
         requireAuthor(resource, user, "Solo el autor puede eliminar este documento.");
 
@@ -299,8 +302,8 @@ public class DocumentService {
     public Resource getFileResource(Long id, boolean incrementDownloads) {
         Resource resource = findResourceOrThrow(id);
         if (incrementDownloads) {
+            resourceRepository.incrementDownloads(id);
             resource.setTotalDownloads(resource.getTotalDownloads() + 1);
-            return resourceRepository.save(resource);
         }
         return resource;
     }
@@ -313,13 +316,6 @@ public class DocumentService {
                         "DOCUMENT_NOT_FOUND",
                         "El documento no existe o fue eliminado."
                 ));
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
     }
 
     private void requireAuthor(Resource resource, User user, String message) {
@@ -495,6 +491,7 @@ public class DocumentService {
             }
             return tags;
         } catch (Exception ex) {
+            log.warn("Formato JSON inválido en etiquetas de documento '{}': {}", tagsJson, ex.getMessage());
             return tags;
         }
     }

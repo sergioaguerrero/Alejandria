@@ -44,15 +44,15 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
     List<Object[]> topSearchTermsSince(@Param("from") LocalDateTime from, Pageable pageable);
 
     @Query("""
-        select i from Interaction i
-        left join fetch i.resource r
-        left join fetch r.studyRepository
-        left join fetch i.subject
+        select r.id, r.title, sr.name, i.date, r.type
+        from Interaction i
+        join i.resource r
+        left join r.studyRepository sr
         where i.user.id = :userId
           and i.type in (com.backend.cross.InteractionType.VIEW, com.backend.cross.InteractionType.DOWNLOAD)
         order by i.date desc, i.id desc
         """)
-    List<Interaction> findUserViewAndDownloadHistory(@Param("userId") Long userId);
+    List<Object[]> findRecentUserResourceHistoryRows(@Param("userId") Long userId, Pageable pageable);
 
     @Query("""
         select s.name, count(i)

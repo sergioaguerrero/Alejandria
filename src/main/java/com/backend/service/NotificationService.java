@@ -81,7 +81,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<NotificationDto> listForUser(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus notificaciones.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus notificaciones.");
         return notificationRepository.findByUserIdOrderByCreatedAtDescIdDesc(user.getId()).stream()
                 .map(NotificationDto::fromEntity)
                 .toList();
@@ -89,13 +89,13 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public long countUnread(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus notificaciones.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus notificaciones.");
         return notificationRepository.countByUserIdAndReadFalse(user.getId());
     }
 
     @Transactional
     public void markAsRead(Long notificationId, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para realizar esta acción.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para realizar esta acción.");
         Notification notification = notificationRepository.findByIdAndUserId(notificationId, user.getId())
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
@@ -110,14 +110,7 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para realizar esta acción.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para realizar esta acción.");
         notificationRepository.markAllAsReadByUserId(user.getId());
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
     }
 }

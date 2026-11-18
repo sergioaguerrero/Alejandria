@@ -20,6 +20,7 @@ import com.backend.repository.UserContactRepository;
 import com.backend.repository.UserFollowRepository;
 import com.backend.repository.UserRepository;
 import com.backend.repository.UserSubjectInterestRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -84,14 +85,14 @@ public class UserProfileService {
 
     @Transactional(readOnly = true)
     public UserDto getMyProfile(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu perfil.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu perfil.");
         List<UserContact> contacts = userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(user.getId());
         return UserDto.fromEntity(user, contacts);
     }
 
     @Transactional
     public UserDto updateProfile(UpdateProfileRequest request, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para editar tu perfil.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para editar tu perfil.");
 
         String cleanName = request.getName() == null ? "" : request.getName().trim().replaceAll("\\s+", " ");
         String cleanUsername = request.getUsername() == null ? "" : request.getUsername().trim().toLowerCase(Locale.ROOT);
@@ -109,7 +110,7 @@ public class UserProfileService {
             fields.put("username", "Ese nombre de usuario ya está en uso.");
         }
 
-        boolean isAdmin = isAdminRole(user);
+        boolean isAdmin = AuthGuards.isAdmin(user);
 
         if (!isAdmin) {
             if (semester == null) {
@@ -164,7 +165,7 @@ public class UserProfileService {
 
     @Transactional
     public void changePassword(ChangePasswordRequest request, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para cambiar tu contraseña.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para cambiar tu contraseña.");
 
         String currentPassword = request.getCurrentPassword() == null ? "" : request.getCurrentPassword();
         String newPassword = request.getNewPassword() == null ? "" : request.getNewPassword();
@@ -206,7 +207,7 @@ public class UserProfileService {
 
     @Transactional
     public PublicUserProfileDto toggleFollow(String username, User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para seguir a otros usuarios.");
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para seguir a otros usuarios.");
         User target = findActiveUserByUsername(username);
 
         if (target.getId().equals(viewer.getId())) {
@@ -235,42 +236,36 @@ public class UserProfileService {
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFriends(User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
         return mapList(userFollowRepository.findMutualFriends(viewer.getId()), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFollowing(User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
         return mapList(userFollowRepository.findFollowingUsers(viewer.getId()), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFollowers(User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
         return mapList(userFollowRepository.findFollowerUsers(viewer.getId()), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> searchUsers(String query, User viewer) {
         String cleanQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
-        List<User> candidates = userRepository.findVerifiedUsers().stream()
-                .filter(candidate -> !isAdminRole(candidate))
-                .filter(candidate -> {
-                    if (cleanQuery.isEmpty()) {
-                        return true;
-                    }
-                    String username = candidate.getUsername() == null ? "" : candidate.getUsername().toLowerCase(Locale.ROOT);
-                    String semesterText = candidate.getSemester() != null ? "semestre " + candidate.getSemester() : "";
-                    return username.contains(cleanQuery) || semesterText.contains(cleanQuery);
-                })
-                .toList();
+        String queryPattern = cleanQuery.isEmpty()
+                ? null
+                : "%" + cleanQuery.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        Integer parsedSemester = parseSemesterFromQuery(cleanQuery);
+        List<User> candidates = userRepository.searchActiveStudents(queryPattern, parsedSemester, PageRequest.of(0, 50));
         return mapList(candidates, viewer);
     }
 
     @Transactional(readOnly = true)
     public List<SubjectDto> getSubjectsOfInterest(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus materias.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus materias.");
         return userSubjectInterestRepository.findSubjectsByUserId(user.getId()).stream()
                 .map(SubjectDto::fromEntity)
                 .toList();
@@ -278,7 +273,7 @@ public class UserProfileService {
 
     @Transactional
     public List<SubjectDto> updateSubjectsOfInterest(List<Long> rawSubjectIds, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para guardar tus materias.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para guardar tus materias.");
 
         Set<Long> uniqueIds = rawSubjectIds == null
                 ? Collections.emptySet()
@@ -327,17 +322,21 @@ public class UserProfileService {
                 ));
     }
 
-    private boolean isAdminRole(User user) {
-        return user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
+    private Integer parseSemesterFromQuery(String cleanQuery) {
+        if (cleanQuery == null || cleanQuery.isEmpty()) {
+            return null;
         }
-        return user;
+        String candidate = cleanQuery;
+        if (candidate.startsWith("semestre")) {
+            candidate = candidate.substring("semestre".length()).trim();
+        }
+        if (candidate.matches("^\\d{1,2}$")) {
+            int semester = Integer.parseInt(candidate);
+            if (semester >= 1 && semester <= 12) {
+                return semester;
+            }
+        }
+        return null;
     }
 
     private void applyFullName(User user, String fullName) {

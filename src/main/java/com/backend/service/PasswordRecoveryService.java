@@ -1,6 +1,5 @@
 package com.backend.service;
 
-import com.backend.config.MailProperties;
 import com.backend.config.VerificationProperties;
 import com.backend.domain.identity.PasswordResetToken;
 import com.backend.domain.identity.User;
@@ -45,7 +44,6 @@ public class PasswordRecoveryService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final VerificationProperties verificationProperties;
-    private final MailProperties mailProperties;
     private final String defaultFrontendUrl;
 
     public PasswordRecoveryService(
@@ -54,7 +52,6 @@ public class PasswordRecoveryService {
             EmailService emailService,
             PasswordEncoder passwordEncoder,
             VerificationProperties verificationProperties,
-            MailProperties mailProperties,
             @Value("${app.frontend.url:http://localhost:5173}") String defaultFrontendUrl
     ) {
         this.userRepository = userRepository;
@@ -62,7 +59,6 @@ public class PasswordRecoveryService {
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
         this.verificationProperties = verificationProperties;
-        this.mailProperties = mailProperties;
         this.defaultFrontendUrl = defaultFrontendUrl;
     }
 
@@ -112,13 +108,6 @@ public class PasswordRecoveryService {
                     resetLink,
                     EXPIRATION_MINUTES
             );
-
-            String provider = mailProperties.getProvider() == null
-                    ? "console"
-                    : mailProperties.getProvider().trim().toLowerCase(Locale.ROOT);
-            if ("console".equals(provider)) {
-                response.put("testToken", rawToken);
-            }
         }
 
         return response;

@@ -49,6 +49,16 @@ public interface StudyRepositoryRepository
 
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE StudyRepository r SET r.likes = r.likes + 1 WHERE r.id = :id")
+    int incrementLikes(@Param("id") Long id);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE StudyRepository r SET r.likes = CASE WHEN r.likes > 0 THEN r.likes - 1 ELSE 0 END WHERE r.id = :id")
+    int decrementLikes(@Param("id") Long id);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM StudyRepository r WHERE r.id = :id")
     int deleteByIdBulk(@Param("id") Long id);
 }

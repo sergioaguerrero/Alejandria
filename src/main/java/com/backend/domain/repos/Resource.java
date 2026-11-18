@@ -1,6 +1,7 @@
 package com.backend.domain.repos;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -37,6 +38,7 @@ public class Resource {
     private String fileName;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     @Column(name = "archivo_bytes", nullable = false)
     private byte[] fileBytes;
 
@@ -71,6 +73,7 @@ public class Resource {
     @JoinColumn(name = "repositorio_id")
     private StudyRepository studyRepository;
 
+    @BatchSize(size = 30)
     @ManyToMany
     @JoinTable(
             name = "RECURSO_ETIQUETA",

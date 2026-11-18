@@ -10,6 +10,8 @@ import com.backend.repository.DemandMetricRepository;
 import com.backend.repository.InteractionRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
@@ -27,6 +29,8 @@ import java.util.Map;
 
 @Service
 public class AnalyticsService {
+
+    private static final Logger log = LoggerFactory.getLogger(AnalyticsService.class);
 
     private final InteractionRepository interactionRepository;
     private final DemandMetricRepository demandMetricRepository;
@@ -71,7 +75,7 @@ public class AnalyticsService {
             interactionRepository.save(interaction);
         } catch (Exception e) {
             // La analítica nunca debe romper la acción principal del usuario
-            System.err.println("No se pudo registrar la interacción: " + e.getMessage());
+            log.warn("No se pudo registrar la interacción analítica ({}): {}", type, e.getMessage());
         }
     }
 
