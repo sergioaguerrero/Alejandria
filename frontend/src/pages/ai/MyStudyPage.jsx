@@ -237,13 +237,6 @@ export default function MyStudyPage() {
             const scoreColor =
               item.lastScore >= 80 ? 'success' : item.lastScore >= 60 ? 'warning' : 'error';
             const dateToShow = isSharedTab ? item.sharedAt || item.createdAt : item.createdAt;
-            const actionText = isQuiz
-              ? isSharedTab
-                ? 'Resolver cuestionario'
-                : hasScore
-                  ? 'Repasar'
-                  : 'Resolver'
-              : `Abrir ${typeMeta.shortLabel.toLowerCase()}`;
 
             return (
               <Grid key={item.shareId || item.id} size={{ xs: 12, sm: 6, md: 4 }}>
@@ -332,10 +325,13 @@ export default function MyStudyPage() {
                           {item.repositoryName}
                         </Typography>
                       </Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.subjectName || 'Materia'}
-                        {item.scopeLabel ? ` • ${item.scopeLabel}` : ''}
-                      </Typography>
+                      {((isSharedTab || isQuiz) || item.scopeLabel) && (
+                        <Typography variant="caption" color="text.secondary">
+                          {isSharedTab || isQuiz
+                            ? `${item.subjectName || 'Materia'}${item.scopeLabel ? ` • ${item.scopeLabel}` : ''}`
+                            : item.scopeLabel}
+                        </Typography>
+                      )}
                       {isSharedTab && item.shareNote && (
                         <Typography variant="caption" color="info.main" sx={{ fontStyle: 'italic' }}>
                           &ldquo;{item.shareNote}&rdquo;
@@ -359,9 +355,23 @@ export default function MyStudyPage() {
                       to={getAiMaterialRoute(item)}
                       variant="contained"
                       size="small"
-                      startIcon={<PlayArrowOutlinedIcon />}
+                      sx={{
+                        position: 'relative',
+                        justifyContent: 'center',
+                        px: 4.5,
+                        py: 1,
+                        lineHeight: 1.2,
+                      }}
                     >
-                      {actionText}
+                      <PlayArrowOutlinedIcon
+                        aria-hidden="true"
+                        sx={{
+                          position: 'absolute',
+                          left: 12,
+                          fontSize: 18,
+                        }}
+                      />
+                      Abrir
                     </Button>
 
                     {!isSharedTab && (

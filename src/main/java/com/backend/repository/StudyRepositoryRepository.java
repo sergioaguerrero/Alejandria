@@ -7,9 +7,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -44,4 +46,9 @@ public interface StudyRepositoryRepository
     @Override
     @EntityGraph(attributePaths = {"subject", "subject.semester", "author"})
     Page<StudyRepository> findAll(Specification<StudyRepository> spec, Pageable pageable);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM StudyRepository r WHERE r.id = :id")
+    int deleteByIdBulk(@Param("id") Long id);
 }

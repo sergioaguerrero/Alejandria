@@ -40,6 +40,17 @@ import {
   toggleFollowUser,
 } from '../../services/index.js';
 
+function upsertConnectionList(list, updated, shouldInclude) {
+  if (!shouldInclude) {
+    return list.filter((item) => item.username !== updated.username);
+  }
+  const exists = list.some((item) => item.username === updated.username);
+  if (exists) {
+    return list.map((item) => (item.username === updated.username ? updated : item));
+  }
+  return [...list, updated].sort((a, b) => a.username.localeCompare(b.username, 'es'));
+}
+
 export default function FriendsPage() {
   const { user } = useAuth();
 
@@ -50,12 +61,11 @@ export default function FriendsPage() {
   const [followers, setFollowers] = useState([]);
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [loadedKey, setLoadedKey] = useState('');
-  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState('');
   const [busyUsername, setBusyUsername] = useState('');
   const [notice, setNotice] = useState('');
 
-  const isLoading = !user || loadedKey !== `${user.username}:${reloadKey}`;
+  const isLoading = !user || loadedKey !== user.username;
 
   useEffect(() => {
     if (!user) return undefined;
@@ -75,19 +85,26 @@ export default function FriendsPage() {
         setError(serviceError?.message ?? 'No se pudo cargar tu red de amigos.');
       })
       .finally(() => {
-        if (active) setLoadedKey(`${user.username}:${reloadKey}`);
+        if (active) setLoadedKey(user.username);
       });
 
     return () => {
       active = false;
     };
-  }, [user, reloadKey]);
+  }, [user]);
 
   const handleToggleFollow = async (targetProfile) => {
     setBusyUsername(targetProfile.username);
 
     try {
       const updated = await toggleFollowUser(targetProfile.username);
+      const replaceIfPresent = (list) =>
+        list.map((item) => (item.username === updated.username ? updated : item));
+
+      setDiscoverUsers(replaceIfPresent);
+      setFollowers(replaceIfPresent);
+      setFollowing((prev) => upsertConnectionList(prev, updated, Boolean(updated.isFollowing)));
+      setFriends((prev) => upsertConnectionList(prev, updated, Boolean(updated.isFriend)));
       setNotice(
         updated.isFriend
           ? `Ahora tú y @${updated.username} son amigos (seguimiento mutuo).`
@@ -95,7 +112,6 @@ export default function FriendsPage() {
             ? `Ahora sigues a @${updated.username}.`
             : `Dejaste de seguir a @${updated.username}.`,
       );
-      setReloadKey((k) => k + 1);
     } catch (serviceError) {
       setNotice(serviceError?.message ?? 'No se pudo actualizar el seguimiento.');
     } finally {

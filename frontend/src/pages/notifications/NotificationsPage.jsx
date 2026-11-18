@@ -14,10 +14,12 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
+  Divider,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
   Paper,
   Skeleton,
   Snackbar,
@@ -27,13 +29,17 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import { alpha } from '@mui/material/styles';
+import CheckIcon from '@mui/icons-material/Check';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
-import NotificationTypeIcon from '../../components/common/NotificationTypeIcon.jsx';
+import {
+  NotificationAvatar,
+  NotificationMessage,
+} from '../../components/common/NotificationAvatar.jsx';
 import { useAuth } from '../../context/authContext.js';
 import {
   getNotifications,
@@ -125,22 +131,22 @@ export default function NotificationsPage() {
   });
 
   return (
-    <Box sx={{ maxWidth: 860, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 720, mx: 'auto' }}>
       <Box
         sx={{
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
           alignItems: { xs: 'flex-start', sm: 'center' },
-          gap: 2,
-          mb: 3,
+          gap: 1.5,
+          mb: 2.5,
         }}
       >
         <Box>
           <Typography variant="h4" component="h1" fontWeight={700}>
             Notificaciones
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
             Novedades de tus materias, interacciones y avisos de moderación.
           </Typography>
         </Box>
@@ -151,34 +157,45 @@ export default function NotificationsPage() {
             startIcon={<DoneAllIcon />}
             onClick={handleMarkAllAsRead}
             size="small"
+            sx={{ whiteSpace: 'nowrap' }}
           >
             Marcar todas como leídas
           </Button>
         )}
       </Box>
 
-      <Paper sx={{ mb: 3 }}>
+      <Paper variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
         <Tabs
           value={filter}
           onChange={(_e, val) => setFilter(val)}
           aria-label="Filtro de notificaciones"
+          sx={{ minHeight: 42, '& .MuiTab-root': { minHeight: 42, py: 1 } }}
         >
           <Tab
             value="all"
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                 <span>Todas</span>
-                <Chip size="small" label={notifications.length} />
+                <Chip
+                  size="small"
+                  label={notifications.length}
+                  sx={{ height: 18, fontSize: '0.7rem', '& .MuiChip-label': { px: 0.75 } }}
+                />
               </Box>
             }
           />
           <Tab
             value="unread"
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                 <span>No leídas</span>
                 {unreadCount > 0 && (
-                  <Chip size="small" color="primary" label={unreadCount} />
+                  <Chip
+                    size="small"
+                    color="primary"
+                    label={unreadCount}
+                    sx={{ height: 18, fontSize: '0.7rem', '& .MuiChip-label': { px: 0.75 } }}
+                  />
                 )}
               </Box>
             }
@@ -188,17 +205,20 @@ export default function NotificationsPage() {
 
       {/* Loading state */}
       {loading && (
-        <Stack spacing={2}>
-          {[1, 2, 3, 4].map((key) => (
-            <Card key={key} variant="outlined">
-              <CardContent>
-                <Skeleton variant="text" width="40%" height={28} />
-                <Skeleton variant="text" width="80%" height={20} />
-                <Skeleton variant="text" width="20%" height={16} sx={{ mt: 1 }} />
-              </CardContent>
-            </Card>
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          {[1, 2, 3, 4].map((key, idx) => (
+            <Box key={key}>
+              {idx > 0 && <Divider />}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75, px: 2, py: 1.5 }}>
+                <Skeleton variant="circular" width={40} height={40} />
+                <Box sx={{ flex: 1 }}>
+                  <Skeleton variant="text" width="45%" height={20} />
+                  <Skeleton variant="text" width="75%" height={18} />
+                </Box>
+              </Box>
+            </Box>
           ))}
-        </Stack>
+        </Paper>
       )}
 
       {/* Error state */}
@@ -210,7 +230,7 @@ export default function NotificationsPage() {
               Reintentar
             </Button>
           }
-          sx={{ mb: 3 }}
+          sx={{ mb: 2 }}
         >
           {error}
         </Alert>
@@ -218,130 +238,143 @@ export default function NotificationsPage() {
 
       {/* Empty state */}
       {!loading && !error && filteredNotifications.length === 0 && (
-        <Card variant="outlined">
-          <CardContent>
-            <EmptyState
-              icon={NotificationsNoneIcon}
-              title={
-                filter === 'unread'
-                  ? 'No tienes notificaciones pendientes'
-                  : 'Aún no tienes notificaciones'
-              }
-              description={
-                filter === 'unread'
-                  ? 'Estás al día con todas las novedades de tus materias y contenidos.'
-                  : 'Cuando haya nuevo material en tus materias de interés o avisos del sistema, aparecerán aquí.'
-              }
-            />
-          </CardContent>
-        </Card>
+        <Paper variant="outlined" sx={{ borderRadius: 2, p: 3 }}>
+          <EmptyState
+            icon={NotificationsNoneIcon}
+            title={
+              filter === 'unread'
+                ? 'No tienes notificaciones pendientes'
+                : 'Aún no tienes notificaciones'
+            }
+            description={
+              filter === 'unread'
+                ? 'Estás al día con todas las novedades de tus materias y contenidos.'
+                : 'Cuando haya nuevo material en tus materias de interés o avisos del sistema, aparecerán aquí.'
+            }
+          />
+        </Paper>
       )}
 
-      {/* List */}
+      {/* Feed list */}
       {!loading && !error && filteredNotifications.length > 0 && (
-        <Stack spacing={2}>
-          {filteredNotifications.map((item) => (
-            <Card
-              key={item.id}
-              variant="outlined"
-              sx={{
-                position: 'relative',
-                transition: 'box-shadow 0.2s ease',
-                bgcolor: item.read ? 'background.paper' : 'action.hover',
-                borderLeft: item.read ? '1px solid' : '4px solid',
-                borderLeftColor: item.read ? 'divider' : 'primary.main',
-                '&:hover': {
-                  boxShadow: 2,
-                },
-              }}
-            >
-              <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                  <Box sx={{ pt: 0.5 }}>
-                    <NotificationTypeIcon type={item.type} sx={{ fontSize: 28 }} />
-                  </Box>
-
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        flexWrap: 'wrap',
-                        mb: 0.5,
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight={item.read ? 600 : 700}
-                        color="text.primary"
-                      >
-                        {item.title}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        label={notificationTypeLabel(item.type)}
-                      />
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          <List disablePadding>
+            {filteredNotifications.map((item, idx) => (
+              <Box key={item.id}>
+                {idx > 0 && <Divider />}
+                <ListItem
+                  disablePadding
+                  secondaryAction={
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                       {!item.read && (
-                        <Chip
-                          size="small"
-                          color="primary"
-                          label="Nueva"
-                          sx={{ height: 20, fontSize: '0.7rem' }}
-                        />
-                      )}
-                    </Box>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {item.message}
-                    </Typography>
-
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: 1,
-                        mt: 1,
-                      }}
-                    >
-                      <Typography variant="caption" color="text.disabled">
-                        {formatRelativeDate(item.createdAt)}
-                      </Typography>
-
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {!item.read && (
+                        <>
                           <Tooltip title="Marcar como leída">
                             <IconButton
                               size="small"
-                              onClick={() => handleMarkAsRead(item.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(item.id);
+                              }}
                               aria-label="Marcar como leída"
+                              sx={{ color: 'text.secondary' }}
                             >
-                              <CheckCircleOutlinedIcon fontSize="small" />
+                              <CheckIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                        )}
+                          <Box
+                            aria-label="Sin leer"
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: 'primary.main',
+                              mx: 0.5,
+                            }}
+                          />
+                        </>
+                      )}
+                      {item.targetUrl && (
+                        <ChevronRightIcon
+                          fontSize="small"
+                          sx={{ color: 'text.disabled', pointerEvents: 'none' }}
+                        />
+                      )}
+                    </Stack>
+                  }
+                >
+                  <ListItemButton
+                    onClick={() => {
+                      if (item.targetUrl) {
+                        handleNavigate(item);
+                      } else if (!item.read) {
+                        handleMarkAsRead(item.id);
+                      }
+                    }}
+                    sx={(theme) => ({
+                      alignItems: 'center',
+                      gap: 1.75,
+                      px: 2.25,
+                      py: 1.5,
+                      pr: item.read ? 6 : 10,
+                      bgcolor: item.read ? 'transparent' : alpha(theme.palette.primary.main, 0.06),
+                      '&:hover': {
+                        bgcolor: item.read
+                          ? 'action.hover'
+                          : alpha(theme.palette.primary.main, 0.1),
+                      },
+                    })}
+                  >
+                    <NotificationAvatar type={item.type} size={42} iconSize={21} />
 
-                        {item.targetUrl && (
-                          <Button
-                            size="small"
-                            variant="text"
-                            endIcon={<OpenInNewIcon fontSize="small" />}
-                            onClick={() => handleNavigate(item)}
-                          >
-                            Ver contenido
-                          </Button>
-                        )}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.75,
+                          flexWrap: 'wrap',
+                          mb: 0.25,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          fontWeight={item.read ? 500 : 700}
+                          color="text.primary"
+                          sx={{ lineHeight: 1.35 }}
+                        >
+                          {item.title}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={notificationTypeLabel(item.type)}
+                          sx={{
+                            height: 18,
+                            fontSize: '0.68rem',
+                            borderColor: 'divider',
+                            color: 'text.secondary',
+                            '& .MuiChip-label': { px: 0.75 },
+                          }}
+                        />
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
+                          · {formatRelativeDate(item.createdAt)}
+                        </Typography>
                       </Box>
+
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontSize: '0.84rem', lineHeight: 1.4 }}
+                      >
+                        <NotificationMessage message={item.message} />
+                      </Typography>
                     </Box>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
+                  </ListItemButton>
+                </ListItem>
+              </Box>
+            ))}
+          </List>
+        </Paper>
       )}
 
       <Snackbar

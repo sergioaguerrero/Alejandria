@@ -35,31 +35,6 @@ import {
   updateSubjectsOfInterest,
 } from '../../services/index.js';
 
-/**
- * Determines which semester accordions should start expanded once subjects load.
- * @param {object[]} allSubjects
- * @param {Set<number>} initialSet
- * @param {number|string|undefined} userSemester
- * @returns {Set<number>}
- */
-function resolveInitialExpandedSemesters(allSubjects, initialSet, userSemester) {
-  const expanded = new Set(
-    allSubjects
-      .filter((subject) => initialSet.has(subject.id))
-      .map((subject) => subject.semester),
-  );
-
-  if (expanded.size === 0 && userSemester) {
-    expanded.add(Number(userSemester));
-  }
-
-  if (expanded.size === 0 && allSubjects.length > 0) {
-    expanded.add(allSubjects[0].semester);
-  }
-
-  return expanded;
-}
-
 export default function MySubjectsPage() {
   const { user } = useAuth();
 
@@ -97,9 +72,6 @@ export default function MySubjectsPage() {
         selectedIdsRef.current = initialSet;
         confirmedIdsRef.current = new Set(initialSet);
         setSelectedIds(initialSet);
-        setExpandedSemesters(
-          resolveInitialExpandedSemesters(allSubjects, initialSet, user?.semester),
-        );
       })
       .catch((serviceError) => {
         if (active) setError(serviceError?.message ?? 'No se pudieron cargar las materias.');

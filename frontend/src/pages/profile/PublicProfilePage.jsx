@@ -282,7 +282,14 @@ export default function PublicProfilePage() {
                     startIcon={loaded.profile.isFollowing ? <CheckIcon /> : <PersonAddOutlinedIcon />}
                     disabled={isFollowingBusy}
                     onClick={handleToggleFollow}
-                    sx={{ px: 2.5, py: 1 }}
+                    sx={{
+                      px: 2.5,
+                      py: 1,
+                      minWidth: 172,
+                      border: '1px solid',
+                      borderColor: loaded.profile.isFollowing ? 'divider' : 'transparent',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {loaded.profile.isFollowing
                       ? 'Siguiendo'

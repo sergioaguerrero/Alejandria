@@ -17,7 +17,6 @@ import {
   Button,
   FormControl,
   InputLabel,
-  ListSubheader,
   MenuItem,
   Pagination,
   Select,
@@ -27,9 +26,10 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 
+import SubjectAccordionSelect from '../../components/forms/SubjectAccordionSelect.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import { getRepositories } from '../../services/repositoryService.js';
-import { getSubjects, groupBySemester } from '../../services/subjectService.js';
+import { getSubjects } from '../../services/subjectService.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 
 const PAGE_SIZE = 9;
@@ -115,9 +115,9 @@ export default function HomePage() {
     setPage(1);
   };
 
-  const handleSubjectChange = (event) => {
+  const handleSubjectChange = (nextSubjectId) => {
     startLoading();
-    setSubjectId(event.target.value);
+    setSubjectId(nextSubjectId);
     setPage(1);
   };
 
@@ -180,28 +180,14 @@ export default function HomePage() {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 240 }}>
-            <InputLabel id="subject-filter-label">Materia</InputLabel>
-            <Select
-              labelId="subject-filter-label"
-              label="Materia"
-              value={subjectId}
-              onChange={handleSubjectChange}
-              MenuProps={SELECT_MENU_PROPS}
-            >
-              <MenuItem value="">Todas las materias</MenuItem>
-              {groupBySemester(visibleSubjects).flatMap((group) => [
-                <ListSubheader key={`semester-${group.semester}`}>
-                  {`Semestre ${group.semester}`}
-                </ListSubheader>,
-                ...group.subjects.map((subject) => (
-                  <MenuItem key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </MenuItem>
-                )),
-              ])}
-            </Select>
-          </FormControl>
+          <SubjectAccordionSelect
+            size="small"
+            subjects={visibleSubjects}
+            value={subjectId}
+            onChange={handleSubjectChange}
+            emptyLabel="Todas las materias"
+            sx={{ minWidth: 240 }}
+          />
         </Stack>
 
         <Button

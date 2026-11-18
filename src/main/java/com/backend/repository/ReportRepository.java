@@ -87,6 +87,17 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     @Query("UPDATE Report r SET r.resource = null WHERE r.resource.id = :resourceId")
     int clearResourceReference(@Param("resourceId") Long resourceId);
 
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Report r
+            SET r.resource = null
+            WHERE r.resource.id IN (
+                SELECT res.id FROM Resource res WHERE res.studyRepository.id = :repositoryId
+            )
+            """)
+    int clearResourceReferencesByRepositoryId(@Param("repositoryId") Long repositoryId);
+
     @Query(value = "SELECT motivo, estado, COUNT(*) FROM REPORTE GROUP BY motivo, estado", nativeQuery = true)
     List<Object[]> countGroupedByReasonAndStatus();
 }

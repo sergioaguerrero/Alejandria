@@ -89,4 +89,15 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Interaction i SET i.resource = null WHERE i.resource.id = :resourceId")
     int clearResourceReference(@Param("resourceId") Long resourceId);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        UPDATE Interaction i
+        SET i.resource = null
+        WHERE i.resource.id IN (
+            SELECT r.id FROM Resource r WHERE r.studyRepository.id = :repositoryId
+        )
+        """)
+    int clearResourceReferencesByRepositoryId(@Param("repositoryId") Long repositoryId);
 }

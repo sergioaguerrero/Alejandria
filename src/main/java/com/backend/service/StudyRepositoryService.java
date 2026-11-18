@@ -14,6 +14,7 @@ import com.backend.dto.RepositoryResponseDto;
 import com.backend.exception.AuthException;
 import com.backend.repository.AiMaterialRepository;
 import com.backend.repository.CatalogRepository;
+import com.backend.repository.InteractionRepository;
 import com.backend.repository.ReportRepository;
 import com.backend.repository.RepositoryCollaboratorRepository;
 import com.backend.repository.RepositoryFollowRepository;
@@ -49,6 +50,7 @@ public class StudyRepositoryService {
     private final RepositoryFollowRepository repositoryFollowRepository;
     private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
     private final AiMaterialRepository aiMaterialRepository;
+    private final InteractionRepository interactionRepository;
     private final ReportRepository reportRepository;
     private final NotificationService notificationService;
 
@@ -60,6 +62,7 @@ public class StudyRepositoryService {
             RepositoryFollowRepository repositoryFollowRepository,
             RepositoryCollaboratorRepository repositoryCollaboratorRepository,
             AiMaterialRepository aiMaterialRepository,
+            InteractionRepository interactionRepository,
             ReportRepository reportRepository,
             NotificationService notificationService
     ) {
@@ -70,6 +73,7 @@ public class StudyRepositoryService {
         this.repositoryFollowRepository = repositoryFollowRepository;
         this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
         this.aiMaterialRepository = aiMaterialRepository;
+        this.interactionRepository = interactionRepository;
         this.reportRepository = reportRepository;
         this.notificationService = notificationService;
     }
@@ -153,12 +157,24 @@ public class StudyRepositoryService {
         StudyRepository repo = findRepoOrThrow(id);
         requireOwner(repo, user, "Solo el dueño puede eliminar este repositorio.");
 
-        aiMaterialRepository.clearRepositoryReference(id);
-        reportRepository.clearRepositoryReference(id);
-        repositoryCollaboratorRepository.deleteByStudyRepositoryId(id);
-        repositoryLikeRepository.deleteByIdRepositoryId(id);
-        repositoryFollowRepository.deleteByIdRepositoryId(id);
-        studyRepositoryRepository.delete(repo);
+        deleteRepositoryWithDependencies(id);
+    }
+
+    /**
+     * Elimina un repositorio y todas sus dependencias en orden explícito para evitar
+     * bloqueos por cascada e integridad referencial en Oracle.
+     */
+    @Transactional
+    public void deleteRepositoryWithDependencies(Long repositoryId) {
+        aiMaterialRepository.clearRepositoryReference(repositoryId);
+        reportRepository.clearRepositoryReference(repositoryId);
+        interactionRepository.clearResourceReferencesByRepositoryId(repositoryId);
+        reportRepository.clearResourceReferencesByRepositoryId(repositoryId);
+        resourceRepository.deleteByStudyRepositoryId(repositoryId);
+        repositoryCollaboratorRepository.deleteByStudyRepositoryId(repositoryId);
+        repositoryLikeRepository.deleteByIdRepositoryId(repositoryId);
+        repositoryFollowRepository.deleteByIdRepositoryId(repositoryId);
+        studyRepositoryRepository.deleteByIdBulk(repositoryId);
     }
 
     @Transactional

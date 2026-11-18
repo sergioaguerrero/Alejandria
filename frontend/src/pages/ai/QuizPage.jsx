@@ -29,9 +29,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
-import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
-import BookmarkOutlinedIcon from '@mui/icons-material/BookmarkOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
@@ -48,6 +47,7 @@ import {
 } from '../../services/index.js';
 
 import DownloadAiPdfButton from '../../components/ai/DownloadAiPdfButton.jsx';
+import SaveAiStudyButton from '../../components/ai/SaveAiStudyButton.jsx';
 import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
 
 export default function QuizPage() {
@@ -271,7 +271,7 @@ export default function QuizPage() {
             direction={{ xs: 'column', sm: 'row' }}
             sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}
           >
-            <Box>
+            <Box sx={{ minWidth: 0, flex: '1 1 240px' }}>
               <Typography variant="h5" component="h1" fontWeight={700} gutterBottom>
                 {quiz.title}
               </Typography>
@@ -281,12 +281,15 @@ export default function QuizPage() {
             </Box>
 
             <Stack
-              direction="row"
-              useFlexGap
               spacing={1}
-              sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexWrap: 'wrap' }}
+              sx={{
+                width: { xs: '100%', sm: 170 },
+                alignSelf: { xs: 'stretch', sm: 'center' },
+                flexShrink: 0,
+              }}
             >
               <DownloadAiPdfButton
+                fullWidth
                 material={{ ...quiz, contentType: 'quiz' }}
                 onDownloaded={() =>
                   setSnackbar({
@@ -304,16 +307,12 @@ export default function QuizPage() {
                 }
               />
               {!quiz.isSharedWithMe && (
-                <Button
-                  variant={savedInMyStudy ? 'contained' : 'outlined'}
-                  color={savedInMyStudy ? 'primary' : 'inherit'}
-                  size="small"
-                  startIcon={savedInMyStudy ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
-                  onClick={handleToggleSave}
+                <SaveAiStudyButton
+                  fullWidth
+                  saved={savedInMyStudy}
                   disabled={isSaving}
-                >
-                  {savedInMyStudy ? 'En Mi estudio' : 'Guardar en Mi estudio'}
-                </Button>
+                  onClick={handleToggleSave}
+                />
               )}
             </Stack>
           </Stack>
@@ -366,19 +365,25 @@ export default function QuizPage() {
                           <Box
                             key={optIdx}
                             onClick={() => handleSelectOption(optIdx)}
-                            sx={{
+                            sx={(theme) => ({
                               p: 1.5,
                               borderRadius: 1.5,
                               border: 1,
-                              borderColor: isSelected ? 'primary.main' : 'divider',
-                              bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                              borderColor: isSelected ? theme.palette.primary.main : theme.palette.divider,
+                              bgcolor: isSelected
+                                ? alpha(theme.palette.primary.main, 0.1)
+                                : theme.palette.background.paper,
                               cursor: 'pointer',
                               transition: 'all 0.15s ease-in-out',
                               '&:hover': {
-                                bgcolor: 'action.hover',
-                                borderColor: isSelected ? 'primary.main' : 'grey.400',
+                                bgcolor: isSelected
+                                  ? alpha(theme.palette.primary.main, 0.14)
+                                  : alpha(theme.palette.primary.main, 0.04),
+                                borderColor: isSelected
+                                  ? theme.palette.primary.main
+                                  : alpha(theme.palette.primary.main, 0.55),
                               },
-                            }}
+                            })}
                           >
                             <FormControlLabel
                               value={String(optIdx)}
@@ -549,27 +554,26 @@ export default function QuizPage() {
                       const isThisSelected = selectedOpt === optIdx;
                       const isThisCorrect = optIdx === q.correctIndex;
 
-                      let borderColor = 'divider';
-                      let bgcolor = 'transparent';
-
-                      if (isThisCorrect) {
-                        borderColor = 'success.main';
-                        bgcolor = 'action.selected';
-                      } else if (isThisSelected && !isThisCorrect) {
-                        borderColor = 'error.main';
-                        bgcolor = 'action.hover';
-                      }
+                      const borderColor = isThisCorrect
+                        ? 'success.main'
+                        : isThisSelected
+                          ? 'error.main'
+                          : 'divider';
 
                       return (
                         <Box
                           key={optIdx}
-                          sx={{
+                          sx={(theme) => ({
                             p: 1.25,
                             borderRadius: 1,
                             border: 1,
                             borderColor,
-                            bgcolor,
-                          }}
+                            bgcolor: isThisCorrect
+                              ? alpha(theme.palette.success.main, 0.1)
+                              : isThisSelected
+                                ? alpha(theme.palette.error.main, 0.08)
+                                : 'transparent',
+                          })}
                         >
                           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                             <Typography
