@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -53,6 +54,7 @@ public class AiService {
     private final NotificationService notificationService;
     private final AiGenerationClient aiGenerationClient;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
     private final int dailyLimit;
 
     public AiService(
@@ -64,6 +66,7 @@ public class AiService {
             NotificationService notificationService,
             AiGenerationClient aiGenerationClient,
             ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate,
             @Value("${ai.daily-limit:5}") int dailyLimit
     ) {
         this.aiMaterialRepository = aiMaterialRepository;
@@ -74,6 +77,7 @@ public class AiService {
         this.notificationService = notificationService;
         this.aiGenerationClient = aiGenerationClient;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
         this.dailyLimit = Math.max(1, dailyLimit);
     }
 
@@ -90,7 +94,6 @@ public class AiService {
         return quota;
     }
 
-    @Transactional
     public Map<String, Object> generateMaterial(
             AiContentType forcedType,
             Map<String, Object> body,
@@ -103,46 +106,67 @@ public class AiService {
         Long repositoryId = parseRequiredId(safeBody.get("repositoryId"), "Selecciona un repositorio válido.");
         ScopeSpec scopeSpec = parseScope(safeBody.get("scope"), safeBody.get("scopeValue"));
 
-        long usedToday = countTodayGenerations(user.getId());
-        if (usedToday >= dailyLimit) {
-            throw new AuthException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "AI_QUOTA_EXCEEDED",
-                    "Has alcanzado el límite diario de " + dailyLimit + " generaciones con IA. Vuelve mañana para generar más."
-            );
-        }
+        PreparationContext context = transactionTemplate.execute(status -> {
+            long usedToday = countTodayGenerations(user.getId());
+            if (usedToday >= dailyLimit) {
+                throw new AuthException(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        "AI_QUOTA_EXCEEDED",
+                        "Has alcanzado el límite diario de " + dailyLimit + " generaciones con IA. Vuelve mañana para generar más."
+                );
+            }
 
-        StudyRepository repo = studyRepositoryRepository.findByIdWithDetails(repositoryId)
-                .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPO_NOT_FOUND", "El repositorio seleccionado no existe o fue eliminado."));
+            StudyRepository repo = studyRepositoryRepository.findByIdWithDetails(repositoryId)
+                    .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPO_NOT_FOUND", "El repositorio seleccionado no existe o fue eliminado."));
 
-        List<Resource> repoDocs = resourceRepository.findByStudyRepositoryIdWithDetails(repo.getId());
-        if (repoDocs.isEmpty()) {
-            throw new AuthException(
-                    HttpStatus.BAD_REQUEST,
-                    "EMPTY_REPOSITORY",
-                    "Este repositorio aún no tiene documentos publicados para analizar con IA."
-            );
-        }
+            List<Resource> repoDocs = resourceRepository.findByStudyRepositoryIdWithDetails(repo.getId());
+            if (repoDocs.isEmpty()) {
+                throw new AuthException(
+                        HttpStatus.BAD_REQUEST,
+                        "EMPTY_REPOSITORY",
+                        "Este repositorio aún no tiene documentos publicados para analizar con IA."
+                );
+            }
 
-        List<Resource> targetDocs = filterDocumentsByScope(repoDocs, scopeSpec);
-        JsonNode generatedNode = aiGenerationClient.generateStructuredContent(contentType, repo, targetDocs, scopeSpec.label());
-        NormalizedPayload normalized = normalizeGeneratedPayload(contentType, repo, generatedNode);
+            List<Resource> targetDocs = filterDocumentsByScope(repoDocs, scopeSpec);
+            targetDocs.stream().limit(6).forEach(Resource::getFileBytes);
+            return new PreparationContext(repo, targetDocs);
+        });
 
-        String subjectName = repo.getSubject() != null ? repo.getSubject().getName() : "Materia";
-        AiMaterial material = new AiMaterial(
-                user,
-                repo,
+        JsonNode generatedNode = aiGenerationClient.generateStructuredContent(
                 contentType,
-                truncate(normalized.title(), 255),
-                truncate(repo.getName(), 200),
-                truncate(subjectName, 200),
-                scopeSpec.scope(),
-                scopeSpec.scopeValue(),
-                truncate(scopeSpec.label(), 255),
-                normalized.contentJson()
+                context.repo(),
+                context.targetDocs(),
+                scopeSpec.label()
         );
-        AiMaterial saved = aiMaterialRepository.save(material);
-        return toMaterialDto(saved, null);
+        NormalizedPayload normalized = normalizeGeneratedPayload(contentType, context.repo(), generatedNode);
+
+        return transactionTemplate.execute(status -> {
+            if (countTodayGenerations(user.getId()) >= dailyLimit) {
+                throw new AuthException(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        "AI_QUOTA_EXCEEDED",
+                        "Has alcanzado el límite diario de " + dailyLimit + " generaciones con IA. Vuelve mañana para generar más."
+                );
+            }
+
+            StudyRepository repo = context.repo();
+            String subjectName = repo.getSubject() != null ? repo.getSubject().getName() : "Materia";
+            AiMaterial material = new AiMaterial(
+                    user,
+                    repo,
+                    contentType,
+                    truncate(normalized.title(), 255),
+                    truncate(repo.getName(), 200),
+                    truncate(subjectName, 200),
+                    scopeSpec.scope(),
+                    scopeSpec.scopeValue(),
+                    truncate(scopeSpec.label(), 255),
+                    normalized.contentJson()
+            );
+            AiMaterial saved = aiMaterialRepository.save(material);
+            return toMaterialDto(saved, null);
+        });
     }
 
     @Transactional(readOnly = true)
@@ -600,4 +624,6 @@ public class AiService {
     private record ScopeSpec(String scope, String scopeValue, String label) {}
 
     private record NormalizedPayload(String title, String contentJson) {}
+
+    private record PreparationContext(StudyRepository repo, List<Resource> targetDocs) {}
 }
