@@ -3,9 +3,7 @@ package com.backend.service;
 import com.backend.cross.AiContentType;
 import com.backend.cross.InteractionType;
 import com.backend.cross.ResourceType;
-import com.backend.domain.analytic.Interaction;
 import com.backend.domain.identity.User;
-import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.DocumentDto;
 import com.backend.exception.AuthException;
@@ -76,7 +74,7 @@ public class StatisticsService {
         User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus estadísticas.");
         String period = "month".equalsIgnoreCase(rawPeriod) ? "month" : "week";
 
-        List<Object[]> allResourceRows = resourceRepository.findPublishedStatisticsRows();
+        List<Object[]> myResourceRows = resourceRepository.findPublishedStatisticsRowsByAuthorId(user.getId());
         List<StudyRepository> userRepos = studyRepositoryRepository.findByAuthorId(user.getId());
 
         long totalViews = 0;
@@ -84,11 +82,7 @@ public class StatisticsService {
         List<Map<String, Object>> myDocuments = new ArrayList<>();
         Map<String, Integer> uploadedSubjectCounts = new LinkedHashMap<>();
 
-        for (Object[] row : allResourceRows) {
-            Long ownerId = ((Number) row[7]).longValue();
-            if (!ownerId.equals(user.getId())) {
-                continue;
-            }
+        for (Object[] row : myResourceRows) {
             int views = ((Number) row[4]).intValue();
             int downloads = ((Number) row[5]).intValue();
             totalViews += views;
@@ -394,21 +388,29 @@ public class StatisticsService {
     }
 
     private List<Map<String, Object>> buildRecentHistory(Long userId) {
-        List<Interaction> interactions = interactionRepository.findUserViewAndDownloadHistory(userId);
+        List<Object[]> rows = interactionRepository.findRecentUserResourceHistoryRows(
+                userId,
+                PageRequest.of(0, 30)
+        );
         List<Map<String, Object>> history = new ArrayList<>();
         Set<Long> seenDocs = new HashSet<>();
 
-        for (Interaction interaction : interactions) {
-            Resource res = interaction.getResource();
-            if (res == null || !seenDocs.add(res.getId())) {
+        for (Object[] row : rows) {
+            Long resId = ((Number) row[0]).longValue();
+            if (!seenDocs.add(resId)) {
                 continue;
             }
+            String title = (String) row[1];
+            String repoName = row[2] != null ? (String) row[2] : "Repositorio";
+            LocalDateTime date = (LocalDateTime) row[3];
+            ResourceType type = (ResourceType) row[4];
+
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id", String.valueOf(res.getId()));
-            entry.put("title", res.getTitle());
-            entry.put("repositoryName", res.getStudyRepository() != null ? res.getStudyRepository().getName() : "Repositorio");
-            entry.put("date", interaction.getDate());
-            entry.put("type", DocumentDto.toFrontendType(res.getType()));
+            entry.put("id", String.valueOf(resId));
+            entry.put("title", title);
+            entry.put("repositoryName", repoName);
+            entry.put("date", date);
+            entry.put("type", DocumentDto.toFrontendType(type));
             history.add(entry);
             if (history.size() >= 5) {
                 break;

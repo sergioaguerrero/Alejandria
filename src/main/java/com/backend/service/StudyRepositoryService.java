@@ -184,13 +184,14 @@ public class StudyRepositoryService {
 
         RepositoryReactionId reactionId = new RepositoryReactionId(id, user.getId());
         boolean alreadyLiked = repositoryLikeRepository.existsById(reactionId);
+        int updatedLikes;
 
         if (alreadyLiked) {
             repositoryLikeRepository.deleteById(reactionId);
-            repo.setLikes(Math.max(0, repo.getLikes() - 1));
+            studyRepositoryRepository.decrementLikes(id);
+            updatedLikes = Math.max(0, repo.getLikes() - 1);
         } else {
             repositoryLikeRepository.save(new RepositoryLike(id, user.getId()));
-            repo.setLikes(repo.getLikes() + 1);
             if (repo.getAuthor() != null && !repo.getAuthor().getId().equals(user.getId())) {
                 notificationService.create(
                         repo.getAuthor(),
@@ -200,10 +201,11 @@ public class StudyRepositoryService {
                         "/repositories/" + repo.getId()
                 );
             }
+            studyRepositoryRepository.incrementLikes(id);
+            updatedLikes = repo.getLikes() + 1;
         }
 
-        studyRepositoryRepository.save(repo);
-        return Map.of("liked", !alreadyLiked, "likes", repo.getLikes());
+        return Map.of("liked", !alreadyLiked, "likes", updatedLikes);
     }
 
     @Transactional

@@ -101,9 +101,29 @@ public interface ResourceRepository extends JpaRepository<Resource, Long>, JpaSp
             """)
     List<Object[]> findPublishedStatisticsRows();
 
+    @Query("""
+            SELECT r.id, r.title, r.type, r.topic, r.totalViews, r.totalDownloads, r.uploadDate, r.uploadedBy.id, s.name
+            FROM Resource r
+            JOIN r.subject s
+            WHERE r.status = com.backend.cross.ResourceStatus.PUBLISHED
+              AND r.uploadedBy.id = :authorId
+            ORDER BY r.uploadDate DESC
+            """)
+    List<Object[]> findPublishedStatisticsRowsByAuthorId(@Param("authorId") Long authorId);
+
     @Override
-    @EntityGraph(attributePaths = {"subject", "subject.semester", "uploadedBy", "studyRepository", "tags"})
+    @EntityGraph(attributePaths = {"subject", "subject.semester", "uploadedBy", "studyRepository"})
     Page<Resource> findAll(Specification<Resource> spec, Pageable pageable);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Resource r SET r.totalViews = r.totalViews + 1 WHERE r.id = :id")
+    int incrementViews(@Param("id") Long id);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Resource r SET r.totalDownloads = r.totalDownloads + 1 WHERE r.id = :id")
+    int incrementDownloads(@Param("id") Long id);
 
     // Los filtros son opcionales: si llegan null, no se aplican.
     @Query("""

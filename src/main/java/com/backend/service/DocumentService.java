@@ -231,9 +231,9 @@ public class DocumentService {
     @Transactional
     public DocumentDto getDetailAndIncrementView(Long id, String baseUrl) {
         Resource resource = findResourceOrThrow(id);
+        resourceRepository.incrementViews(id);
         resource.setTotalViews(resource.getTotalViews() + 1);
-        Resource saved = resourceRepository.save(resource);
-        return toDto(saved, baseUrl);
+        return toDto(resource, baseUrl);
     }
 
     @Transactional
@@ -299,8 +299,8 @@ public class DocumentService {
     public Resource getFileResource(Long id, boolean incrementDownloads) {
         Resource resource = findResourceOrThrow(id);
         if (incrementDownloads) {
+            resourceRepository.incrementDownloads(id);
             resource.setTotalDownloads(resource.getTotalDownloads() + 1);
-            return resourceRepository.save(resource);
         }
         return resource;
     }
