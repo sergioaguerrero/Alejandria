@@ -49,6 +49,9 @@ public class User {
     @Column(name = "semestre")
     private Integer semester;
 
+    @Column(name = "descripcion", length = 500)
+    private String bio;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "rol_id")
     private Role role;
@@ -111,6 +114,9 @@ public class User {
 
     public Integer getSemester() { return semester; }
     public void setSemester(Integer semester) { this.semester = semester; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }

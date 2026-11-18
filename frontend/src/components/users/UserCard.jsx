@@ -96,6 +96,22 @@ export default function UserCard({ profile, isBusy = false, onToggleFollow }) {
           {`${profile.followersCount ?? 0} seguidores · ${profile.followingCount ?? 0} siguiendo`}
         </Typography>
 
+        {profile.bio && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              lineHeight: 1.45,
+            }}
+          >
+            {profile.bio}
+          </Typography>
+        )}
+
         <Box sx={{ mt: 'auto', pt: 0.5, display: 'flex', gap: 1 }}>
           <Button
             component={RouterLink}
