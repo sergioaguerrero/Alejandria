@@ -20,6 +20,13 @@ import CheckIcon from '@mui/icons-material/Check';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 
+const ACTION_BUTTON_SX = {
+  py: 0.875,
+  fontSize: '0.875rem',
+  whiteSpace: 'nowrap',
+  border: '1px solid',
+};
+
 /**
  * @param {object} props
  * @param {object} props.profile
@@ -96,13 +103,13 @@ export default function UserCard({ profile, isBusy = false, onToggleFollow }) {
           {`${profile.followersCount ?? 0} seguidores · ${profile.followingCount ?? 0} siguiendo`}
         </Typography>
 
-        <Box sx={{ mt: 'auto', pt: 0.5, display: 'flex', gap: 1 }}>
+        <Box sx={{ mt: 'auto', pt: 0.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Button
             component={RouterLink}
             to={`/users/${profile.username}`}
             variant="text"
             size="small"
-            sx={{ flex: 1 }}
+            sx={{ ...ACTION_BUTTON_SX, px: 1.5, borderColor: 'transparent' }}
           >
             Ver perfil
           </Button>
@@ -115,7 +122,13 @@ export default function UserCard({ profile, isBusy = false, onToggleFollow }) {
               disabled={isBusy}
               startIcon={profile.isFollowing ? <CheckIcon /> : <PersonAddOutlinedIcon />}
               onClick={() => onToggleFollow(profile)}
-              sx={{ flex: 1 }}
+              sx={{
+                ...ACTION_BUTTON_SX,
+                flex: 1,
+                minWidth: 140,
+                px: 1.25,
+                ...(profile.isFollowing ? {} : { borderColor: 'primary.main' }),
+              }}
             >
               {followLabel}
             </Button>
