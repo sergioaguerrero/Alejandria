@@ -13,7 +13,7 @@
 # ------------------------------------------------------------------------------
 # Si usas Oracle Autonomous Database Cloud, apunta TNS_ADMIN a tu carpeta Wallet
 # usando "/" en Windows.
-spring.datasource.url=jdbc:oracle:thin:@alejandriabd2026_high?TNS_ADMIN=C:/oracle/Wallet_AlejandriaBD2026
+spring.datasource.url=jdbc:oracle:thin:@alejandriabd2026_tp?TNS_ADMIN=C:/oracle/Wallet_AlejandriaBD2026
 spring.datasource.username=alejandria
 spring.datasource.password=TU_PASSWORD_DE_ORACLE
 

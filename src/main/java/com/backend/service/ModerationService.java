@@ -21,9 +21,6 @@ import com.backend.dto.ResolveReportRequest;
 import com.backend.exception.AuthException;
 import com.backend.repository.DecisionRepository;
 import com.backend.repository.ReportRepository;
-import com.backend.repository.RepositoryCollaboratorRepository;
-import com.backend.repository.RepositoryFollowRepository;
-import com.backend.repository.RepositoryLikeRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.UserRepository;
@@ -53,9 +50,6 @@ public class ModerationService {
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
     private final StudyRepositoryRepository studyRepositoryRepository;
-    private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
-    private final RepositoryLikeRepository repositoryLikeRepository;
-    private final RepositoryFollowRepository repositoryFollowRepository;
     private final StudyRepositoryService studyRepositoryService;
     private final NotificationService notificationService;
 
@@ -66,9 +60,6 @@ public class ModerationService {
             UserRepository userRepository,
             ResourceRepository resourceRepository,
             StudyRepositoryRepository studyRepositoryRepository,
-            RepositoryCollaboratorRepository repositoryCollaboratorRepository,
-            RepositoryLikeRepository repositoryLikeRepository,
-            RepositoryFollowRepository repositoryFollowRepository,
             StudyRepositoryService studyRepositoryService,
             NotificationService notificationService
     ) {
@@ -78,9 +69,6 @@ public class ModerationService {
         this.userRepository = userRepository;
         this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
-        this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
-        this.repositoryLikeRepository = repositoryLikeRepository;
-        this.repositoryFollowRepository = repositoryFollowRepository;
         this.studyRepositoryService = studyRepositoryService;
         this.notificationService = notificationService;
     }
@@ -286,13 +274,8 @@ public class ModerationService {
                     resourceRepository.save(resource);
                 } else if (report.getStudyRepository() != null) {
                     Long repoId = report.getStudyRepository().getId();
-                    StudyRepository repo = report.getStudyRepository();
-                    reportRepository.clearRepositoryReference(repoId);
-                    repositoryCollaboratorRepository.deleteByStudyRepositoryId(repoId);
-                    repositoryLikeRepository.deleteByIdRepositoryId(repoId);
-                    repositoryFollowRepository.deleteByIdRepositoryId(repoId);
-                    studyRepositoryRepository.delete(repo);
                     report.setStudyRepository(null);
+                    studyRepositoryService.deleteRepositoryWithDependencies(repoId);
                 }
                 if (author != null) {
                     notificationService.create(
