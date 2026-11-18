@@ -29,6 +29,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -574,13 +575,13 @@ export default function AiMaterialPage() {
 
               {currentSlide.takeaway && (
                 <Box
-                  sx={{
+                  sx={(theme) => ({
                     p: 2,
                     borderRadius: 2,
-                    bgcolor: 'action.selected',
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
                     borderLeft: 4,
                     borderColor: 'primary.main',
-                  }}
+                  })}
                 >
                   <Typography variant="caption" fontWeight={700} color="primary" display="block">
                     IDEA CLAVE
@@ -632,15 +633,22 @@ export default function AiMaterialPage() {
                   <Paper
                     variant="outlined"
                     onClick={() => setActiveSlideIndex(idx)}
-                    sx={{
+                    sx={(theme) => ({
                       p: 1.5,
                       borderRadius: 2,
                       cursor: 'pointer',
                       borderWidth: isActive ? 2 : 1,
-                      borderColor: isActive ? 'primary.main' : 'divider',
-                      bgcolor: isActive ? 'action.selected' : 'background.paper',
-                      '&:hover': { borderColor: 'primary.main' },
-                    }}
+                      borderColor: isActive ? theme.palette.primary.main : theme.palette.divider,
+                      bgcolor: isActive
+                        ? alpha(theme.palette.primary.main, 0.1)
+                        : theme.palette.background.paper,
+                      '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                        bgcolor: isActive
+                          ? alpha(theme.palette.primary.main, 0.14)
+                          : alpha(theme.palette.primary.main, 0.04),
+                      },
+                    })}
                   >
                     <Typography variant="caption" color="primary" fontWeight={700}>
                       Lámina {idx + 1}

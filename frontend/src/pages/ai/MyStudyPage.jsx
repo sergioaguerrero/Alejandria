@@ -325,10 +325,13 @@ export default function MyStudyPage() {
                           {item.repositoryName}
                         </Typography>
                       </Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.subjectName || 'Materia'}
-                        {item.scopeLabel ? ` • ${item.scopeLabel}` : ''}
-                      </Typography>
+                      {((isSharedTab || isQuiz) || item.scopeLabel) && (
+                        <Typography variant="caption" color="text.secondary">
+                          {isSharedTab || isQuiz
+                            ? `${item.subjectName || 'Materia'}${item.scopeLabel ? ` • ${item.scopeLabel}` : ''}`
+                            : item.scopeLabel}
+                        </Typography>
+                      )}
                       {isSharedTab && item.shareNote && (
                         <Typography variant="caption" color="info.main" sx={{ fontStyle: 'italic' }}>
                           &ldquo;{item.shareNote}&rdquo;

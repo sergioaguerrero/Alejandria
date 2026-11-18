@@ -420,7 +420,7 @@ export default function AiStudyPage() {
                                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                     <FolderOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                                     <Typography variant="caption" color="text.secondary">
-                                      {repo.documentCount ?? 0} documentos • @{repo.authorUsername}
+                                      {`${repo.documentCount ?? 0} ${(repo.documentCount ?? 0) === 1 ? 'documento' : 'documentos'} • @${repo.authorUsername}`}
                                     </Typography>
                                   </Stack>
                                 </Box>

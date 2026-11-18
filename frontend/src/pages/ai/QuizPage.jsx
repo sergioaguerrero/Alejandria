@@ -29,6 +29,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
@@ -364,19 +365,25 @@ export default function QuizPage() {
                           <Box
                             key={optIdx}
                             onClick={() => handleSelectOption(optIdx)}
-                            sx={{
+                            sx={(theme) => ({
                               p: 1.5,
                               borderRadius: 1.5,
                               border: 1,
-                              borderColor: isSelected ? 'primary.main' : 'divider',
-                              bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                              borderColor: isSelected ? theme.palette.primary.main : theme.palette.divider,
+                              bgcolor: isSelected
+                                ? alpha(theme.palette.primary.main, 0.1)
+                                : theme.palette.background.paper,
                               cursor: 'pointer',
                               transition: 'all 0.15s ease-in-out',
                               '&:hover': {
-                                bgcolor: 'action.hover',
-                                borderColor: isSelected ? 'primary.main' : 'grey.400',
+                                bgcolor: isSelected
+                                  ? alpha(theme.palette.primary.main, 0.14)
+                                  : alpha(theme.palette.primary.main, 0.04),
+                                borderColor: isSelected
+                                  ? theme.palette.primary.main
+                                  : alpha(theme.palette.primary.main, 0.55),
                               },
-                            }}
+                            })}
                           >
                             <FormControlLabel
                               value={String(optIdx)}
@@ -547,27 +554,26 @@ export default function QuizPage() {
                       const isThisSelected = selectedOpt === optIdx;
                       const isThisCorrect = optIdx === q.correctIndex;
 
-                      let borderColor = 'divider';
-                      let bgcolor = 'transparent';
-
-                      if (isThisCorrect) {
-                        borderColor = 'success.main';
-                        bgcolor = 'action.selected';
-                      } else if (isThisSelected && !isThisCorrect) {
-                        borderColor = 'error.main';
-                        bgcolor = 'action.hover';
-                      }
+                      const borderColor = isThisCorrect
+                        ? 'success.main'
+                        : isThisSelected
+                          ? 'error.main'
+                          : 'divider';
 
                       return (
                         <Box
                           key={optIdx}
-                          sx={{
+                          sx={(theme) => ({
                             p: 1.25,
                             borderRadius: 1,
                             border: 1,
                             borderColor,
-                            bgcolor,
-                          }}
+                            bgcolor: isThisCorrect
+                              ? alpha(theme.palette.success.main, 0.1)
+                              : isThisSelected
+                                ? alpha(theme.palette.error.main, 0.08)
+                                : 'transparent',
+                          })}
                         >
                           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                             <Typography

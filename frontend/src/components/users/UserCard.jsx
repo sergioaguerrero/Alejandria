@@ -100,7 +100,7 @@ export default function UserCard({ profile, isBusy = false, onToggleFollow }) {
         </Stack>
 
         <Typography variant="caption" color="text.secondary">
-          {`${profile.followersCount ?? 0} seguidores · ${profile.followingCount ?? 0} siguiendo`}
+          {`${profile.followersCount ?? 0} ${(profile.followersCount ?? 0) === 1 ? 'seguidor' : 'seguidores'} · ${profile.followingCount ?? 0} siguiendo`}
         </Typography>
 
         <Box sx={{ mt: 'auto', pt: 0.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
