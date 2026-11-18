@@ -346,33 +346,33 @@ export default function MyStudyPage() {
                     </Stack>
                   </CardContent>
 
-                  <CardActions
-                    sx={{
-                      p: 2,
-                      pt: 0,
-                      display: 'grid',
-                      gridTemplateColumns: '1fr auto 1fr',
-                      alignItems: 'center',
-                      gap: 1,
-                    }}
-                  >
+                  <CardActions sx={{ p: 2, pt: 0, justifyContent: 'space-between' }}>
                     <Button
                       component={RouterLink}
                       to={getAiMaterialRoute(item)}
                       variant="contained"
                       size="small"
-                      startIcon={<PlayArrowOutlinedIcon />}
-                      sx={{ gridColumn: 2, justifySelf: 'center', px: 2.25 }}
+                      sx={{
+                        position: 'relative',
+                        justifyContent: 'center',
+                        px: 4.5,
+                        py: 1,
+                        lineHeight: 1.2,
+                      }}
                     >
+                      <PlayArrowOutlinedIcon
+                        aria-hidden="true"
+                        sx={{
+                          position: 'absolute',
+                          left: 12,
+                          fontSize: 18,
+                        }}
+                      />
                       Abrir
                     </Button>
 
                     {!isSharedTab && (
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        sx={{ gridColumn: 3, justifySelf: 'end' }}
-                      >
+                      <Stack direction="row" spacing={0.5}>
                         <Tooltip title="Compartir con amigos">
                           <IconButton
                             size="small"
