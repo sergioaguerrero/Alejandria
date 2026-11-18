@@ -65,6 +65,7 @@ class UserProfileIntegrationTest {
     void setUp() {
         SeedData seed = transactionTemplate.execute(status -> {
             entityManager.createQuery("DELETE FROM UserSubjectInterest").executeUpdate();
+            entityManager.createQuery("DELETE FROM UserContact").executeUpdate();
             entityManager.createQuery("DELETE FROM UserFollow").executeUpdate();
             entityManager.createQuery("DELETE FROM PasswordResetToken").executeUpdate();
             entityManager.createQuery("DELETE FROM RepositoryFollow").executeUpdate();
@@ -326,6 +327,85 @@ class UserProfileIntegrationTest {
                                 "subjectIds", List.of(999999L)
                         ))))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void bioAndContactsUpdateValidationAndPublicVisibility() throws Exception {
+        // 1. Validación: bio > 500 caracteres y contacto inválido -> 400 con errores por campo
+        String overLimitBio = "a".repeat(501);
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Sergio Guerrero",
+                                "username", "sergioprofile",
+                                "semester", 4,
+                                "bio", overLimitBio,
+                                "contacts", List.of(
+                                        Map.of("type", "EMAIL", "value", "correo-invalido", "label", "Personal"),
+                                        Map.of("type", "WEBSITE", "value", "javascript:alert(1)", "label", "")
+                                )
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.bio").exists())
+                .andExpect(jsonPath("$.fields['contacts.0.value']").exists())
+                .andExpect(jsonPath("$.fields['contacts.1.value']").exists());
+
+        // 2. Actualización válida con descripción y medios de contacto
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Sergio Guerrero",
+                                "username", "sergioprofile",
+                                "semester", 4,
+                                "bio", "  Estudiante de 4to semestre interesado en bases de datos y backend.  ",
+                                "contacts", List.of(
+                                        Map.of("type", "WHATSAPP", "value", "+57 300 123 4567", "label", "Estudio"),
+                                        Map.of("type", "GITHUB", "value", "@sergioprofile", "label", ""),
+                                        Map.of("type", "DISCORD", "value", "sergio.dev", "label", "Servidor UPC")
+                                )
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bio").value("Estudiante de 4to semestre interesado en bases de datos y backend."))
+                .andExpect(jsonPath("$.contacts", hasSize(3)))
+                .andExpect(jsonPath("$.contacts[0].type").value("WHATSAPP"))
+                .andExpect(jsonPath("$.contacts[0].value").value("+57 300 123 4567"))
+                .andExpect(jsonPath("$.contacts[0].label").value("Estudio"))
+                .andExpect(jsonPath("$.contacts[1].type").value("GITHUB"))
+                .andExpect(jsonPath("$.contacts[2].type").value("DISCORD"));
+
+        // 3. GET /api/users/me devuelve la misma información persistida
+        mockMvc.perform(get("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bio").value("Estudiante de 4to semestre interesado en bases de datos y backend."))
+                .andExpect(jsonPath("$.contacts", hasSize(3)));
+
+        // 4. Perfil público expone bio y contactos sin exponer correo institucional ni nombre completo privado
+        mockMvc.perform(get("/api/users/{username}", "sergioprofile")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lauraToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bio").value("Estudiante de 4to semestre interesado en bases de datos y backend."))
+                .andExpect(jsonPath("$.contacts", hasSize(3)))
+                .andExpect(jsonPath("$.contacts[0].type").value("WHATSAPP"))
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.name").doesNotExist());
+
+        // 5. Reemplazo y limpieza de bio y contactos
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Sergio Guerrero",
+                                "username", "sergioprofile",
+                                "semester", 4,
+                                "bio", "",
+                                "contacts", List.of()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bio").doesNotExist())
+                .andExpect(jsonPath("$.contacts", hasSize(0)));
     }
 
     private record SeedData(User sergio, User laura, Long subject1Id, Long subject2Id) {}

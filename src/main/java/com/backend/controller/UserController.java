@@ -51,6 +51,13 @@ public class UserController {
         this.jwtTokenService = jwtTokenService;
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getMyProfile(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+    ) {
+        return ResponseEntity.ok(userProfileService.getMyProfile(resolveUser(authorization)));
+    }
+
     @PutMapping("/me")
     public ResponseEntity<UserDto> updateMyProfile(
             @RequestBody UpdateProfileRequest request,

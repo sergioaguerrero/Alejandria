@@ -25,6 +25,7 @@ import {
   passwordErrors,
   isValidUsername,
 } from '../utils/validations.js';
+import { validateBioAndContacts } from '../utils/contactMethods.js';
 
 const MOCK_OTP_EXPIRATION_MS = 15 * 60 * 1000;
 const MOCK_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -479,14 +480,45 @@ export async function resendVerificationCode(email) {
 // ── Profile (FE-07, BE-08) ─────────────────────────────────────────────────
 
 /**
+ * @typedef {object} ContactMethodInput
+ * @property {string} type
+ * @property {string} value
+ * @property {string|null} [label]
+ */
+
+/**
  * @typedef {object} ProfileData
  * @property {string} name
  * @property {string} username
  * @property {number|null} semester
+ * @property {string} [bio]
+ * @property {ContactMethodInput[]} [contacts]
  */
 
 /**
- * Updates the editable data of the current user (name, username and semester).
+ * Refreshes the authenticated user's full profile (including bio and contacts)
+ * from the backend and updates localStorage.
+ * @returns {Promise<object|null>}
+ */
+export async function refreshCurrentUser() {
+  const session = getCurrentSession();
+  if (!session) return null;
+
+  if (!USE_MOCK) {
+    const { data: freshUser } = await http.get('/users/me');
+    saveSession({ ...session, user: freshUser });
+    return freshUser;
+  }
+
+  const storedUser = store.users.find((u) => u.id === session.user.id);
+  if (!storedUser) return session.user;
+  const freshUser = /** @type {any} */ (withoutPassword(storedUser));
+  saveSession({ ...session, user: freshUser });
+  return freshUser;
+}
+
+/**
+ * Updates the editable data of the current user (name, username, semester, bio and contacts).
  * The email cannot be changed.
  * @param {ProfileData} data
  * @returns {Promise<object>} The updated user.
@@ -500,13 +532,26 @@ export async function updateProfile(data) {
     data.semester === null || data.semester === undefined || data.semester === ''
       ? null
       : Number(data.semester);
+  const hasBio = data.bio !== undefined;
+  const bio = hasBio ? String(data.bio ?? '').replace(/\r\n/g, '\n').trim() : undefined;
+  const hasContacts = Array.isArray(data.contacts);
+  const contacts = hasContacts
+    ? data.contacts.map((item) => ({
+        type: String(item?.type ?? 'OTHER').trim().toUpperCase(),
+        value: String(item?.value ?? '').trim(),
+        label: String(item?.label ?? '').trim() || null,
+      }))
+    : undefined;
 
   if (!USE_MOCK) {
-    const { data: updatedUser } = await http.put('/users/me', {
+    const payload = {
       name,
       username,
       semester,
-    });
+      ...(hasBio ? { bio } : {}),
+      ...(hasContacts ? { contacts } : {}),
+    };
+    const { data: updatedUser } = await http.put('/users/me', payload);
     const session = getCurrentSession();
     if (session) saveSession({ ...session, user: updatedUser });
     return updatedUser;
@@ -547,6 +592,12 @@ export async function updateProfile(data) {
     }
   }
 
+  const bioContactFields = validateBioAndContacts({
+    bio: hasBio ? bio : '',
+    contacts: hasContacts ? contacts : [],
+  });
+  Object.assign(fields, bioContactFields);
+
   if (Object.keys(fields).length > 0) {
     throw new ApiError('Revisa los datos del formulario.', { status: 400, fields });
   }
@@ -556,6 +607,13 @@ export async function updateProfile(data) {
   storedUser.name = name;
   storedUser.username = username;
   if (storedUser.role !== 'admin') storedUser.semester = semester;
+  if (hasBio) storedUser.bio = bio || null;
+  if (hasContacts) {
+    storedUser.contacts = contacts.map((item, idx) => ({
+      id: `cnt-${Date.now()}-${idx}`,
+      ...item,
+    }));
+  }
 
   // The example data references the user by username, so a change is mirrored
   // everywhere to keep the ownership of the content and the inbox consistent.

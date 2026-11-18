@@ -23,6 +23,7 @@ import {
   DialogTitle,
   Divider,
   Grid,
+  IconButton,
   MenuItem,
   Paper,
   Skeleton,
@@ -31,9 +32,14 @@ import {
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ContactMailOutlinedIcon from '@mui/icons-material/ContactMailOutlined';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -44,6 +50,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
+import ProfileBioAndContacts, { ContactTypeIcon } from '../../components/users/ProfileBioAndContacts.jsx';
 import ProfileCounters from '../../components/users/ProfileCounters.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
@@ -52,16 +59,31 @@ import {
   getPublicProfile,
   getRepositoriesByUser,
 } from '../../services/index.js';
+import {
+  CONTACT_METHODS,
+  MAX_BIO_LENGTH,
+  MAX_CONTACTS,
+  MAX_CONTACT_LABEL_LENGTH,
+  MAX_CONTACT_VALUE_LENGTH,
+  getContactMeta,
+  validateBioAndContacts,
+} from '../../utils/contactMethods.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 import { initials } from '../../utils/users.js';
 
 const SEMESTERS = Array.from({ length: 10 }, (_, index) => index + 1);
 
-const emptyFields = () => ({ name: '', username: '', semester: '' });
+const emptyFields = () => ({});
 const emptyPasswordFields = () => ({
   currentPassword: '',
   newPassword: '',
   confirmPassword: '',
+});
+
+const createEmptyContact = () => ({
+  type: 'WHATSAPP',
+  value: '',
+  label: '',
 });
 
 function materialTypeLabel(type) {
@@ -73,7 +95,7 @@ function termLabel(term) {
 }
 
 export default function ProfilePage() {
-  const { user, isAdmin, updateProfile, changePassword } = useAuth();
+  const { user, isAdmin, updateProfile, refreshUser, changePassword } = useAuth();
 
   const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [repositories, setRepositories] = useState([]);
@@ -84,13 +106,21 @@ export default function ProfilePage() {
 
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editTab, setEditTab] = useState('profile'); // 'profile' | 'password'
+  const [editTab, setEditTab] = useState('profile'); // 'profile' | 'contacts' | 'password'
 
   // Profile form state
   const [profileValues, setProfileValues] = useState(() => ({
     name: user?.name ?? '',
     username: user?.username ?? '',
     semester: user?.semester ?? '',
+    bio: user?.bio ?? '',
+    contacts: Array.isArray(user?.contacts)
+      ? user.contacts.map((c) => ({
+          type: c.type ?? 'WHATSAPP',
+          value: c.value ?? '',
+          label: c.label ?? '',
+        }))
+      : [],
   }));
   const [profileErrors, setProfileErrors] = useState(emptyFields);
   const [profileGeneralError, setProfileGeneralError] = useState('');
@@ -104,16 +134,21 @@ export default function ProfilePage() {
 
   const [notice, setNotice] = useState(null);
 
-  const isLoading = !user || loadedKey !== `${user.username}:${reloadKey}`;
+  const currentUsername = user?.username ?? '';
+  const isLoading = !user || loadedKey !== `${currentUsername}:${reloadKey}`;
 
   useEffect(() => {
-    if (!user) return undefined;
+    refreshUser().catch(() => {});
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (!currentUsername) return undefined;
     let active = true;
 
     Promise.all([
-      getRepositoriesByUser(user.username),
-      getDocumentsByUser(user.username),
-      getPublicProfile(user.username).catch(() => null),
+      getRepositoriesByUser(currentUsername),
+      getDocumentsByUser(currentUsername),
+      getPublicProfile(currentUsername).catch(() => null),
     ])
       .then(([userRepos, userDocs, publicProfile]) => {
         if (!active) return;
@@ -126,33 +161,118 @@ export default function ProfilePage() {
       })
       .catch(() => {})
       .finally(() => {
-        if (active) setLoadedKey(`${user.username}:${reloadKey}`);
+        if (active) setLoadedKey(`${currentUsername}:${reloadKey}`);
       });
 
     return () => {
       active = false;
     };
-  }, [user, reloadKey]);
+  }, [currentUsername, reloadKey]);
 
-  const handleOpenEditModal = () => {
+  const handleOpenEditModal = (initialTab = 'profile') => {
     setProfileValues({
       name: user?.name ?? '',
       username: user?.username ?? '',
       semester: user?.semester ?? '',
+      bio: user?.bio ?? '',
+      contacts: Array.isArray(user?.contacts)
+        ? user.contacts.map((c) => ({
+            type: c.type ?? 'WHATSAPP',
+            value: c.value ?? '',
+            label: c.label ?? '',
+          }))
+        : [],
     });
     setProfileErrors(emptyFields());
     setProfileGeneralError('');
     setPasswordValues(emptyPasswordFields());
     setPasswordErrors(emptyPasswordFields());
     setPasswordGeneralError('');
-    setEditTab('profile');
+    setEditTab(initialTab);
     setIsEditModalOpen(true);
+  };
+
+  const focusTabForFieldErrors = (fields) => {
+    const keys = Object.keys(fields || {});
+    const hasPersonalError = keys.some((k) => ['name', 'username', 'semester', 'bio'].includes(k));
+    const hasContactError = keys.some((k) => k === 'contacts' || k.startsWith('contacts.'));
+    if (editTab === 'profile' && !hasPersonalError && hasContactError) {
+      setEditTab('contacts');
+    } else if (editTab === 'contacts' && !hasContactError && hasPersonalError) {
+      setEditTab('profile');
+    }
+  };
+
+  const handleAddContact = () => {
+    setProfileValues((prev) => {
+      if (prev.contacts.length >= MAX_CONTACTS) return prev;
+      return { ...prev, contacts: [...prev.contacts, createEmptyContact()] };
+    });
+    setProfileErrors((prev) => ({ ...prev, contacts: '' }));
+  };
+
+  const handleContactChange = (index, field, value) => {
+    setProfileValues((prev) => ({
+      ...prev,
+      contacts: prev.contacts.map((item, idx) =>
+        idx === index ? { ...item, [field]: value } : item,
+      ),
+    }));
+    setProfileErrors((prev) => {
+      const next = { ...prev };
+      delete next[`contacts.${index}.${field}`];
+      delete next.contacts;
+      return next;
+    });
+  };
+
+  const handleMoveContact = (index, direction) => {
+    setProfileValues((prev) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= prev.contacts.length) return prev;
+      const next = [...prev.contacts];
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
+      return { ...prev, contacts: next };
+    });
+    setProfileErrors((prev) => {
+      const next = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (!k.startsWith('contacts.')) next[k] = v;
+      }
+      return next;
+    });
+  };
+
+  const handleRemoveContact = (index) => {
+    setProfileValues((prev) => ({
+      ...prev,
+      contacts: prev.contacts.filter((_item, idx) => idx !== index),
+    }));
+    setProfileErrors((prev) => {
+      const next = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (!k.startsWith('contacts.') && k !== 'contacts') next[k] = v;
+      }
+      return next;
+    });
   };
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setProfileGeneralError('');
     setProfileErrors(emptyFields());
+
+    const clientFields = validateBioAndContacts({
+      bio: profileValues.bio,
+      contacts: profileValues.contacts,
+    });
+    if (Object.keys(clientFields).length > 0) {
+      setProfileErrors(clientFields);
+      focusTabForFieldErrors(clientFields);
+      return;
+    }
+
     setIsSavingProfile(true);
 
     try {
@@ -160,6 +280,8 @@ export default function ProfilePage() {
         name: profileValues.name,
         username: profileValues.username,
         semester: isAdmin || profileValues.semester === '' ? null : Number(profileValues.semester),
+        bio: profileValues.bio,
+        contacts: profileValues.contacts,
       });
       setIsEditModalOpen(false);
       setNotice({ severity: 'success', message: 'Tus datos de perfil se actualizaron con éxito.' });
@@ -167,6 +289,7 @@ export default function ProfilePage() {
     } catch (err) {
       if (err?.fields) {
         setProfileErrors(err.fields);
+        focusTabForFieldErrors(err.fields);
       } else {
         setProfileGeneralError(err?.message ?? 'No se pudieron guardar los cambios.');
       }
@@ -280,7 +403,7 @@ export default function ProfilePage() {
               variant="contained"
               color="primary"
               startIcon={<EditOutlinedIcon />}
-              onClick={handleOpenEditModal}
+              onClick={() => handleOpenEditModal('profile')}
               sx={{ px: 2.5, py: 1 }}
             >
               Editar perfil
@@ -294,6 +417,15 @@ export default function ProfilePage() {
           following={socialStats.following}
           likes={totalLikes}
           linkSocial
+        />
+
+        {/* Bio & Contact Methods */}
+        <ProfileBioAndContacts
+          bio={user?.bio}
+          contacts={user?.contacts}
+          isOwnProfile
+          onEdit={handleOpenEditModal}
+          onNotice={setNotice}
         />
       </Box>
 
@@ -483,6 +615,8 @@ export default function ProfilePage() {
         <Tabs
           value={editTab}
           onChange={(_e, v) => setEditTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
           sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab
@@ -490,6 +624,17 @@ export default function ProfilePage() {
             icon={<PersonOutlineIcon />}
             iconPosition="start"
             label="Datos personales"
+          />
+          <Tab
+            value="contacts"
+            icon={<ContactMailOutlinedIcon />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <span>Contacto</span>
+                <Chip size="small" label={profileValues.contacts.length} />
+              </Box>
+            }
           />
           <Tab
             value="password"
@@ -500,71 +645,266 @@ export default function ProfilePage() {
         </Tabs>
 
         <DialogContent sx={{ pt: 3 }}>
-          {editTab === 'profile' && (
+          {(editTab === 'profile' || editTab === 'contacts') && (
             <Box component="form" onSubmit={handleProfileSubmit} noValidate id="profile-form">
-              <Stack spacing={2.5}>
-                {profileGeneralError && <Alert severity="error">{profileGeneralError}</Alert>}
+              {editTab === 'profile' && (
+                <Stack spacing={2.5}>
+                  {profileGeneralError && <Alert severity="error">{profileGeneralError}</Alert>}
 
-                <TextField
-                  label="Nombre completo"
-                  value={profileValues.name}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setProfileValues((prev) => ({ ...prev, name: val }));
-                    setProfileErrors((prev) => ({ ...prev, name: '' }));
-                  }}
-                  error={Boolean(profileErrors.name)}
-                  helperText={profileErrors.name}
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Nombre de usuario"
-                  value={profileValues.username}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setProfileValues((prev) => ({ ...prev, username: val }));
-                    setProfileErrors((prev) => ({ ...prev, username: '' }));
-                  }}
-                  error={Boolean(profileErrors.username)}
-                  helperText={profileErrors.username || 'Único en la plataforma. Visible para los demás.'}
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Correo institucional"
-                  value={user?.email ?? ''}
-                  disabled
-                  helperText="El correo institucional está verificado y no puede modificarse."
-                  fullWidth
-                />
-
-                {!isAdmin && (
                   <TextField
-                    select
-                    label="Semestre actual"
-                    value={profileValues.semester}
+                    label="Nombre completo"
+                    value={profileValues.name}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setProfileValues((prev) => ({ ...prev, semester: val }));
-                      setProfileErrors((prev) => ({ ...prev, semester: '' }));
+                      setProfileValues((prev) => ({ ...prev, name: val }));
+                      setProfileErrors((prev) => ({ ...prev, name: '' }));
                     }}
-                    error={Boolean(profileErrors.semester)}
-                    helperText={profileErrors.semester || 'Opcional. Te sugerirá materias afines.'}
+                    error={Boolean(profileErrors.name)}
+                    helperText={profileErrors.name}
+                    required
                     fullWidth
-                    slotProps={{ select: { MenuProps: SELECT_MENU_PROPS } }}
-                  >
-                    <MenuItem value="">Sin especificar</MenuItem>
-                    {SEMESTERS.map((s) => (
-                      <MenuItem key={s} value={s}>
-                        {`Semestre ${s}`}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
-              </Stack>
+                  />
+
+                  <TextField
+                    label="Nombre de usuario"
+                    value={profileValues.username}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProfileValues((prev) => ({ ...prev, username: val }));
+                      setProfileErrors((prev) => ({ ...prev, username: '' }));
+                    }}
+                    error={Boolean(profileErrors.username)}
+                    helperText={profileErrors.username || 'Único en la plataforma. Visible para los demás.'}
+                    required
+                    fullWidth
+                  />
+
+                  <TextField
+                    label="Correo institucional"
+                    value={user?.email ?? ''}
+                    disabled
+                    helperText="El correo institucional está verificado y no puede modificarse."
+                    fullWidth
+                  />
+
+                  {!isAdmin && (
+                    <TextField
+                      select
+                      label="Semestre actual"
+                      value={profileValues.semester}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileValues((prev) => ({ ...prev, semester: val }));
+                        setProfileErrors((prev) => ({ ...prev, semester: '' }));
+                      }}
+                      error={Boolean(profileErrors.semester)}
+                      helperText={profileErrors.semester || 'Opcional. Te sugerirá materias afines.'}
+                      fullWidth
+                      slotProps={{ select: { MenuProps: SELECT_MENU_PROPS } }}
+                    >
+                      <MenuItem value="">Sin especificar</MenuItem>
+                      {SEMESTERS.map((s) => (
+                        <MenuItem key={s} value={s}>
+                          {`Semestre ${s}`}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+
+                  <TextField
+                    label="Descripción / Biografía"
+                    value={profileValues.bio}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProfileValues((prev) => ({ ...prev, bio: val }));
+                      setProfileErrors((prev) => ({ ...prev, bio: '' }));
+                    }}
+                    error={Boolean(profileErrors.bio)}
+                    helperText={
+                      profileErrors.bio ||
+                      `Cuéntale a la comunidad qué estudias o tus intereses académicos (${(profileValues.bio || '').length}/${MAX_BIO_LENGTH}).`
+                    }
+                    placeholder="Ej. Estudiante de Ingeniería de Sistemas interesado en bases de datos y desarrollo backend."
+                    multiline
+                    minRows={3}
+                    maxRows={6}
+                    slotProps={{ htmlInput: { maxLength: MAX_BIO_LENGTH + 50 } }}
+                    fullWidth
+                  />
+                </Stack>
+              )}
+
+              {editTab === 'contacts' && (
+                <Stack spacing={2}>
+                  {profileGeneralError && <Alert severity="error">{profileGeneralError}</Alert>}
+                  {profileErrors.contacts && <Alert severity="error">{profileErrors.contacts}</Alert>}
+
+                  <Typography variant="body2" color="text.secondary">
+                    Publica los medios por los que otros estudiantes pueden contactarte para estudiar,
+                    colaborar en repositorios o resolver dudas (máximo {MAX_CONTACTS}).
+                  </Typography>
+
+                  {profileValues.contacts.length === 0 ? (
+                    <Paper
+                      variant="outlined"
+                      sx={{ p: 2.5, textAlign: 'center', borderStyle: 'dashed' }}
+                    >
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                        Todavía no tienes medios de contacto configurados.
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={handleAddContact}
+                      >
+                        Agregar primer medio de contacto
+                      </Button>
+                    </Paper>
+                  ) : (
+                    <Stack spacing={2}>
+                      {profileValues.contacts.map((contact, index) => {
+                        const meta = getContactMeta(contact.type);
+                        const valueError = profileErrors[`contacts.${index}.value`];
+                        const labelError = profileErrors[`contacts.${index}.label`];
+                        const typeError = profileErrors[`contacts.${index}.type`];
+
+                        return (
+                          <Paper
+                            key={index}
+                            variant="outlined"
+                            sx={{ p: 2, borderRadius: 2 }}
+                          >
+                            <Stack
+                              direction="row"
+                              sx={{
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                mb: 1.5,
+                              }}
+                            >
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                <ContactTypeIcon type={contact.type} />
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  {`Contacto #${index + 1}`}
+                                </Typography>
+                              </Stack>
+
+                              <Stack direction="row" spacing={0.5}>
+                                <Tooltip title="Subir">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      aria-label="Mover contacto arriba"
+                                      disabled={index === 0}
+                                      onClick={() => handleMoveContact(index, -1)}
+                                    >
+                                      <ArrowUpwardIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip title="Bajar">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      aria-label="Mover contacto abajo"
+                                      disabled={index === profileValues.contacts.length - 1}
+                                      onClick={() => handleMoveContact(index, 1)}
+                                    >
+                                      <ArrowDownwardIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip title="Eliminar contacto">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    aria-label="Eliminar contacto"
+                                    onClick={() => handleRemoveContact(index)}
+                                  >
+                                    <DeleteOutlinedIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            </Stack>
+
+                            <Grid container spacing={1.5}>
+                              <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField
+                                  select
+                                  size="small"
+                                  label="Plataforma / Tipo"
+                                  value={contact.type}
+                                  onChange={(e) => handleContactChange(index, 'type', e.target.value)}
+                                  error={Boolean(typeError)}
+                                  helperText={typeError}
+                                  fullWidth
+                                  slotProps={{ select: { MenuProps: SELECT_MENU_PROPS } }}
+                                >
+                                  {CONTACT_METHODS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <ContactTypeIcon type={option.value} fontSize="small" />
+                                        <span>{option.label}</span>
+                                      </Box>
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                              </Grid>
+
+                              <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField
+                                  size="small"
+                                  label="Etiqueta (opcional)"
+                                  value={contact.label}
+                                  onChange={(e) => handleContactChange(index, 'label', e.target.value)}
+                                  error={Boolean(labelError)}
+                                  helperText={labelError || 'Ej. Grupos, Portafolio'}
+                                  placeholder="Ej. Estudio"
+                                  slotProps={{ htmlInput: { maxLength: MAX_CONTACT_LABEL_LENGTH } }}
+                                  fullWidth
+                                />
+                              </Grid>
+
+                              <Grid size={{ xs: 12 }}>
+                                <TextField
+                                  size="small"
+                                  label="Dato, usuario o enlace"
+                                  value={contact.value}
+                                  onChange={(e) => handleContactChange(index, 'value', e.target.value)}
+                                  error={Boolean(valueError)}
+                                  helperText={valueError || meta.helper}
+                                  placeholder={meta.placeholder}
+                                  slotProps={{ htmlInput: { maxLength: MAX_CONTACT_VALUE_LENGTH } }}
+                                  required
+                                  fullWidth
+                                />
+                              </Grid>
+                            </Grid>
+                          </Paper>
+                        );
+                      })}
+                    </Stack>
+                  )}
+
+                  {profileValues.contacts.length > 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {`${profileValues.contacts.length} de ${MAX_CONTACTS} medios usados`}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        disabled={profileValues.contacts.length >= MAX_CONTACTS}
+                        onClick={handleAddContact}
+                      >
+                        Agregar otro medio
+                      </Button>
+                    </Box>
+                  )}
+                </Stack>
+              )}
             </Box>
           )}
 
@@ -632,7 +972,7 @@ export default function ProfilePage() {
             Cancelar
           </Button>
 
-          {editTab === 'profile' ? (
+          {editTab === 'profile' || editTab === 'contacts' ? (
             <Button
               type="submit"
               form="profile-form"

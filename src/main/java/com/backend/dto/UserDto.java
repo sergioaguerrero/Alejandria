@@ -1,6 +1,10 @@
 package com.backend.dto;
 
 import com.backend.domain.identity.User;
+import com.backend.domain.identity.UserContact;
+
+import java.util.Collections;
+import java.util.List;
 
 public class UserDto {
     private Long id;
@@ -13,12 +17,18 @@ public class UserDto {
     private String second_lastname;
     private String role;
     private Integer semester;
+    private String bio;
+    private List<UserContactDto> contacts = Collections.emptyList();
     private boolean verified;
     private boolean suspended;
 
     public UserDto() {}
 
     public static UserDto fromEntity(User user) {
+        return fromEntity(user, Collections.emptyList());
+    }
+
+    public static UserDto fromEntity(User user, List<UserContact> contacts) {
         UserDto dto = new UserDto();
         dto.setId(user.getId());
         dto.setName(user.getName());
@@ -29,6 +39,10 @@ public class UserDto {
         dto.setFirst_lastname(user.getFirst_lastname());
         dto.setSecond_lastname(user.getSecond_lastname());
         dto.setSemester(user.getSemester());
+        dto.setBio(user.getBio());
+        dto.setContacts(contacts == null
+                ? Collections.emptyList()
+                : contacts.stream().map(UserContactDto::fromEntity).toList());
         dto.setVerified(user.isVerified());
         dto.setSuspended(user.isSuspended());
 
@@ -66,6 +80,12 @@ public class UserDto {
 
     public Integer getSemester() { return semester; }
     public void setSemester(Integer semester) { this.semester = semester; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+
+    public List<UserContactDto> getContacts() { return contacts; }
+    public void setContacts(List<UserContactDto> contacts) { this.contacts = contacts; }
 
     public boolean isVerified() { return verified; }
     public void setVerified(boolean verified) { this.verified = verified; }

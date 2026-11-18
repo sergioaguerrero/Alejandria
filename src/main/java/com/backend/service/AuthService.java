@@ -11,6 +11,7 @@ import com.backend.dto.UserDto;
 import com.backend.dto.VerifyEmailRequest;
 import com.backend.exception.AuthException;
 import com.backend.repository.RoleRepository;
+import com.backend.repository.UserContactRepository;
 import com.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,6 +35,7 @@ public class AuthService {
     private static final Pattern DIGIT_PATTERN = Pattern.compile("\\d");
 
     private final UserRepository userRepository;
+    private final UserContactRepository userContactRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
@@ -41,12 +43,14 @@ public class AuthService {
 
     public AuthService(
             UserRepository userRepository,
+            UserContactRepository userContactRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             EmailVerificationService emailVerificationService,
             JwtTokenService jwtTokenService
     ) {
         this.userRepository = userRepository;
+        this.userContactRepository = userContactRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationService = emailVerificationService;
@@ -131,7 +135,10 @@ public class AuthService {
         String token = jwtTokenService.generateToken(verifiedUser);
         return AuthResponse.authenticated(
                 token,
-                UserDto.fromEntity(verifiedUser),
+                UserDto.fromEntity(
+                        verifiedUser,
+                        userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(verifiedUser.getId())
+                ),
                 "Correo verificado exitosamente. ¡Bienvenido a Alejandría!"
         );
     }
@@ -187,7 +194,14 @@ public class AuthService {
             );
         }
 
-        return AuthResponse.authenticated(jwtTokenService.generateToken(user), UserDto.fromEntity(user), null);
+        return AuthResponse.authenticated(
+                jwtTokenService.generateToken(user),
+                UserDto.fromEntity(
+                        user,
+                        userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(user.getId())
+                ),
+                null
+        );
     }
 
     private User createNewStudentUser(String email) {

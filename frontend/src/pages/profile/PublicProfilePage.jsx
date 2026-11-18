@@ -40,6 +40,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ReportDialog from '../../components/common/ReportDialog.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
+import ProfileBioAndContacts from '../../components/users/ProfileBioAndContacts.jsx';
 import ProfileCounters from '../../components/users/ProfileCounters.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
@@ -242,9 +243,11 @@ export default function PublicProfilePage() {
                     @{loaded.profile.username}
                   </Typography>
                   <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {loaded.profile.semester
-                      ? `Ingeniería de Sistemas · Semestre ${loaded.profile.semester} · Universidad Popular del Cesar`
-                      : 'Estudiante de Ingeniería de Sistemas · Universidad Popular del Cesar'}
+                    {loaded.profile.role === 'admin'
+                      ? 'Administración · Universidad Popular del Cesar'
+                      : loaded.profile.semester
+                        ? `Ingeniería de Sistemas · Semestre ${loaded.profile.semester} · Universidad Popular del Cesar`
+                        : 'Estudiante de Ingeniería de Sistemas · Universidad Popular del Cesar'}
                     {!isOwnProfile && (loaded.profile.isFriend || loaded.profile.followsMe) && (
                       <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
                         {loaded.profile.isFriend ? (
@@ -325,6 +328,14 @@ export default function PublicProfilePage() {
               followers={loaded.profile.followersCount ?? 0}
               following={loaded.profile.followingCount ?? 0}
               likes={totalLikes}
+            />
+
+            {/* Bio & Contact Methods */}
+            <ProfileBioAndContacts
+              bio={loaded.profile.bio}
+              contacts={loaded.profile.contacts}
+              isOwnProfile={false}
+              onNotice={setNotice}
             />
           </Box>
 
