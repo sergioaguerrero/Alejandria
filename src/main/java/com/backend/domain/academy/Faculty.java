@@ -10,7 +10,7 @@ public class Faculty {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "nombre", nullable = false, length = 150)
+    @Column(name = "nombre", nullable = false, length = 80)
     private String name;
 
     protected Faculty() {}   // requerido por JPA

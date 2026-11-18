@@ -14,25 +14,25 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "nombre_usuario", nullable = false, unique = true, length = 150)
+    @Column(name = "nombre_usuario", nullable = false, unique = true, length = 20)
     private String username;
 
-    @Column(name = "primer_nombre", nullable = false, length = 150)
+    @Column(name = "primer_nombre", nullable = false, length = 20)
     private String first_name;
 
-    @Column(name = "segundo_nombre", length = 150)
+    @Column(name = "segundo_nombre", length = 20)
     private String second_name;
 
-    @Column(name = "primer_apellido", nullable = false, length = 150)
+    @Column(name = "primer_apellido", nullable = false, length = 20)
     private String first_lastname;
 
-    @Column(name = "segundo_apellido", nullable = false, length = 150)
+    @Column(name = "segundo_apellido", nullable = false, length = 20)
     private String second_lastname;
 
-    @Column(name = "correo_institucional", nullable = false, unique = true, length = 150)
+    @Column(name = "correo_institucional", nullable = false, unique = true, length = 80)
     private String institutionalEmail;
 
-    @Column(name = "contrasena_hash", nullable = false, length = 150)
+    @Column(name = "contrasena_hash", nullable = false, length = 70)
     private String passwordHash;
 
     @Convert(converter = NumericBooleanConverter.class)

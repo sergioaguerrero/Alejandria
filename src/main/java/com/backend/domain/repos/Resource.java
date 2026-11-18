@@ -31,7 +31,7 @@ public class Resource {
     @Column(name = "corte", nullable = false)
     private int term = 1;
 
-    @Column(name = "tema", length = 150)
+    @Column(name = "tema", length = 80)
     private String topic;
 
     @Column(name = "nombre_archivo", length = 255)

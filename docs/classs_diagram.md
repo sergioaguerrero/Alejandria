@@ -106,12 +106,6 @@ classDiagram
             +int id
             +String name
         }
-        class Rating {
-            +int id
-            +int score
-            +String comment
-            +Date date
-        }
         class Report {
             +int id
             +ReportReason reason
@@ -160,8 +154,6 @@ classDiagram
     User "1" --> "*" Resource : uploads
     Subject "1" --> "*" Resource : groups
     Resource "*" --> "*" Tag : is classified by
-    Resource "1" --> "*" Rating : receives
-    User "1" --> "*" Rating : submits
 
     User "1" --> "*" Report : submits
     Resource "1" --> "*" Report : is subject of

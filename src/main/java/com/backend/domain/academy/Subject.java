@@ -11,10 +11,10 @@ public class Subject {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "codigo", nullable = false, length = 150)
+    @Column(name = "codigo", nullable = false, length = 15)
     private String code;
 
-    @Column(name = "nombre", nullable = false, length = 150)
+    @Column(name = "nombre", nullable = false, length = 80)
     private String name;
 
     @Column(name = "creditos", nullable = false)
