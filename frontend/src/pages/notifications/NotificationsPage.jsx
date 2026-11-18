@@ -36,7 +36,10 @@ import DoneAllIcon from '@mui/icons-material/DoneAll';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
-import NotificationTypeIcon from '../../components/common/NotificationTypeIcon.jsx';
+import {
+  NotificationAvatar,
+  NotificationMessage,
+} from '../../components/common/NotificationAvatar.jsx';
 import { useAuth } from '../../context/authContext.js';
 import {
   getNotifications,
@@ -45,43 +48,6 @@ import {
 } from '../../services/index.js';
 import { formatRelativeDate } from '../../utils/formatDate.js';
 import { notificationTypeLabel } from '../../utils/notificationMeta.js';
-
-function renderMessageWithMentions(message) {
-  if (!message) return null;
-  const parts = message.split(/(@[a-zA-Z0-9._-]+)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith('@') && part.length > 1) {
-      return (
-        <Box
-          key={`${part}-${index}`}
-          component="span"
-          sx={{ fontWeight: 600, color: 'text.primary' }}
-        >
-          {part}
-        </Box>
-      );
-    }
-    return part;
-  });
-}
-
-function getTypeAccent(type) {
-  switch (type) {
-    case 'warning':
-    case 'content_hidden':
-      return 'warning';
-    case 'sanction':
-    case 'content_deleted':
-    case 'report_pending':
-      return 'error';
-    case 'friend_match':
-      return 'success';
-    case 'collab_invite':
-      return 'info';
-    default:
-      return 'primary';
-  }
-}
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -293,137 +259,120 @@ export default function NotificationsPage() {
       {!loading && !error && filteredNotifications.length > 0 && (
         <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <List disablePadding>
-            {filteredNotifications.map((item, idx) => {
-              const accent = getTypeAccent(item.type);
-
-              return (
-                <Box key={item.id}>
-                  {idx > 0 && <Divider />}
-                  <ListItem
-                    disablePadding
-                    secondaryAction={
-                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                        {!item.read && (
-                          <>
-                            <Tooltip title="Marcar como leída">
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMarkAsRead(item.id);
-                                }}
-                                aria-label="Marcar como leída"
-                                sx={{ color: 'text.secondary' }}
-                              >
-                                <CheckIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Box
-                              aria-label="Sin leer"
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                bgcolor: 'primary.main',
-                                mx: 0.5,
+            {filteredNotifications.map((item, idx) => (
+              <Box key={item.id}>
+                {idx > 0 && <Divider />}
+                <ListItem
+                  disablePadding
+                  secondaryAction={
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                      {!item.read && (
+                        <>
+                          <Tooltip title="Marcar como leída">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(item.id);
                               }}
-                            />
-                          </>
-                        )}
-                        {item.targetUrl && (
-                          <ChevronRightIcon
-                            fontSize="small"
-                            sx={{ color: 'text.disabled', pointerEvents: 'none' }}
-                          />
-                        )}
-                      </Stack>
-                    }
-                  >
-                    <ListItemButton
-                      onClick={() => {
-                        if (item.targetUrl) {
-                          handleNavigate(item);
-                        } else if (!item.read) {
-                          handleMarkAsRead(item.id);
-                        }
-                      }}
-                      sx={(theme) => ({
-                        alignItems: 'center',
-                        gap: 1.75,
-                        px: 2.25,
-                        py: 1.5,
-                        pr: item.read ? 6 : 10,
-                        bgcolor: item.read ? 'transparent' : alpha(theme.palette.primary.main, 0.06),
-                        '&:hover': {
-                          bgcolor: item.read
-                            ? 'action.hover'
-                            : alpha(theme.palette.primary.main, 0.1),
-                        },
-                      })}
-                    >
-                      <Box
-                        sx={(theme) => ({
-                          width: 42,
-                          height: 42,
-                          borderRadius: '50%',
-                          flexShrink: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: alpha(theme.palette[accent].main, 0.14),
-                        })}
-                      >
-                        <NotificationTypeIcon type={item.type} sx={{ fontSize: 21 }} />
-                      </Box>
-
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                            flexWrap: 'wrap',
-                            mb: 0.25,
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            fontWeight={item.read ? 500 : 700}
-                            color="text.primary"
-                            sx={{ lineHeight: 1.35 }}
-                          >
-                            {item.title}
-                          </Typography>
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            label={notificationTypeLabel(item.type)}
+                              aria-label="Marcar como leída"
+                              sx={{ color: 'text.secondary' }}
+                            >
+                              <CheckIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Box
+                            aria-label="Sin leer"
                             sx={{
-                              height: 18,
-                              fontSize: '0.68rem',
-                              borderColor: 'divider',
-                              color: 'text.secondary',
-                              '& .MuiChip-label': { px: 0.75 },
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: 'primary.main',
+                              mx: 0.5,
                             }}
                           />
-                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
-                            · {formatRelativeDate(item.createdAt)}
-                          </Typography>
-                        </Box>
+                        </>
+                      )}
+                      {item.targetUrl && (
+                        <ChevronRightIcon
+                          fontSize="small"
+                          sx={{ color: 'text.disabled', pointerEvents: 'none' }}
+                        />
+                      )}
+                    </Stack>
+                  }
+                >
+                  <ListItemButton
+                    onClick={() => {
+                      if (item.targetUrl) {
+                        handleNavigate(item);
+                      } else if (!item.read) {
+                        handleMarkAsRead(item.id);
+                      }
+                    }}
+                    sx={(theme) => ({
+                      alignItems: 'center',
+                      gap: 1.75,
+                      px: 2.25,
+                      py: 1.5,
+                      pr: item.read ? 6 : 10,
+                      bgcolor: item.read ? 'transparent' : alpha(theme.palette.primary.main, 0.06),
+                      '&:hover': {
+                        bgcolor: item.read
+                          ? 'action.hover'
+                          : alpha(theme.palette.primary.main, 0.1),
+                      },
+                    })}
+                  >
+                    <NotificationAvatar type={item.type} size={42} iconSize={21} />
 
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.75,
+                          flexWrap: 'wrap',
+                          mb: 0.25,
+                        }}
+                      >
                         <Typography
                           variant="body2"
-                          color="text.secondary"
-                          sx={{ fontSize: '0.84rem', lineHeight: 1.4 }}
+                          fontWeight={item.read ? 500 : 700}
+                          color="text.primary"
+                          sx={{ lineHeight: 1.35 }}
                         >
-                          {renderMessageWithMentions(item.message)}
+                          {item.title}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={notificationTypeLabel(item.type)}
+                          sx={{
+                            height: 18,
+                            fontSize: '0.68rem',
+                            borderColor: 'divider',
+                            color: 'text.secondary',
+                            '& .MuiChip-label': { px: 0.75 },
+                          }}
+                        />
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
+                          · {formatRelativeDate(item.createdAt)}
                         </Typography>
                       </Box>
-                    </ListItemButton>
-                  </ListItem>
-                </Box>
-              );
-            })}
+
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontSize: '0.84rem', lineHeight: 1.4 }}
+                      >
+                        <NotificationMessage message={item.message} />
+                      </Typography>
+                    </Box>
+                  </ListItemButton>
+                </ListItem>
+              </Box>
+            ))}
           </List>
         </Paper>
       )}

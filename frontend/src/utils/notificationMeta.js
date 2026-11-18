@@ -25,3 +25,42 @@ const NOTIFICATION_LABELS = {
 export function notificationTypeLabel(type) {
   return NOTIFICATION_LABELS[type] ?? 'Aviso';
 }
+
+/**
+ * Returns the MUI palette key matching a notification type.
+ * @param {string} type
+ * @returns {'primary'|'info'|'success'|'warning'|'error'}
+ */
+export function getNotificationAccent(type) {
+  switch (type) {
+    case 'warning':
+    case 'content_hidden':
+      return 'warning';
+    case 'sanction':
+    case 'content_deleted':
+    case 'report_pending':
+      return 'error';
+    case 'friend_match':
+      return 'success';
+    case 'collab_invite':
+      return 'info';
+    default:
+      return 'primary';
+  }
+}
+
+/**
+ * Splits a notification message into plain and @mention segments.
+ * @param {string} message
+ * @returns {Array<{ text: string, isMention: boolean }>}
+ */
+export function splitMentionSegments(message) {
+  if (!message) return [];
+  return message
+    .split(/(@[a-zA-Z0-9._-]+)/g)
+    .filter(Boolean)
+    .map((part) => ({
+      text: part,
+      isMention: part.startsWith('@') && part.length > 1,
+    }));
+}
