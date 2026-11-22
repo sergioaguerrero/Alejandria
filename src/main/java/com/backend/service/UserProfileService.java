@@ -5,8 +5,6 @@ import com.backend.cross.NotificationType;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
 import com.backend.domain.identity.UserContact;
-import com.backend.domain.identity.UserFollow;
-import com.backend.domain.identity.UserFollowId;
 import com.backend.domain.identity.UserSubjectInterest;
 import com.backend.dto.ChangePasswordRequest;
 import com.backend.dto.ContactItemRequest;
@@ -20,7 +18,6 @@ import com.backend.repository.UserContactRepository;
 import com.backend.repository.UserFollowRepository;
 import com.backend.repository.UserRepository;
 import com.backend.repository.UserSubjectInterestRepository;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,19 +27,19 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Gestiona el perfil privado y público del usuario, seguimiento mutuo y materias de interés.
+ * Gestiona el perfil privado y público del usuario, seguimiento mutuo y materias de interés
+ * invocando funciones y procedimientos de PKG_AUTH_USUARIOS.
  */
 @Service
 public class UserProfileService {
@@ -64,6 +61,7 @@ public class UserProfileService {
     private final CatalogRepository catalogRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
+    private final OraclePackageService oraclePackageService;
 
     public UserProfileService(
             UserRepository userRepository,
@@ -72,7 +70,8 @@ public class UserProfileService {
             UserSubjectInterestRepository userSubjectInterestRepository,
             CatalogRepository catalogRepository,
             PasswordEncoder passwordEncoder,
-            NotificationService notificationService
+            NotificationService notificationService,
+            OraclePackageService oraclePackageService
     ) {
         this.userRepository = userRepository;
         this.userContactRepository = userContactRepository;
@@ -81,12 +80,13 @@ public class UserProfileService {
         this.catalogRepository = catalogRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional(readOnly = true)
     public UserDto getMyProfile(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu perfil.");
-        List<UserContact> contacts = userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(user.getId());
+        List<UserContact> contacts = loadUserContacts(user.getId());
         return UserDto.fromEntity(user, contacts);
     }
 
@@ -106,7 +106,7 @@ public class UserProfileService {
         }
         if (!AuthService.isValidUsername(cleanUsername)) {
             fields.put("username", "Entre 3 y 20 caracteres: letras, números, punto o guion bajo.");
-        } else if (userRepository.existsByUsernameIgnoreCaseAndIdNot(cleanUsername, user.getId())) {
+        } else if (userRepository.fnExisteUsernameOtro(cleanUsername, user.getId()) == 1) {
             fields.put("username", "Ese nombre de usuario ya está en uso.");
         }
 
@@ -151,13 +151,12 @@ public class UserProfileService {
 
         List<UserContact> savedContacts;
         if (validatedContacts != null) {
-            userContactRepository.deleteByUserId(saved.getId());
-            userContactRepository.flush();
+            oraclePackageService.prEliminarContactosUsuario(saved.getId());
             savedContacts = validatedContacts.isEmpty()
                     ? Collections.emptyList()
                     : userContactRepository.saveAll(validatedContacts);
         } else {
-            savedContacts = userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(saved.getId());
+            savedContacts = loadUserContacts(saved.getId());
         }
 
         return UserDto.fromEntity(saved, savedContacts);
@@ -214,12 +213,11 @@ public class UserProfileService {
             throw new AuthException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "No puedes seguirte a ti mismo.");
         }
 
-        UserFollowId followId = new UserFollowId(viewer.getId(), target.getId());
-        if (userFollowRepository.existsById(followId)) {
-            userFollowRepository.deleteById(followId);
-        } else {
-            userFollowRepository.save(new UserFollow(viewer.getId(), target.getId()));
-            boolean mutual = userFollowRepository.existsById(new UserFollowId(target.getId(), viewer.getId()));
+        int[] out = oraclePackageService.prToggleSeguirUsuario(viewer.getId(), target.getId());
+        boolean nowFollowing = out[0] == 1;
+        boolean mutual = out[1] == 1;
+
+        if (nowFollowing) {
             notificationService.create(
                     target,
                     mutual ? NotificationType.FRIEND_MATCH : NotificationType.NEW_FOLLOWER,
@@ -237,19 +235,22 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFriends(User currentUser) {
         User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
-        return mapList(userFollowRepository.findMutualFriends(viewer.getId()), viewer);
+        List<Long> ids = oraclePackageService.fnObtenerAmigosMutuosIds(viewer.getId());
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFollowing(User currentUser) {
         User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
-        return mapList(userFollowRepository.findFollowingUsers(viewer.getId()), viewer);
+        List<Long> ids = oraclePackageService.fnObtenerSeguidosUsuarioIds(viewer.getId());
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFollowers(User currentUser) {
         User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
-        return mapList(userFollowRepository.findFollowerUsers(viewer.getId()), viewer);
+        List<Long> ids = oraclePackageService.fnObtenerSeguidoresUsuarioIds(viewer.getId());
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
@@ -259,14 +260,16 @@ public class UserProfileService {
                 ? null
                 : "%" + cleanQuery.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
         Integer parsedSemester = parseSemesterFromQuery(cleanQuery);
-        List<User> candidates = userRepository.searchActiveStudents(queryPattern, parsedSemester, PageRequest.of(0, 50));
-        return mapList(candidates, viewer);
+        List<Long> ids = oraclePackageService.fnBuscarEstudiantesActivosIds(queryPattern, parsedSemester, 50);
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<SubjectDto> getSubjectsOfInterest(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus materias.");
-        return userSubjectInterestRepository.findSubjectsByUserId(user.getId()).stream()
+        List<Long> subjectIds = oraclePackageService.fnMateriasInteresUsuarioIds(user.getId());
+        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllById(subjectIds), Subject::getId)
+                .stream()
                 .map(SubjectDto::fromEntity)
                 .toList();
     }
@@ -293,8 +296,7 @@ public class UserProfileService {
             );
         }
 
-        userSubjectInterestRepository.deleteByIdUserId(user.getId());
-        userSubjectInterestRepository.flush();
+        oraclePackageService.prEliminarMateriasInteres(user.getId());
 
         if (!validSubjects.isEmpty()) {
             List<UserSubjectInterest> entries = validSubjects.stream()
@@ -303,9 +305,20 @@ public class UserProfileService {
             userSubjectInterestRepository.saveAll(entries);
         }
 
-        return userSubjectInterestRepository.findSubjectsByUserId(user.getId()).stream()
+        List<Long> subjectIds = oraclePackageService.fnMateriasInteresUsuarioIds(user.getId());
+        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllById(subjectIds), Subject::getId)
+                .stream()
                 .map(SubjectDto::fromEntity)
                 .toList();
+    }
+
+    private List<User> loadUsersInOrder(List<Long> ids) {
+        return oraclePackageService.orderByIds(ids, userRepository.findAllById(ids), User::getId);
+    }
+
+    private List<UserContact> loadUserContacts(Long userId) {
+        List<Long> ids = oraclePackageService.fnContactosUsuarioIds(userId);
+        return oraclePackageService.orderByIds(ids, userContactRepository.findAllById(ids), UserContact::getId);
     }
 
     private User findActiveUserByUsername(String rawUsername) {
@@ -313,7 +326,8 @@ public class UserProfileService {
         if (cleanUsername.isEmpty()) {
             throw new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "El usuario no existe.");
         }
-        return userRepository.findByUsernameIgnoreCase(cleanUsername)
+        Long id = userRepository.fnBuscarUsuarioPorUsername(cleanUsername);
+        return (id == null ? Optional.<User>empty() : userRepository.findById(id))
                 .filter(User::isVerified)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
@@ -369,46 +383,28 @@ public class UserProfileService {
             return List.of();
         }
 
-        List<Long> ids = users.stream().map(User::getId).toList();
-
-        Map<Long, Long> followersCounts = new HashMap<>();
-        for (Object[] row : userFollowRepository.countFollowersByUserIds(ids)) {
-            followersCounts.put((Long) row[0], (Long) row[1]);
-        }
-
-        Map<Long, Long> followingCounts = new HashMap<>();
-        for (Object[] row : userFollowRepository.countFollowingByUserIds(ids)) {
-            followingCounts.put((Long) row[0], (Long) row[1]);
-        }
-
-        Set<Long> followingIds = viewer != null
-                ? new HashSet<>(userFollowRepository.findFollowedUserIds(viewer.getId(), ids))
-                : Collections.emptySet();
-
-        Set<Long> followerIds = viewer != null
-                ? new HashSet<>(userFollowRepository.findFollowerUserIds(viewer.getId(), ids))
-                : Collections.emptySet();
-
-        Map<Long, List<UserContact>> contactsByUser = new HashMap<>();
-        for (UserContact contact : userContactRepository.findByUserIdInOrderByDisplayOrderAscIdAsc(ids)) {
-            contactsByUser
-                    .computeIfAbsent(contact.getUser().getId(), ignored -> new ArrayList<>())
-                    .add(contact);
-        }
+        Long viewerId = viewer != null ? viewer.getId() : null;
 
         return users.stream()
                 .map(target -> {
-                    boolean isSelf = viewer != null && viewer.getId().equals(target.getId());
-                    boolean isFollowing = !isSelf && followingIds.contains(target.getId());
-                    boolean followsMe = !isSelf && followerIds.contains(target.getId());
+                    Long targetId = target.getId();
+                    boolean isSelf = viewerId != null && viewerId.equals(targetId);
+                    long followersCount = userFollowRepository.fnContarSeguidoresUsuario(targetId);
+                    long followingCount = userFollowRepository.fnContarSeguidosUsuario(targetId);
+                    boolean isFollowing = !isSelf && viewerId != null
+                            && userFollowRepository.fnEsSeguidorUsuario(viewerId, targetId) == 1;
+                    boolean followsMe = !isSelf && viewerId != null
+                            && userFollowRepository.fnEsSeguidorUsuario(targetId, viewerId) == 1;
+                    List<UserContact> contacts = loadUserContacts(targetId);
+
                     return PublicUserProfileDto.fromEntity(
                             target,
                             isSelf,
-                            followersCounts.getOrDefault(target.getId(), 0L),
-                            followingCounts.getOrDefault(target.getId(), 0L),
+                            followersCount,
+                            followingCount,
                             isFollowing,
                             followsMe,
-                            contactsByUser.getOrDefault(target.getId(), Collections.emptyList())
+                            contacts
                     );
                 })
                 .toList();

@@ -10,22 +10,29 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Gestiona las consultas de solo lectura sobre el catálogo académico de materias.
+ * Gestiona las consultas de solo lectura sobre el catálogo académico de materias
+ * invocando PKG_REPOSITORIOS.fn_listar_materias_catalogo.
  */
 @Service
 public class CatalogService {
 
     private final CatalogRepository catalogRepository;
+    private final OraclePackageService oraclePackageService;
 
-    public CatalogService(CatalogRepository catalogRepository) {
+    public CatalogService(CatalogRepository catalogRepository, OraclePackageService oraclePackageService) {
         this.catalogRepository = catalogRepository;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional(readOnly = true)
     public List<SubjectDto> getSubjects(Integer semester) {
-        List<Subject> subjects = (semester != null && semester > 0)
-                ? catalogRepository.findSubjectBySemesterNumber(semester)
-                : catalogRepository.findAllSubject();
+        Integer filterSemester = (semester != null && semester > 0) ? semester : null;
+        List<Long> ids = oraclePackageService.fnListarMateriasCatalogoIds(null, filterSemester);
+        List<Subject> subjects = oraclePackageService.orderByIds(
+                ids,
+                catalogRepository.findAllById(ids),
+                Subject::getId
+        );
 
         return subjects.stream()
                 .map(SubjectDto::fromEntity)
@@ -34,7 +41,7 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public Optional<SubjectDto> getSubjectById(Long id) {
-        return catalogRepository.findByIdWithSemester(id)
+        return catalogRepository.findById(id)
                 .map(SubjectDto::fromEntity);
     }
 }

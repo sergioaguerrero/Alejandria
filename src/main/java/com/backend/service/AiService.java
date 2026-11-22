@@ -13,6 +13,7 @@ import com.backend.repository.AiShareRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.UserFollowRepository;
+import com.backend.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,9 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -38,7 +36,7 @@ import java.util.Set;
 
 /**
  * Orquesta generación de contenido de estudio con IA, cuota diaria, biblioteca "Mi estudio"
- * y compartición exclusiva entre amigos mutuos.
+ * y compartición exclusiva entre amigos mutuos invocando PKG_IA_ESTUDIO, PKG_AUTH_USUARIOS y PKG_REPOSITORIOS.
  */
 @Service
 public class AiService {
@@ -51,8 +49,10 @@ public class AiService {
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final ResourceRepository resourceRepository;
     private final UserFollowRepository userFollowRepository;
+    private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final AiGenerationClient aiGenerationClient;
+    private final OraclePackageService oraclePackageService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
     private final int dailyLimit;
@@ -63,8 +63,10 @@ public class AiService {
             StudyRepositoryRepository studyRepositoryRepository,
             ResourceRepository resourceRepository,
             UserFollowRepository userFollowRepository,
+            UserRepository userRepository,
             NotificationService notificationService,
             AiGenerationClient aiGenerationClient,
+            OraclePackageService oraclePackageService,
             ObjectMapper objectMapper,
             TransactionTemplate transactionTemplate,
             @Value("${ai.daily-limit:5}") int dailyLimit
@@ -74,8 +76,10 @@ public class AiService {
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.resourceRepository = resourceRepository;
         this.userFollowRepository = userFollowRepository;
+        this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.aiGenerationClient = aiGenerationClient;
+        this.oraclePackageService = oraclePackageService;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
         this.dailyLimit = Math.max(1, dailyLimit);
@@ -84,8 +88,8 @@ public class AiService {
     @Transactional(readOnly = true)
     public Map<String, Object> getDailyQuota(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para usar el generador con IA.");
-        long used = countTodayGenerations(user.getId());
-        long remaining = Math.max(0L, dailyLimit - used);
+        long used = aiMaterialRepository.fnUsadosHoyIa(user.getId());
+        long remaining = aiMaterialRepository.fnCuotaRestanteIa(user.getId(), dailyLimit);
 
         Map<String, Object> quota = new LinkedHashMap<>();
         quota.put("total", dailyLimit);
@@ -107,8 +111,7 @@ public class AiService {
         ScopeSpec scopeSpec = parseScope(safeBody.get("scope"), safeBody.get("scopeValue"));
 
         PreparationContext context = transactionTemplate.execute(status -> {
-            long usedToday = countTodayGenerations(user.getId());
-            if (usedToday >= dailyLimit) {
+            if (aiMaterialRepository.fnCuotaRestanteIa(user.getId(), dailyLimit) <= 0) {
                 throw new AuthException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "AI_QUOTA_EXCEEDED",
@@ -116,10 +119,18 @@ public class AiService {
                 );
             }
 
-            StudyRepository repo = studyRepositoryRepository.findByIdWithDetails(repositoryId)
+            StudyRepository repo = studyRepositoryRepository.findById(repositoryId)
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPO_NOT_FOUND", "El repositorio seleccionado no existe o fue eliminado."));
+            if (repo.getSubject() != null) {
+                repo.getSubject().getName();
+            }
 
-            List<Resource> repoDocs = resourceRepository.findByStudyRepositoryIdWithDetails(repo.getId());
+            List<Long> docIds = oraclePackageService.fnRecursosPorRepositorioIds(repo.getId(), null);
+            List<Resource> repoDocs = oraclePackageService.orderByIds(
+                    docIds,
+                    resourceRepository.findAllById(docIds),
+                    Resource::getId
+            );
             if (repoDocs.isEmpty()) {
                 throw new AuthException(
                         HttpStatus.BAD_REQUEST,
@@ -129,7 +140,10 @@ public class AiService {
             }
 
             List<Resource> targetDocs = filterDocumentsByScope(repoDocs, scopeSpec);
-            targetDocs.stream().limit(6).forEach(Resource::getFileBytes);
+            targetDocs.stream().limit(6).forEach(doc -> {
+                doc.getFileBytes();
+                doc.getTags().size();
+            });
             return new PreparationContext(repo, targetDocs);
         });
 
@@ -142,7 +156,7 @@ public class AiService {
         NormalizedPayload normalized = normalizeGeneratedPayload(contentType, context.repo(), generatedNode);
 
         return transactionTemplate.execute(status -> {
-            if (countTodayGenerations(user.getId()) >= dailyLimit) {
+            if (aiMaterialRepository.fnCuotaRestanteIa(user.getId(), dailyLimit) <= 0) {
                 throw new AuthException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "AI_QUOTA_EXCEEDED",
@@ -156,12 +170,12 @@ public class AiService {
                     user,
                     repo,
                     contentType,
-                    truncate(normalized.title(), 255),
-                    truncate(repo.getName(), 200),
-                    truncate(subjectName, 200),
+                    truncate(normalized.title(), 150),
+                    truncate(repo.getName(), 100),
+                    truncate(subjectName, 80),
                     scopeSpec.scope(),
-                    scopeSpec.scopeValue(),
-                    truncate(scopeSpec.label(), 255),
+                    scopeSpec.scopeValue() == null ? null : truncate(scopeSpec.scopeValue(), 80),
+                    truncate(scopeSpec.label(), 100),
                     normalized.contentJson()
             );
             AiMaterial saved = aiMaterialRepository.save(material);
@@ -227,7 +241,8 @@ public class AiService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getMyStudyMaterials(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver tu material de estudio guardado.");
-        return aiMaterialRepository.findSavedByOwnerId(user.getId())
+        List<Long> ids = oraclePackageService.fnObtenerGuardadosIaIds(user.getId());
+        return oraclePackageService.orderByIds(ids, aiMaterialRepository.findAllById(ids), AiMaterial::getId)
                 .stream()
                 .map(m -> toMaterialDto(m, null))
                 .toList();
@@ -250,10 +265,7 @@ public class AiService {
         AiMaterial material = findMaterialOrThrow(rawId, "El contenido de IA no existe o fue eliminado.");
         requireOwner(material, user, "Solo puedes consultar compartidos de tu propio material.");
 
-        return aiShareRepository.findByMaterialIdAndSenderId(material.getId(), user.getId())
-                .stream()
-                .map(share -> share.getRecipient().getUsername())
-                .toList();
+        return oraclePackageService.fnAmigosCompartidosIa(material.getId(), user.getId());
     }
 
     @Transactional
@@ -270,40 +282,32 @@ public class AiService {
         String rawNote = body != null && body.get("note") != null ? String.valueOf(body.get("note")).trim() : "";
         String cleanNote = truncate(rawNote, 500);
 
-        List<User> mutualFriends = userFollowRepository.findMutualFriends(user.getId());
         Map<String, User> friendsByUsername = new LinkedHashMap<>();
-        for (User friend : mutualFriends) {
-            friendsByUsername.put(friend.getUsername().toLowerCase(Locale.ROOT), friend);
-        }
-
         for (String target : targets) {
-            if (!friendsByUsername.containsKey(target)) {
+            Long friendId = userRepository.fnBuscarUsuarioPorUsername(target);
+            User friend = friendId == null ? null : userRepository.findById(friendId).orElse(null);
+            if (friend == null || !friend.isVerified() || userFollowRepository.fnSonAmigosMutuos(user.getId(), friend.getId()) == 0) {
                 throw new AuthException(
                         HttpStatus.FORBIDDEN,
                         "NOT_MUTUAL_FRIEND",
                         "@" + target + " no es tu amigo mutuo. Solo puedes compartir contenido de IA con amigos."
                 );
             }
+            friendsByUsername.put(target, friend);
         }
 
         String targetUrl = material.getContentType() == AiContentType.QUIZ
                 ? "/ai/quiz/" + material.getId()
                 : "/ai/material/" + material.getId();
 
-        LocalDateTime now = LocalDateTime.now();
         for (String target : targets) {
             User friend = friendsByUsername.get(target);
-            Optional<AiShare> existingOpt = aiShareRepository.findByMaterialIdAndRecipientId(material.getId(), friend.getId());
-            if (existingOpt.isPresent()) {
-                AiShare existing = existingOpt.get();
-                if (!cleanNote.isEmpty()) {
-                    existing.setNote(cleanNote);
-                }
-                existing.setSharedAt(now);
-                aiShareRepository.save(existing);
-            } else {
-                aiShareRepository.save(new AiShare(material, user, friend, cleanNote.isEmpty() ? null : cleanNote));
-            }
+            oraclePackageService.prCompartirMaterialIa(
+                    material.getId(),
+                    user.getId(),
+                    friend.getId(),
+                    cleanNote.isEmpty() ? null : cleanNote
+            );
 
             notificationService.create(
                     friend,
@@ -323,15 +327,11 @@ public class AiService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getSharedWithMe(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver el contenido compartido contigo.");
-        return aiShareRepository.findSharedWithRecipient(user.getId())
+        List<Long> shareIds = oraclePackageService.fnCompartidosConmigoIaIds(user.getId());
+        return oraclePackageService.orderByIds(shareIds, aiShareRepository.findAllById(shareIds), AiShare::getId)
                 .stream()
                 .map(share -> toMaterialDto(share.getMaterial(), share))
                 .toList();
-    }
-
-    private long countTodayGenerations(Long userId) {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        return aiMaterialRepository.countByOwnerIdAndCreatedAtGreaterThanEqual(userId, startOfDay);
     }
 
     private AiContentType resolveContentType(AiContentType forcedType, Object rawType) {
@@ -537,7 +537,7 @@ public class AiService {
         } catch (NumberFormatException ex) {
             throw new AuthException(HttpStatus.NOT_FOUND, "MATERIAL_NOT_FOUND", notFoundMessage);
         }
-        return aiMaterialRepository.findByIdWithDetails(id)
+        return aiMaterialRepository.findById(id)
                 .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "MATERIAL_NOT_FOUND", notFoundMessage));
     }
 
@@ -545,7 +545,8 @@ public class AiService {
         if (material.getOwner().getId().equals(user.getId())) {
             return null;
         }
-        return aiShareRepository.findByMaterialIdAndRecipientId(material.getId(), user.getId())
+        Long shareId = aiShareRepository.fnObtenerCompartidoIa(material.getId(), user.getId());
+        return (shareId == null ? Optional.<AiShare>empty() : aiShareRepository.findById(shareId))
                 .orElseThrow(() -> new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage));
     }
 

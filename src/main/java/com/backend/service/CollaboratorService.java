@@ -21,9 +21,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * Gestiona invitaciones, aceptación/rechazo y equipo de colaboradores de repositorios.
+ * Gestiona invitaciones, aceptación/rechazo y equipo de colaboradores de repositorios
+ * invocando las funciones de PKG_REPOSITORIOS y PKG_AUTH_USUARIOS.
  */
 @Service
 public class CollaboratorService {
@@ -33,19 +35,22 @@ public class CollaboratorService {
     private final UserRepository userRepository;
     private final StudyRepositoryService studyRepositoryService;
     private final NotificationService notificationService;
+    private final OraclePackageService oraclePackageService;
 
     public CollaboratorService(
             RepositoryCollaboratorRepository collaboratorRepository,
             StudyRepositoryRepository studyRepositoryRepository,
             UserRepository userRepository,
             StudyRepositoryService studyRepositoryService,
-            NotificationService notificationService
+            NotificationService notificationService,
+            OraclePackageService oraclePackageService
     ) {
         this.collaboratorRepository = collaboratorRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.userRepository = userRepository;
         this.studyRepositoryService = studyRepositoryService;
         this.notificationService = notificationService;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional(readOnly = true)
@@ -55,7 +60,14 @@ public class CollaboratorService {
                 && repo.getAuthor() != null
                 && repo.getAuthor().getId().equals(viewer.getId());
 
-        return collaboratorRepository.findByRepositoryIdWithDetails(repositoryId).stream()
+        List<Long> ids = oraclePackageService.fnColaboradoresRepositorioIds(repositoryId);
+        List<RepositoryCollaborator> records = oraclePackageService.orderByIds(
+                ids,
+                collaboratorRepository.findAllById(ids),
+                RepositoryCollaborator::getId
+        );
+
+        return records.stream()
                 .filter(collab -> collab.getStatus() == CollaboratorStatus.ACEPTADO
                         || isOwner
                         || (viewer != null && collab.getUser() != null && collab.getUser().getId().equals(viewer.getId())))
@@ -86,7 +98,8 @@ public class CollaboratorService {
             );
         }
 
-        User target = userRepository.findByUsernameIgnoreCase(cleanUsername)
+        Long targetUserId = userRepository.fnBuscarUsuarioPorUsername(cleanUsername);
+        User target = (targetUserId == null ? Optional.<User>empty() : userRepository.findById(targetUserId))
                 .filter(User::isVerified)
                 .filter(candidate -> candidate.getRole() == null
                         || candidate.getRole().getName() == null
@@ -105,13 +118,13 @@ public class CollaboratorService {
             );
         }
 
-        collaboratorRepository.findByStudyRepositoryIdAndUserId(repositoryId, target.getId())
-                .ifPresent(existing -> {
-                    String msg = existing.getStatus() == CollaboratorStatus.ACEPTADO
-                            ? "@" + target.getUsername() + " ya es colaborador de este repositorio."
-                            : "@" + target.getUsername() + " ya tiene una invitación pendiente.";
-                    throw new AuthException(HttpStatus.CONFLICT, "COLLABORATOR_EXISTS", msg);
-                });
+        String existingStatus = collaboratorRepository.fnEstadoColaboradorRepo(repositoryId, target.getId());
+        if (existingStatus != null) {
+            String msg = "ACEPTADO".equalsIgnoreCase(existingStatus)
+                    ? "@" + target.getUsername() + " ya es colaborador de este repositorio."
+                    : "@" + target.getUsername() + " ya tiene una invitación pendiente.";
+            throw new AuthException(HttpStatus.CONFLICT, "COLLABORATOR_EXISTS", msg);
+        }
 
         RepositoryCollaborator created = collaboratorRepository.save(
                 new RepositoryCollaborator(repo, target, owner)
@@ -133,7 +146,8 @@ public class CollaboratorService {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para responder la invitación.");
         StudyRepository repo = findRepoOrThrow(repositoryId);
 
-        RepositoryCollaborator invite = collaboratorRepository.findByStudyRepositoryIdAndUserId(repositoryId, user.getId())
+        Long collabId = collaboratorRepository.fnObtenerColaboradorId(repositoryId, user.getId());
+        RepositoryCollaborator invite = (collabId == null ? Optional.<RepositoryCollaborator>empty() : collaboratorRepository.findById(collabId))
                 .filter(c -> c.getStatus() == CollaboratorStatus.PENDIENTE)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
@@ -184,14 +198,21 @@ public class CollaboratorService {
             );
         }
 
-        collaboratorRepository.findByStudyRepositoryIdAndUserUsernameIgnoreCase(repositoryId, cleanTarget)
-                .ifPresent(collaboratorRepository::delete);
+        Long collabId = collaboratorRepository.fnObtenerColabPorUsername(repositoryId, cleanTarget);
+        if (collabId != null) {
+            collaboratorRepository.deleteById(collabId);
+        }
     }
 
     @Transactional(readOnly = true)
     public CollaborationsResponseDto getMyCollaborations(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver tus colaboraciones.");
-        List<RepositoryCollaborator> records = collaboratorRepository.findByUserIdWithDetails(user.getId());
+        List<Long> ids = oraclePackageService.fnColaboracionesUsuarioIds(user.getId());
+        List<RepositoryCollaborator> records = oraclePackageService.orderByIds(
+                ids,
+                collaboratorRepository.findAllById(ids),
+                RepositoryCollaborator::getId
+        );
         if (records.isEmpty()) {
             return new CollaborationsResponseDto(List.of(), List.of());
         }
@@ -223,7 +244,7 @@ public class CollaboratorService {
     }
 
     private StudyRepository findRepoOrThrow(Long repositoryId) {
-        return studyRepositoryRepository.findByIdWithDetails(repositoryId)
+        return studyRepositoryRepository.findById(repositoryId)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
                         "REPOSITORY_NOT_FOUND",

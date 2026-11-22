@@ -26,7 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Gestiona las solicitudes de recuperación y restablecimiento de contraseña mediante tokens temporales.
+ * Gestiona las solicitudes de recuperación y restablecimiento de contraseña mediante tokens temporales
+ * invocando funciones y procedimientos de PKG_AUTH_USUARIOS.
  */
 @Service
 public class PasswordRecoveryService {
@@ -44,6 +45,7 @@ public class PasswordRecoveryService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final VerificationProperties verificationProperties;
+    private final OraclePackageService oraclePackageService;
     private final String defaultFrontendUrl;
 
     public PasswordRecoveryService(
@@ -52,6 +54,7 @@ public class PasswordRecoveryService {
             EmailService emailService,
             PasswordEncoder passwordEncoder,
             VerificationProperties verificationProperties,
+            OraclePackageService oraclePackageService,
             @Value("${app.frontend.url:http://localhost:5173}") String defaultFrontendUrl
     ) {
         this.userRepository = userRepository;
@@ -59,6 +62,7 @@ public class PasswordRecoveryService {
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
         this.verificationProperties = verificationProperties;
+        this.oraclePackageService = oraclePackageService;
         this.defaultFrontendUrl = defaultFrontendUrl;
     }
 
@@ -86,10 +90,11 @@ public class PasswordRecoveryService {
         response.put("success", true);
         response.put("message", NEUTRAL_RECOVERY_MESSAGE);
 
-        Optional<User> userOpt = userRepository.findByInstitutionalEmailIgnoreCase(email);
+        Long userId = userRepository.fnBuscarUsuarioPorCorreo(email);
+        Optional<User> userOpt = userId == null ? Optional.empty() : userRepository.findById(userId);
         if (userOpt.isPresent() && userOpt.get().isVerified()) {
             User user = userOpt.get();
-            tokenRepository.invalidateActiveTokensByUser(user);
+            oraclePackageService.prInvalidarTokensReset(user.getId());
 
             String rawToken = generateToken();
             LocalDateTime now = LocalDateTime.now();
@@ -130,7 +135,8 @@ public class PasswordRecoveryService {
             );
         }
 
-        PasswordResetToken resetToken = tokenRepository.findByTokenHash(hashToken(cleanToken))
+        Long tokenId = tokenRepository.fnObtenerTokenResetHash(hashToken(cleanToken));
+        PasswordResetToken resetToken = (tokenId == null ? Optional.<PasswordResetToken>empty() : tokenRepository.findById(tokenId))
                 .orElseThrow(this::expiredTokenException);
 
         LocalDateTime now = LocalDateTime.now();

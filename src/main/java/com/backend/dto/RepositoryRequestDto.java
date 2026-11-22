@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 public class RepositoryRequestDto {
 
     @NotBlank(message = "El nombre debe tener al menos 3 caracteres.")
-    @Size(min = 3, max = 200, message = "El nombre debe tener entre 3 y 200 caracteres.")
+    @Size(min = 3, max = 100, message = "El nombre debe tener entre 3 y 100 caracteres.")
     private String name;
 
     @NotBlank(message = "Describe el repositorio en al menos 10 caracteres.")

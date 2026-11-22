@@ -18,7 +18,7 @@ public class Resource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "titulo", nullable = false, length = 200)
+    @Column(name = "titulo", nullable = false, length = 120)
     private String title;
 
     @Column(name = "descripcion", length = 2000)

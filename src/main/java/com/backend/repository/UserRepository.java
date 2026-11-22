@@ -1,68 +1,33 @@
 package com.backend.repository;
 
 import com.backend.domain.identity.User;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByUsername(String username);
+    @Query(value = "SELECT PKG_AUTH_USUARIOS.fn_usuario_puede_acceder(:userId) FROM DUAL", nativeQuery = true)
+    int fnUsuarioPuedeAcceder(@Param("userId") Long userId);
 
-    Optional<User> findByUsernameIgnoreCase(String username);
+    @Query(value = "SELECT PKG_AUTH_USUARIOS.fn_contar_estudiantes_activos() FROM DUAL", nativeQuery = true)
+    long fnContarEstudiantesActivos();
 
-    Optional<User> findByInstitutionalEmail(String institutionalEmail);
+    @Query(value = "SELECT PKG_AUTH_USUARIOS.fn_buscar_usuario_por_username(:username) FROM DUAL", nativeQuery = true)
+    Long fnBuscarUsuarioPorUsername(@Param("username") String username);
 
-    Optional<User> findByInstitutionalEmailIgnoreCase(String institutionalEmail);
+    @Query(value = "SELECT PKG_AUTH_USUARIOS.fn_buscar_usuario_por_correo(:email) FROM DUAL", nativeQuery = true)
+    Long fnBuscarUsuarioPorCorreo(@Param("email") String email);
 
-    boolean existsByInstitutionalEmail(String institutionalEmail);
+    @Query(value = "SELECT PKG_AUTH_USUARIOS.fn_existe_username_otro(:username, :excludeId) FROM DUAL", nativeQuery = true)
+    int fnExisteUsernameOtro(@Param("username") String username, @Param("excludeId") Long excludeId);
 
-    boolean existsByUsername(String username);
-
-    boolean existsByUsernameIgnoreCaseAndIdNot(String username, Long id);
-
-    @Query("""
-            SELECT u FROM User u
-            LEFT JOIN FETCH u.role r
-            WHERE u.verified = true
-              AND u.suspended = false
-            ORDER BY LOWER(u.username) ASC
-            """)
-    List<User> findVerifiedUsers();
-
-    @Query("""
-            SELECT u FROM User u
-            LEFT JOIN FETCH u.role r
-            WHERE u.verified = true
-              AND u.suspended = false
-              AND (r IS NULL OR LOWER(r.name) NOT LIKE '%admin%' ESCAPE '\\')
-              AND (:queryPattern IS NULL
-                   OR LOWER(u.username) LIKE :queryPattern ESCAPE '\\'
-                   OR (:semester IS NOT NULL AND u.semester = :semester))
-            ORDER BY LOWER(u.username) ASC
-            """)
-    List<User> searchActiveStudents(
-            @Param("queryPattern") String queryPattern,
-            @Param("semester") Integer semester,
-            Pageable pageable
-    );
-
-    @Query("""
-            SELECT u FROM User u
-            JOIN FETCH u.role r
-            WHERE u.verified = true
-              AND u.suspended = false
-              AND LOWER(r.name) LIKE '%admin%' ESCAPE '\\'
-            ORDER BY u.id ASC
-            """)
-    List<User> findVerifiedAdmins();
-
-    int deleteByVerifiedFalseAndRegistrationDateBefore(LocalDateTime cutoff);
+    default Optional<User> findByInstitutionalEmail(String email) {
+        Long id = fnBuscarUsuarioPorCorreo(email);
+        return id == null ? Optional.empty() : findById(id);
+    }
 }

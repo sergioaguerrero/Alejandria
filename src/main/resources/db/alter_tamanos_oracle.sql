@@ -23,8 +23,17 @@ FROM USUARIO;
 SELECT MAX(LENGTH(nombre)) AS max_facultad FROM FACULTAD;
 SELECT MAX(LENGTH(nombre)) AS max_programa FROM PROGRAMA;
 SELECT MAX(LENGTH(codigo)) AS max_cod_mat, MAX(LENGTH(nombre)) AS max_nom_mat FROM MATERIA;
-SELECT MAX(LENGTH(tema))   AS max_tema FROM RECURSO_ACADEMICO;
+SELECT MAX(LENGTH(nombre)) AS max_repo FROM REPOSITORIO_ESTUDIO;
+SELECT MAX(LENGTH(titulo)) AS max_titulo_rec, MAX(LENGTH(tema)) AS max_tema FROM RECURSO_ACADEMICO;
 SELECT MAX(LENGTH(nombre)) AS max_etiqueta FROM ETIQUETA;
+SELECT MAX(LENGTH(tipo_contenido))     AS max_ia_tipo,
+       MAX(LENGTH(titulo))             AS max_ia_titulo,
+       MAX(LENGTH(nombre_repositorio)) AS max_ia_repo,
+       MAX(LENGTH(nombre_materia))     AS max_ia_materia,
+       MAX(LENGTH(alcance))            AS max_ia_alcance,
+       MAX(LENGTH(valor_alcance))      AS max_ia_valor,
+       MAX(LENGTH(etiqueta_alcance))   AS max_ia_etiqueta
+FROM MATERIAL_IA;
 */
 
 -- ----------------------------------------------------------------------------
@@ -62,23 +71,25 @@ ALTER TABLE MATERIA MODIFY (
     nombre VARCHAR2(80 CHAR)
 );
 
+ALTER TABLE REPOSITORIO_ESTUDIO MODIFY (
+    nombre VARCHAR2(100 CHAR)
+);
+
 ALTER TABLE RECURSO_ACADEMICO MODIFY (
-    tema VARCHAR2(80 CHAR)
+    titulo VARCHAR2(120 CHAR),
+    tema   VARCHAR2(80 CHAR)
 );
 
 ALTER TABLE ETIQUETA MODIFY (
     nombre VARCHAR2(30 CHAR)
 );
 
--- ----------------------------------------------------------------------------
--- ELIMINACIÓN DE TABLA CALIFICACION (NO UTILIZADA EN EL PROYECTO)
--- Libera primero llaves foráneas, única y primaria, y purga la tabla e índices
--- ----------------------------------------------------------------------------
-
-ALTER TABLE CALIFICACION DROP CONSTRAINT fk_calif_usuario;
-ALTER TABLE CALIFICACION DROP CONSTRAINT fk_calif_recurso;
-ALTER TABLE CALIFICACION DROP CONSTRAINT uq_calif_usuario_rec;
-ALTER TABLE CALIFICACION DROP CONSTRAINT chk_calificacion_punt;
-ALTER TABLE CALIFICACION DROP CONSTRAINT pk_calificacion;
-
-DROP TABLE CALIFICACION CASCADE CONSTRAINTS PURGE;
+ALTER TABLE MATERIAL_IA MODIFY (
+    tipo_contenido     VARCHAR2(15 CHAR),
+    titulo             VARCHAR2(150 CHAR),
+    nombre_repositorio VARCHAR2(100 CHAR),
+    nombre_materia     VARCHAR2(80 CHAR),
+    alcance            VARCHAR2(10 CHAR),
+    valor_alcance      VARCHAR2(80 CHAR),
+    etiqueta_alcance   VARCHAR2(100 CHAR)
+);

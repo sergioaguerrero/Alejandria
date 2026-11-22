@@ -30,7 +30,8 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Gestiona la emisión, validación, reenvío y limpieza de códigos OTP de verificación de correo.
+ * Gestiona la emisión, validación, reenvío y limpieza de códigos OTP de verificación de correo
+ * apoyándose en PKG_AUTH_USUARIOS.
  */
 @Service
 public class EmailVerificationService {
@@ -44,6 +45,7 @@ public class EmailVerificationService {
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final VerificationProperties properties;
+    private final OraclePackageService oraclePackageService;
     private final Clock clock;
 
     @Autowired
@@ -51,9 +53,10 @@ public class EmailVerificationService {
             EmailVerificationCodeRepository codeRepository,
             UserRepository userRepository,
             EmailService emailService,
-            VerificationProperties properties
+            VerificationProperties properties,
+            OraclePackageService oraclePackageService
     ) {
-        this(codeRepository, userRepository, emailService, properties, Clock.systemDefaultZone());
+        this(codeRepository, userRepository, emailService, properties, oraclePackageService, Clock.systemDefaultZone());
     }
 
     EmailVerificationService(
@@ -63,28 +66,31 @@ public class EmailVerificationService {
             VerificationProperties properties,
             Clock clock
     ) {
+        this(codeRepository, userRepository, emailService, properties, null, clock);
+    }
+
+    EmailVerificationService(
+            EmailVerificationCodeRepository codeRepository,
+            UserRepository userRepository,
+            EmailService emailService,
+            VerificationProperties properties,
+            OraclePackageService oraclePackageService,
+            Clock clock
+    ) {
         this.codeRepository = codeRepository;
         this.userRepository = userRepository;
         this.emailService = emailService;
         this.properties = properties;
+        this.oraclePackageService = oraclePackageService;
         this.clock = clock;
     }
 
-    /**
-     * Genera y envía un nuevo código OTP.
-     *
-     * @param user usuario pendiente de verificar
-     * @param preserveActiveCooldown si es true (reintento desde /register), respeta el cooldown activo
-     *                               sin fallar devolviendo los segundos restantes; si es false (/resend-verification),
-     *                               lanza HTTP 429 si aún está en cooldown.
-     * @return segundos de cooldown restantes para el siguiente reenvío
-     */
     @Transactional
     public long issueVerificationCode(User user, boolean preserveActiveCooldown) {
         LocalDateTime now = LocalDateTime.now(clock);
         long cooldownSeconds = properties.getResendCooldownSeconds();
 
-        Optional<EmailVerificationCode> latestActive = codeRepository.findTopByUserAndUsedFalseOrderByCreatedAtDesc(user);
+        Optional<EmailVerificationCode> latestActive = findLatestActiveCode(user.getId());
         if (latestActive.isPresent()) {
             EmailVerificationCode current = latestActive.get();
             long elapsedSeconds = Math.max(0, Duration.between(current.getCreatedAt(), now).getSeconds());
@@ -103,7 +109,14 @@ public class EmailVerificationService {
             }
         }
 
-        codeRepository.invalidateActiveCodesByUser(user);
+        if (oraclePackageService != null) {
+            oraclePackageService.prInvalidarCodigosOtp(user.getId());
+        } else {
+            latestActive.ifPresent(c -> {
+                c.markUsed();
+                codeRepository.save(c);
+            });
+        }
 
         String plainCode = generateOtpCode();
         String codeHash = hashCode(user.getInstitutionalEmail(), plainCode);
@@ -122,11 +135,6 @@ public class EmailVerificationService {
         return cooldownSeconds;
     }
 
-    /**
-     * Verifica el código de 6 dígitos y marca la cuenta como verificada.
-     * Se usa {@code noRollbackFor = AuthException.class} para que los intentos fallidos
-     * y la invalidación por límite de intentos persistan en la base de datos.
-     */
     @Transactional(noRollbackFor = AuthException.class)
     public User verifyCode(String rawEmail, String rawCode) {
         String email = normalizeEmail(rawEmail);
@@ -141,7 +149,7 @@ public class EmailVerificationService {
             );
         }
 
-        User user = userRepository.findByInstitutionalEmail(email)
+        User user = findUserByEmail(email)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.BAD_REQUEST,
                         "CODE_INVALID",
@@ -156,7 +164,7 @@ public class EmailVerificationService {
             );
         }
 
-        EmailVerificationCode activeCode = codeRepository.findTopByUserAndUsedFalseOrderByCreatedAtDesc(user)
+        EmailVerificationCode activeCode = findLatestActiveCode(user.getId())
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.BAD_REQUEST,
                         "CODE_EXPIRED",
@@ -221,13 +229,10 @@ public class EmailVerificationService {
         return userRepository.save(user);
     }
 
-    /**
-     * Reenvía un código OTP nuevo respetando el cooldown configurado.
-     */
     @Transactional
     public ApiMessageResponse resendCode(String rawEmail) {
         String email = normalizeEmail(rawEmail);
-        Optional<User> userOpt = userRepository.findByInstitutionalEmail(email);
+        Optional<User> userOpt = findUserByEmail(email);
 
         if (userOpt.isEmpty()) {
             return new ApiMessageResponse(
@@ -254,21 +259,31 @@ public class EmailVerificationService {
         );
     }
 
-    /**
-     * Limpieza diaria de códigos expirados y registros no verificados abandonados.
-     */
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanupExpiredVerificationData() {
+        if (oraclePackageService == null) {
+            return;
+        }
         LocalDateTime now = LocalDateTime.now(clock);
-        int deletedCodes = codeRepository.deleteExpiredOrUsedBefore(now.minusHours(24));
-        int deletedUsers = userRepository.deleteByVerifiedFalseAndRegistrationDateBefore(
+        int[] deletedCreds = oraclePackageService.prLimpiarCredencialesExpiradas(now.minusHours(24));
+        int deletedUsers = oraclePackageService.prLimpiarUsuariosNoVerif(
                 now.minusHours(properties.getUnverifiedCleanupHours())
         );
-        if (deletedCodes > 0 || deletedUsers > 0) {
-            log.info("Limpieza de verificación: {} códigos y {} cuentas no verificadas eliminadas.",
-                    deletedCodes, deletedUsers);
+        if (deletedCreds[0] > 0 || deletedCreds[1] > 0 || deletedUsers > 0) {
+            log.info("Limpieza de verificación vía PKG_AUTH_USUARIOS: {} códigos, {} tokens y {} cuentas no verificadas eliminadas.",
+                    deletedCreds[0], deletedCreds[1], deletedUsers);
         }
+    }
+
+    private Optional<EmailVerificationCode> findLatestActiveCode(Long userId) {
+        Long codeId = codeRepository.fnObtenerUltimoOtpActivo(userId);
+        return codeId == null ? Optional.empty() : codeRepository.findById(codeId);
+    }
+
+    private Optional<User> findUserByEmail(String email) {
+        Long userId = userRepository.fnBuscarUsuarioPorCorreo(email);
+        return userId == null ? Optional.empty() : userRepository.findById(userId);
     }
 
     private String generateOtpCode() {
