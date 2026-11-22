@@ -107,8 +107,10 @@ public class JwtTokenService {
                 return Optional.empty();
             }
             Long userId = Long.parseLong(String.valueOf(subObj));
-            return userRepository.findById(userId)
-                    .filter(user -> !user.isSuspended());
+            if (userRepository.fnUsuarioPuedeAcceder(userId) == 0) {
+                return Optional.empty();
+            }
+            return userRepository.findById(userId);
         } catch (Exception ex) {
             return Optional.empty();
         }
