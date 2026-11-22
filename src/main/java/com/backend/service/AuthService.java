@@ -2,6 +2,7 @@ package com.backend.service;
 
 import com.backend.domain.identity.Role;
 import com.backend.domain.identity.User;
+import com.backend.domain.identity.UserContact;
 import com.backend.dto.ApiMessageResponse;
 import com.backend.dto.AuthResponse;
 import com.backend.dto.LoginRequest;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -40,6 +42,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
     private final JwtTokenService jwtTokenService;
+    private final OraclePackageService oraclePackageService;
 
     public AuthService(
             UserRepository userRepository,
@@ -47,7 +50,8 @@ public class AuthService {
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             EmailVerificationService emailVerificationService,
-            JwtTokenService jwtTokenService
+            JwtTokenService jwtTokenService,
+            OraclePackageService oraclePackageService
     ) {
         this.userRepository = userRepository;
         this.userContactRepository = userContactRepository;
@@ -55,6 +59,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationService = emailVerificationService;
         this.jwtTokenService = jwtTokenService;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional
@@ -79,7 +84,7 @@ public class AuthService {
             );
         }
 
-        Optional<User> existingByEmail = userRepository.findByInstitutionalEmail(email);
+        Optional<User> existingByEmail = findByEmail(email);
         if (existingByEmail.isPresent() && existingByEmail.get().isVerified()) {
             throw new AuthException(
                     HttpStatus.CONFLICT,
@@ -89,7 +94,7 @@ public class AuthService {
             );
         }
 
-        Optional<User> existingByUsername = userRepository.findByUsername(username);
+        Optional<User> existingByUsername = findByUsername(username);
         if (existingByUsername.isPresent()) {
             Long ownerId = existingByUsername.get().getId();
             Long emailOwnerId = existingByEmail.map(User::getId).orElse(null);
@@ -130,6 +135,7 @@ public class AuthService {
         );
     }
 
+    @Transactional
     public AuthResponse verifyEmail(VerifyEmailRequest request) {
         User verifiedUser = emailVerificationService.verifyCode(request.getEmail(), request.getCode());
         String token = jwtTokenService.generateToken(verifiedUser);
@@ -137,7 +143,7 @@ public class AuthService {
                 token,
                 UserDto.fromEntity(
                         verifiedUser,
-                        userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(verifiedUser.getId())
+                        loadUserContacts(verifiedUser.getId())
                 ),
                 "Correo verificado exitosamente. ¡Bienvenido a Alejandría!"
         );
@@ -147,6 +153,7 @@ public class AuthService {
         return emailVerificationService.resendCode(request.getEmail());
     }
 
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         String identifier = normalize(request.getIdentifier());
         String rawPassword = request.getPassword() == null ? "" : request.getPassword();
@@ -160,8 +167,8 @@ public class AuthService {
         }
 
         User user = (identifier.contains("@")
-                ? userRepository.findByInstitutionalEmail(identifier)
-                : userRepository.findByUsername(identifier))
+                ? findByEmail(identifier)
+                : findByUsername(identifier))
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.UNAUTHORIZED,
                         "INVALID_CREDENTIALS",
@@ -176,32 +183,48 @@ public class AuthService {
             );
         }
 
-        if (user.isSuspended()) {
-            throw new AuthException(
-                    HttpStatus.FORBIDDEN,
-                    "ACCOUNT_SUSPENDED",
-                    "Tu cuenta ha sido suspendida por administración."
-            );
-        }
-
-        if (!user.isVerified()) {
-            throw new AuthException(
-                    HttpStatus.FORBIDDEN,
-                    "EMAIL_NOT_VERIFIED",
-                    "Debes confirmar tu correo institucional antes de iniciar sesión.",
-                    null,
-                    Map.of("email", user.getInstitutionalEmail())
-            );
+        if (userRepository.fnUsuarioPuedeAcceder(user.getId()) == 0) {
+            if (user.isSuspended()) {
+                throw new AuthException(
+                        HttpStatus.FORBIDDEN,
+                        "ACCOUNT_SUSPENDED",
+                        "Tu cuenta ha sido suspendida por administración."
+                );
+            }
+            if (!user.isVerified()) {
+                throw new AuthException(
+                        HttpStatus.FORBIDDEN,
+                        "EMAIL_NOT_VERIFIED",
+                        "Debes confirmar tu correo institucional antes de iniciar sesión.",
+                        null,
+                        Map.of("email", user.getInstitutionalEmail())
+                );
+            }
         }
 
         return AuthResponse.authenticated(
                 jwtTokenService.generateToken(user),
                 UserDto.fromEntity(
                         user,
-                        userContactRepository.findByUserIdOrderByDisplayOrderAscIdAsc(user.getId())
+                        loadUserContacts(user.getId())
                 ),
                 null
         );
+    }
+
+    private Optional<User> findByEmail(String email) {
+        Long id = userRepository.fnBuscarUsuarioPorCorreo(email);
+        return id == null ? Optional.empty() : userRepository.findById(id);
+    }
+
+    private Optional<User> findByUsername(String username) {
+        Long id = userRepository.fnBuscarUsuarioPorUsername(username);
+        return id == null ? Optional.empty() : userRepository.findById(id);
+    }
+
+    private List<UserContact> loadUserContacts(Long userId) {
+        List<Long> ids = oraclePackageService.fnContactosUsuarioIds(userId);
+        return oraclePackageService.orderByIds(ids, userContactRepository.findAllById(ids), UserContact::getId);
     }
 
     private User createNewStudentUser(String email) {
@@ -221,9 +244,17 @@ public class AuthService {
     }
 
     private Role resolveStudentRole() {
-        return roleRepository.findByName("ESTUDIANTE")
-                .or(() -> roleRepository.findByName("STUDENT"))
-                .orElseGet(() -> roleRepository.save(new Role("ESTUDIANTE", Set.of("READ", "UPLOAD"))));
+        Long roleId = roleRepository.fnObtenerRolPorNombre("ESTUDIANTE");
+        if (roleId == null) {
+            roleId = roleRepository.fnObtenerRolPorNombre("STUDENT");
+        }
+        if (roleId != null) {
+            Optional<Role> found = roleRepository.findById(roleId);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
+        return roleRepository.save(new Role("ESTUDIANTE", Set.of("READ", "UPLOAD")));
     }
 
     private Map<String, String> validateRegistrationFields(
