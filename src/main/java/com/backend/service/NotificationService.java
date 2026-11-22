@@ -8,8 +8,7 @@ import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.NotificationDto;
 import com.backend.exception.AuthException;
 import com.backend.repository.NotificationRepository;
-import com.backend.repository.RepositoryFollowRepository;
-import com.backend.repository.UserFollowRepository;
+import com.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,23 +18,24 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Gestiona la creación, consulta y lectura de notificaciones persistentes.
+ * Gestiona la creación, consulta y lectura de notificaciones persistentes
+ * invocando las funciones y procedimientos de PKG_AUTH_USUARIOS y PKG_REPOSITORIOS.
  */
 @Service
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final UserFollowRepository userFollowRepository;
-    private final RepositoryFollowRepository repositoryFollowRepository;
+    private final UserRepository userRepository;
+    private final OraclePackageService oraclePackageService;
 
     public NotificationService(
             NotificationRepository notificationRepository,
-            UserFollowRepository userFollowRepository,
-            RepositoryFollowRepository repositoryFollowRepository
+            UserRepository userRepository,
+            OraclePackageService oraclePackageService
     ) {
         this.notificationRepository = notificationRepository;
-        this.userFollowRepository = userFollowRepository;
-        this.repositoryFollowRepository = repositoryFollowRepository;
+        this.userRepository = userRepository;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional
@@ -54,12 +54,15 @@ public class NotificationService {
         }
 
         Map<Long, User> recipients = new LinkedHashMap<>();
-        for (User follower : repositoryFollowRepository.findFollowerUsersByRepositoryId(repo.getId())) {
+        List<Long> repoFollowerIds = oraclePackageService.fnSeguidoresVerificadosRepoIds(repo.getId());
+        for (User follower : userRepository.findAllById(repoFollowerIds)) {
             if (!follower.getId().equals(author.getId())) {
                 recipients.put(follower.getId(), follower);
             }
         }
-        for (User follower : userFollowRepository.findFollowerUsers(author.getId())) {
+
+        List<Long> authorFollowerIds = oraclePackageService.fnObtenerSeguidoresUsuarioIds(author.getId());
+        for (User follower : userRepository.findAllById(authorFollowerIds)) {
             if (!follower.getId().equals(author.getId())) {
                 recipients.put(follower.getId(), follower);
             }
@@ -82,7 +85,9 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<NotificationDto> listForUser(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus notificaciones.");
-        return notificationRepository.findByUserIdOrderByCreatedAtDescIdDesc(user.getId()).stream()
+        List<Long> ids = oraclePackageService.fnListarNotificacionesIds(user.getId());
+        return oraclePackageService.orderByIds(ids, notificationRepository.findAllById(ids), Notification::getId)
+                .stream()
                 .map(NotificationDto::fromEntity)
                 .toList();
     }
@@ -90,13 +95,14 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public long countUnread(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus notificaciones.");
-        return notificationRepository.countByUserIdAndReadFalse(user.getId());
+        return notificationRepository.fnContarNotifNoLeidas(user.getId());
     }
 
     @Transactional
     public void markAsRead(Long notificationId, User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para realizar esta acción.");
-        Notification notification = notificationRepository.findByIdAndUserId(notificationId, user.getId())
+        Long validId = notificationRepository.fnObtenerNotificacionUsr(notificationId, user.getId());
+        Notification notification = (validId == null ? java.util.Optional.<Notification>empty() : notificationRepository.findById(validId))
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
                         "NOTIFICATION_NOT_FOUND",
@@ -111,6 +117,6 @@ public class NotificationService {
     @Transactional
     public void markAllAsRead(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para realizar esta acción.");
-        notificationRepository.markAllAsReadByUserId(user.getId());
+        oraclePackageService.prMarcarNotificacionesLeidas(user.getId());
     }
 }
