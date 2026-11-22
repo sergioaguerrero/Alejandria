@@ -14,7 +14,7 @@ public class StudyRepository {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "nombre", nullable = false, length = 200)
+    @Column(name = "nombre", nullable = false, length = 100)
     private String name;
 
     @Column(name = "descripcion", length = 2000)
