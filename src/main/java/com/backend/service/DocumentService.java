@@ -1,6 +1,5 @@
 package com.backend.service;
 
-import com.backend.cross.CollaboratorStatus;
 import com.backend.cross.ResourceStatus;
 import com.backend.cross.ResourceType;
 import com.backend.domain.identity.User;
@@ -10,24 +9,14 @@ import com.backend.domain.repos.Tag;
 import com.backend.dto.DocumentDto;
 import com.backend.dto.DocumentPageResponse;
 import com.backend.exception.AuthException;
-import com.backend.repository.InteractionRepository;
-import com.backend.repository.ReportRepository;
 import com.backend.repository.RepositoryCollaboratorRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.TagRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +32,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Gestiona la subida, consulta, edición, eliminación y descarga de documentos académicos.
+ * Gestiona la subida, consulta, edición, eliminación y descarga de documentos académicos
+ * delegando búsquedas, conteos, incrementos y eliminación en cascada a PKG_REPOSITORIOS.
  */
 @Service
 public class DocumentService {
@@ -79,9 +69,8 @@ public class DocumentService {
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final TagRepository tagRepository;
     private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
-    private final InteractionRepository interactionRepository;
-    private final ReportRepository reportRepository;
     private final NotificationService notificationService;
+    private final OraclePackageService oraclePackageService;
     private final ObjectMapper objectMapper;
 
     public DocumentService(
@@ -89,18 +78,16 @@ public class DocumentService {
             StudyRepositoryRepository studyRepositoryRepository,
             TagRepository tagRepository,
             RepositoryCollaboratorRepository repositoryCollaboratorRepository,
-            InteractionRepository interactionRepository,
-            ReportRepository reportRepository,
             NotificationService notificationService,
+            OraclePackageService oraclePackageService,
             ObjectMapper objectMapper
     ) {
         this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.tagRepository = tagRepository;
         this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
-        this.interactionRepository = interactionRepository;
-        this.reportRepository = reportRepository;
         this.notificationService = notificationService;
+        this.oraclePackageService = oraclePackageService;
         this.objectMapper = objectMapper;
     }
 
@@ -118,7 +105,7 @@ public class DocumentService {
             String baseUrl
     ) throws IOException {
         User author = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para subir documentos.");
-        StudyRepository repo = studyRepositoryRepository.findByIdWithDetails(repositoryId)
+        StudyRepository repo = studyRepositoryRepository.findById(repositoryId)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
                         "REPOSITORY_NOT_FOUND",
@@ -126,8 +113,8 @@ public class DocumentService {
                 ));
 
         boolean isOwner = repo.getAuthor() != null && repo.getAuthor().getId().equals(author.getId());
-        boolean isCollaborator = !isOwner && repositoryCollaboratorRepository
-                .existsByStudyRepositoryIdAndUserIdAndStatus(repo.getId(), author.getId(), CollaboratorStatus.ACEPTADO);
+        boolean isCollaborator = !isOwner
+                && repositoryCollaboratorRepository.fnEsColaboradorAceptado(repo.getId(), author.getId()) == 1;
         if (!isOwner && !isCollaborator) {
             throw new AuthException(
                     HttpStatus.FORBIDDEN,
@@ -181,9 +168,13 @@ public class DocumentService {
             );
         }
 
-        List<Resource> resources = (term != null && term >= 1 && term <= 3)
-                ? resourceRepository.findByStudyRepositoryIdAndTermWithDetails(repositoryId, term)
-                : resourceRepository.findByStudyRepositoryIdWithDetails(repositoryId);
+        Integer filterTerm = (term != null && term >= 1 && term <= 3) ? term : null;
+        List<Long> ids = oraclePackageService.fnRecursosPorRepositorioIds(repositoryId, filterTerm);
+        List<Resource> resources = oraclePackageService.orderByIds(
+                ids,
+                resourceRepository.findAllById(ids),
+                Resource::getId
+        );
 
         return resources.stream()
                 .map(r -> toDto(r, baseUrl))
@@ -205,28 +196,52 @@ public class DocumentService {
     ) {
         int safePage = Math.max(1, page);
         int safeSize = Math.min(Math.max(1, size), 50);
-        Sort sort = resolveSort(order);
-        PageRequest pageRequest = PageRequest.of(safePage - 1, safeSize, sort);
 
-        Specification<Resource> spec = buildSearchSpec(query, subjectId, semester, term, type, topic);
-        Page<Resource> result = resourceRepository.findAll(spec, pageRequest);
+        ResourceType parsedType = parseResourceTypeOrNull(type);
+        List<Long> allIds = oraclePackageService.fnBuscarRecursosIds(
+                query,
+                subjectId,
+                semester,
+                term,
+                parsedType != null ? parsedType.name() : null,
+                topic,
+                order
+        );
 
-        List<DocumentDto> items = result.getContent().stream()
+        long totalElements = allIds.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) totalElements / safeSize));
+        int fromIndex = Math.min((safePage - 1) * safeSize, allIds.size());
+        int toIndex = Math.min(fromIndex + safeSize, allIds.size());
+        List<Long> pageIds = allIds.subList(fromIndex, toIndex);
+
+        List<Resource> pageResources = oraclePackageService.orderByIds(
+                pageIds,
+                resourceRepository.findAllById(pageIds),
+                Resource::getId
+        );
+
+        List<DocumentDto> items = pageResources.stream()
                 .map(r -> toDto(r, baseUrl))
                 .toList();
 
         return new DocumentPageResponse(
                 items,
-                result.getTotalElements(),
+                totalElements,
                 safePage,
                 safeSize,
-                Math.max(1, result.getTotalPages())
+                totalPages
         );
     }
 
     @Transactional(readOnly = true)
     public List<DocumentDto> listByUser(String username, String baseUrl) {
-        return resourceRepository.findByAuthorUsernameWithDetails(username).stream()
+        List<Long> ids = oraclePackageService.fnRecursosPorAutorIds(username);
+        List<Resource> resources = oraclePackageService.orderByIds(
+                ids,
+                resourceRepository.findAllById(ids),
+                Resource::getId
+        );
+        return resources.stream()
                 .map(r -> toDto(r, baseUrl))
                 .toList();
     }
@@ -234,7 +249,7 @@ public class DocumentService {
     @Transactional
     public DocumentDto getDetailAndIncrementView(Long id, String baseUrl) {
         Resource resource = findResourceOrThrow(id);
-        resourceRepository.incrementViews(id);
+        oraclePackageService.prIncrementarVista(id);
         resource.setTotalViews(resource.getTotalViews() + 1);
         return toDto(resource, baseUrl);
     }
@@ -291,25 +306,25 @@ public class DocumentService {
         Resource resource = findResourceOrThrow(id);
         requireAuthor(resource, user, "Solo el autor puede eliminar este documento.");
 
-        interactionRepository.clearResourceReference(id);
-        reportRepository.clearResourceReference(id);
-        resource.getTags().clear();
-        resourceRepository.saveAndFlush(resource);
-        resourceRepository.delete(resource);
+        oraclePackageService.prEliminarRecursoCascada(id);
     }
 
     @Transactional
     public Resource getFileResource(Long id, boolean incrementDownloads) {
         Resource resource = findResourceOrThrow(id);
         if (incrementDownloads) {
-            resourceRepository.incrementDownloads(id);
+            oraclePackageService.prIncrementarDescarga(id);
             resource.setTotalDownloads(resource.getTotalDownloads() + 1);
         }
+        if (resource.getSubject() != null) {
+            resource.getSubject().getId();
+        }
+        resource.getFileBytes();
         return resource;
     }
 
     private Resource findResourceOrThrow(Long id) {
-        return resourceRepository.findByIdWithDetails(id)
+        return resourceRepository.findById(id)
                 .filter(resource -> resource.getStatus() == ResourceStatus.PUBLISHED)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
@@ -336,8 +351,8 @@ public class DocumentService {
         Map<String, String> fields = new LinkedHashMap<>();
 
         String cleanTitle = title == null ? "" : title.trim();
-        if (cleanTitle.length() < 3 || cleanTitle.length() > 200) {
-            fields.put("title", "El título debe tener entre 3 y 200 caracteres.");
+        if (cleanTitle.length() < 3 || cleanTitle.length() > 120) {
+            fields.put("title", "El título debe tener entre 3 y 120 caracteres.");
         }
 
         String cleanDesc = description == null ? "" : description.trim();
@@ -481,11 +496,12 @@ public class DocumentService {
                 if (raw == null) continue;
                 String clean = raw.trim().toLowerCase(Locale.ROOT);
                 if (clean.isEmpty()) continue;
-                if (clean.length() > 60) {
-                    clean = clean.substring(0, 60);
+                if (clean.length() > 30) {
+                    clean = clean.substring(0, 30);
                 }
                 final String tagName = clean;
-                Tag tag = tagRepository.findByNameIgnoreCase(tagName)
+                Long tagId = tagRepository.fnObtenerEtiquetaNombre(tagName);
+                Tag tag = (tagId == null ? java.util.Optional.<Tag>empty() : tagRepository.findById(tagId))
                         .orElseGet(() -> tagRepository.save(new Tag(tagName)));
                 tags.add(tag);
             }
@@ -494,74 +510,6 @@ public class DocumentService {
             log.warn("Formato JSON inválido en etiquetas de documento '{}': {}", tagsJson, ex.getMessage());
             return tags;
         }
-    }
-
-    private Specification<Resource> buildSearchSpec(
-            String query,
-            Long subjectId,
-            Integer semester,
-            Integer term,
-            String type,
-            String topic
-    ) {
-        Specification<Resource> spec = (root, q, cb) -> cb.equal(root.get("status"), ResourceStatus.PUBLISHED);
-
-        if (subjectId != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("subject").get("id"), subjectId));
-        }
-        if (semester != null && semester > 0) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("subject").get("semester").get("number"), semester));
-        }
-        if (term != null && term >= 1 && term <= 3) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("term"), term));
-        }
-        ResourceType parsedType = parseResourceTypeOrNull(type);
-        if (parsedType != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("type"), parsedType));
-        }
-        if (topic != null && !topic.isBlank()) {
-            String pattern = likePattern(topic);
-            spec = spec.and((root, q, cb) -> cb.like(cb.lower(root.get("topic")), pattern, '\\'));
-        }
-        if (query != null && !query.isBlank()) {
-            String pattern = likePattern(query);
-            spec = spec.and((root, q, cb) -> {
-                Join<Resource, StudyRepository> repoJoin = root.join("studyRepository", JoinType.LEFT);
-                // Usamos EXISTS en lugar de q.distinct(true) + join sobre tags porque Oracle
-                // rechaza SELECT DISTINCT cuando la tabla incluye columnas BLOB (archivo_bytes).
-                Subquery<Long> tagSubquery = q.subquery(Long.class);
-                Root<Resource> subRoot = tagSubquery.correlate(root);
-                Join<Resource, Tag> tagJoin = subRoot.join("tags");
-                tagSubquery.select(cb.literal(1L))
-                        .where(cb.like(cb.lower(tagJoin.get("name")), pattern, '\\'));
-                return cb.or(
-                        cb.like(cb.lower(root.get("title")), pattern, '\\'),
-                        cb.like(cb.lower(root.get("description")), pattern, '\\'),
-                        cb.like(cb.lower(root.get("topic")), pattern, '\\'),
-                        cb.like(cb.lower(repoJoin.get("name")), pattern, '\\'),
-                        cb.exists(tagSubquery)
-                );
-            });
-        }
-
-        return spec;
-    }
-
-    private String likePattern(String raw) {
-        String escaped = raw.trim().toLowerCase(Locale.ROOT)
-                .replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
-        return "%" + escaped + "%";
-    }
-
-    private Sort resolveSort(String order) {
-        if ("popular".equalsIgnoreCase(order) || "liked".equalsIgnoreCase(order)) {
-            return Sort.by(Sort.Direction.DESC, "totalDownloads")
-                    .and(Sort.by(Sort.Direction.DESC, "totalViews"))
-                    .and(Sort.by(Sort.Direction.DESC, "uploadDate"));
-        }
-        return Sort.by(Sort.Direction.DESC, "uploadDate");
     }
 
     private DocumentDto toDto(Resource resource, String baseUrl) {
