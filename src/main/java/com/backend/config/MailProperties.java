@@ -15,6 +15,7 @@ public class MailProperties {
     private String resendUrl = "https://api.resend.com/emails";
     private String brevoApiKey = "";
     private String brevoUrl = "https://api.brevo.com/v3/smtp/email";
+    private String gasUrl = "";
 
     public String getProvider() {
         return provider;
@@ -62,5 +63,13 @@ public class MailProperties {
 
     public void setBrevoUrl(String brevoUrl) {
         this.brevoUrl = brevoUrl;
+    }
+
+    public String getGasUrl() {
+        return gasUrl;
+    }
+
+    public void setGasUrl(String gasUrl) {
+        this.gasUrl = gasUrl;
     }
 }
