@@ -8,9 +8,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ResourceRepository extends JpaRepository<Resource, Long> {
+
+    @Query("SELECT r.fileBytes FROM Resource r WHERE r.id = :id")
+    Optional<byte[]> findFileBytesById(@Param("id") Long id);
 
     @Query("""
             SELECT new com.backend.domain.repos.Resource(

@@ -299,7 +299,7 @@ public class DocumentService {
 
     @Transactional
     public Resource getFileResource(Long id, boolean incrementDownloads) {
-        Resource resource = findResourceOrThrow(id);
+        Resource resource = findResourceMetadataOrThrow(id);
         if (incrementDownloads) {
             oraclePackageService.prIncrementarDescarga(id);
             resource.setTotalDownloads(resource.getTotalDownloads() + 1);
@@ -307,7 +307,13 @@ public class DocumentService {
         if (resource.getSubject() != null) {
             resource.getSubject().getId();
         }
-        resource.getFileBytes();
+        byte[] bytes = resourceRepository.findFileBytesById(id)
+                .orElseThrow(() -> new AuthException(
+                        HttpStatus.NOT_FOUND,
+                        "DOCUMENT_NOT_FOUND",
+                        "El documento no existe o fue eliminado."
+                ));
+        resource.setFileBytes(bytes);
         return resource;
     }
 
