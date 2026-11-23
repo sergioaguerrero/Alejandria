@@ -84,6 +84,42 @@ public class Resource {
 
     protected Resource() {}
 
+    public Resource(
+            Long id,
+            String title,
+            String description,
+            ResourceType type,
+            int term,
+            String topic,
+            String fileName,
+            String mimeType,
+            long fileSizeBytes,
+            LocalDateTime uploadDate,
+            ResourceStatus status,
+            int totalViews,
+            int totalDownloads,
+            User uploadedBy,
+            Subject subject,
+            StudyRepository studyRepository
+    ) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.type = type;
+        this.term = term;
+        this.topic = topic;
+        this.fileName = fileName;
+        this.mimeType = mimeType;
+        this.fileSizeBytes = fileSizeBytes;
+        this.uploadDate = uploadDate;
+        this.status = status;
+        this.totalViews = totalViews;
+        this.totalDownloads = totalDownloads;
+        this.uploadedBy = uploadedBy;
+        this.subject = subject;
+        this.studyRepository = studyRepository;
+    }
+
     public Resource(String title, String description, ResourceType type,
                     byte[] fileBytes, String mimeType, long fileSizeBytes,
                     User uploadedBy, Subject subject) {

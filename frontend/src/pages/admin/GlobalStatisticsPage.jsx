@@ -25,9 +25,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
@@ -155,8 +157,6 @@ export default function GlobalStatisticsPage() {
   const maxTopicDocs = data?.topTopics?.length
     ? Math.max(1, ...data.topTopics.map((item) => item.documentos || 0))
     : 1;
-  const topicAxisTicks =
-    maxTopicDocs <= 4 ? Array.from({ length: maxTopicDocs + 1 }, (_, i) => i) : undefined;
 
   useEffect(() => {
     if (!user) return undefined;
@@ -386,34 +386,83 @@ export default function GlobalStatisticsPage() {
                   <Typography variant="h6" sx={{ mb: 0.5 }}>
                     Temas con mayor contenido
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2.5 }}>
                     Cantidad de documentos subidos por temática
                   </Typography>
 
-                  <Box sx={{ width: '100%', flex: 1, minHeight: 270, position: 'relative' }}>
-                    <Box sx={{ position: 'absolute', inset: 0 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data.topTopics} layout="vertical" margin={{ top: 5, right: 18, left: 4, bottom: 5 }}>
-                          <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" horizontal={false} />
-                          <XAxis
-                            type="number"
-                            {...subjectAxisProps}
-                            allowDecimals={false}
-                            domain={[0, maxTopicDocs]}
-                            ticks={topicAxisTicks}
-                          />
-                          <YAxis dataKey="tema" type="category" {...getChartAxisProps(12)} width={120} />
-                          <RechartsTooltip {...tooltipProps} />
-                          <Bar
-                            dataKey="documentos"
-                            name="Documentos"
-                            fill={theme.palette.warning.main}
-                            radius={[0, 4, 4, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
+                  {data.topTopics.length === 0 ? (
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Aún no hay temáticas registradas.
+                      </Typography>
                     </Box>
-                  </Box>
+                  ) : (
+                    <Stack spacing={2.25} sx={{ flex: 1, justifyContent: 'center' }}>
+                      {data.topTopics.map((item) => {
+                        const count = item.documentos ?? 0;
+                        const percent = Math.max(6, Math.round((count / maxTopicDocs) * 100));
+                        return (
+                          <Box key={item.tema}>
+                            <Stack
+                              direction="row"
+                              spacing={2}
+                              sx={{
+                                justifyContent: 'space-between',
+                                alignItems: 'baseline',
+                                mb: 0.75,
+                              }}
+                            >
+                              <Tooltip title={item.tema} placement="top-start">
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={500}
+                                  color="text.primary"
+                                  sx={{
+                                    lineHeight: 1.4,
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    flex: 1,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  {item.tema}
+                                </Typography>
+                              </Tooltip>
+                              <Typography
+                                variant="caption"
+                                fontWeight={700}
+                                color="text.secondary"
+                                sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                              >
+                                {`${count} ${count === 1 ? 'documento' : 'documentos'}`}
+                              </Typography>
+                            </Stack>
+                            <Box
+                              sx={{
+                                width: '100%',
+                                height: 8,
+                                borderRadius: 4,
+                                overflow: 'hidden',
+                                bgcolor: alpha(theme.palette.warning.main, 0.14),
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  width: `${percent}%`,
+                                  height: '100%',
+                                  borderRadius: 4,
+                                  bgcolor: theme.palette.warning.main,
+                                  transition: 'width 0.3s ease',
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

@@ -170,11 +170,7 @@ public class DocumentService {
 
         Integer filterTerm = (term != null && term >= 1 && term <= 3) ? term : null;
         List<Long> ids = oraclePackageService.fnRecursosPorRepositorioIds(repositoryId, filterTerm);
-        List<Resource> resources = oraclePackageService.orderByIds(
-                ids,
-                resourceRepository.findAllById(ids),
-                Resource::getId
-        );
+        List<Resource> resources = loadOrderedMetadataByIds(ids);
 
         return resources.stream()
                 .map(r -> toDto(r, baseUrl))
@@ -214,11 +210,7 @@ public class DocumentService {
         int toIndex = Math.min(fromIndex + safeSize, allIds.size());
         List<Long> pageIds = allIds.subList(fromIndex, toIndex);
 
-        List<Resource> pageResources = oraclePackageService.orderByIds(
-                pageIds,
-                resourceRepository.findAllById(pageIds),
-                Resource::getId
-        );
+        List<Resource> pageResources = loadOrderedMetadataByIds(pageIds);
 
         List<DocumentDto> items = pageResources.stream()
                 .map(r -> toDto(r, baseUrl))
@@ -236,11 +228,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public List<DocumentDto> listByUser(String username, String baseUrl) {
         List<Long> ids = oraclePackageService.fnRecursosPorAutorIds(username);
-        List<Resource> resources = oraclePackageService.orderByIds(
-                ids,
-                resourceRepository.findAllById(ids),
-                Resource::getId
-        );
+        List<Resource> resources = loadOrderedMetadataByIds(ids);
         return resources.stream()
                 .map(r -> toDto(r, baseUrl))
                 .toList();
@@ -248,7 +236,7 @@ public class DocumentService {
 
     @Transactional
     public DocumentDto getDetailAndIncrementView(Long id, String baseUrl) {
-        Resource resource = findResourceOrThrow(id);
+        Resource resource = findResourceMetadataOrThrow(id);
         oraclePackageService.prIncrementarVista(id);
         resource.setTotalViews(resource.getTotalViews() + 1);
         return toDto(resource, baseUrl);
@@ -303,7 +291,7 @@ public class DocumentService {
     @Transactional
     public void delete(Long id, User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para eliminar este documento.");
-        Resource resource = findResourceOrThrow(id);
+        Resource resource = findResourceMetadataOrThrow(id);
         requireAuthor(resource, user, "Solo el autor puede eliminar este documento.");
 
         oraclePackageService.prEliminarRecursoCascada(id);
@@ -321,6 +309,44 @@ public class DocumentService {
         }
         resource.getFileBytes();
         return resource;
+    }
+
+    private List<Resource> loadOrderedMetadataByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        List<Resource> fetched = resourceRepository.findAllMetadataByIdIn(ids);
+        if (fetched.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Set<Tag>> tagsByResourceId = new LinkedHashMap<>();
+        for (Object[] row : resourceRepository.findTagPairsByResourceIdIn(ids)) {
+            Long resourceId = (Long) row[0];
+            Tag tag = (Tag) row[1];
+            tagsByResourceId.computeIfAbsent(resourceId, k -> new LinkedHashSet<>()).add(tag);
+        }
+        for (Resource resource : fetched) {
+            resource.setTags(tagsByResourceId.getOrDefault(resource.getId(), Set.of()));
+        }
+        return oraclePackageService.orderByIds(ids, fetched, Resource::getId);
+    }
+
+    private Resource findResourceMetadataOrThrow(Long id) {
+        if (id == null) {
+            throw new AuthException(
+                    HttpStatus.NOT_FOUND,
+                    "DOCUMENT_NOT_FOUND",
+                    "El documento no existe o fue eliminado."
+            );
+        }
+        return loadOrderedMetadataByIds(List.of(id)).stream()
+                .filter(resource -> resource.getStatus() == ResourceStatus.PUBLISHED)
+                .findFirst()
+                .orElseThrow(() -> new AuthException(
+                        HttpStatus.NOT_FOUND,
+                        "DOCUMENT_NOT_FOUND",
+                        "El documento no existe o fue eliminado."
+                ));
     }
 
     private Resource findResourceOrThrow(Long id) {
