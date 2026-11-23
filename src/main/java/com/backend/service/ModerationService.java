@@ -10,6 +10,7 @@ import com.backend.domain.governance.Report;
 import com.backend.domain.identity.User;
 import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
+import com.backend.domain.repos.Tag;
 import com.backend.dto.CreateReportRequest;
 import com.backend.dto.DocumentDto;
 import com.backend.dto.ReportResponseDto;
@@ -26,10 +27,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Gestiona creación de reportes por estudiantes y su revisión/resolución administrativa
@@ -95,13 +98,15 @@ public class ModerationService {
         switch (targetType) {
             case DOCUMENT -> {
                 Long docId = parseId(rawTargetId, "Documento no encontrado.");
-                targetDoc = resourceRepository.findById(docId)
+                Resource docMeta = resourceRepository.findAllMetadataByIdIn(List.of(docId)).stream()
+                        .findFirst()
                         .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "DOCUMENT_NOT_FOUND", "Documento no encontrado."));
                 if (reportRepository.fnExisteReporteActivo(reporter.getId(), ReportTargetType.DOCUMENT.name(), docId) == 1) {
                     throw duplicateReportException();
                 }
-                targetUser = targetDoc.getUploadedBy();
-                targetLabel = targetDoc.getTitle();
+                targetDoc = resourceRepository.getReferenceById(docId);
+                targetUser = docMeta.getUploadedBy();
+                targetLabel = docMeta.getTitle();
             }
             case REPOSITORY -> {
                 Long repoId = parseId(rawTargetId, "Repositorio no encontrado.");
@@ -285,7 +290,20 @@ public class ModerationService {
 
     private Object buildTargetData(Report report, User viewer, String baseUrl) {
         if (report.getTargetType() == ReportTargetType.DOCUMENT && report.getResource() != null) {
-            Resource res = report.getResource();
+            Long docId = report.getResource().getId();
+            Resource res = resourceRepository.findAllMetadataByIdIn(List.of(docId)).stream()
+                    .findFirst()
+                    .orElse(null);
+            if (res == null) {
+                return null;
+            }
+            Set<Tag> tags = new LinkedHashSet<>();
+            for (Object[] row : resourceRepository.findTagPairsByResourceIdIn(List.of(docId))) {
+                if (row[1] instanceof Tag tag) {
+                    tags.add(tag);
+                }
+            }
+            res.setTags(tags);
             String previewUrl = baseUrl + "/api/documents/" + res.getId() + "/preview";
             return DocumentDto.fromEntity(res, previewUrl);
         }

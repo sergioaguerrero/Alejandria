@@ -7,6 +7,7 @@ import com.backend.domain.ai.AiShare;
 import com.backend.domain.identity.User;
 import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
+import com.backend.domain.repos.Tag;
 import com.backend.exception.AuthException;
 import com.backend.repository.AiMaterialRepository;
 import com.backend.repository.AiShareRepository;
@@ -126,11 +127,7 @@ public class AiService {
             }
 
             List<Long> docIds = oraclePackageService.fnRecursosPorRepositorioIds(repo.getId(), null);
-            List<Resource> repoDocs = oraclePackageService.orderByIds(
-                    docIds,
-                    resourceRepository.findAllById(docIds),
-                    Resource::getId
-            );
+            List<Resource> repoDocs = loadOrderedMetadataByIds(docIds);
             if (repoDocs.isEmpty()) {
                 throw new AuthException(
                         HttpStatus.BAD_REQUEST,
@@ -139,11 +136,20 @@ public class AiService {
                 );
             }
 
-            List<Resource> targetDocs = filterDocumentsByScope(repoDocs, scopeSpec);
-            targetDocs.stream().limit(6).forEach(doc -> {
-                doc.getFileBytes();
-                doc.getTags().size();
-            });
+            List<Resource> targetDocs = filterDocumentsByScope(repoDocs, scopeSpec).stream()
+                    .limit(6)
+                    .toList();
+            long loadedBytes = 0L;
+            for (Resource doc : targetDocs) {
+                long size = doc.getFileSizeBytes();
+                if (size > 0 && size <= 4_000_000L && loadedBytes + size <= 8_000_000L) {
+                    byte[] bytes = resourceRepository.findFileBytesById(doc.getId()).orElse(null);
+                    if (bytes != null) {
+                        doc.setFileBytes(bytes);
+                        loadedBytes += bytes.length;
+                    }
+                }
+            }
             return new PreparationContext(repo, targetDocs);
         });
 
@@ -376,6 +382,26 @@ public class AiService {
             }
             default -> new ScopeSpec("all", null, "Todo el repositorio");
         };
+    }
+
+    private List<Resource> loadOrderedMetadataByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        List<Resource> fetched = resourceRepository.findAllMetadataByIdIn(ids);
+        if (fetched.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Set<Tag>> tagsByResourceId = new LinkedHashMap<>();
+        for (Object[] row : resourceRepository.findTagPairsByResourceIdIn(ids)) {
+            Long resourceId = (Long) row[0];
+            Tag tag = (Tag) row[1];
+            tagsByResourceId.computeIfAbsent(resourceId, k -> new LinkedHashSet<>()).add(tag);
+        }
+        for (Resource resource : fetched) {
+            resource.setTags(tagsByResourceId.getOrDefault(resource.getId(), Set.of()));
+        }
+        return oraclePackageService.orderByIds(ids, fetched, Resource::getId);
     }
 
     private List<Resource> filterDocumentsByScope(List<Resource> repoDocs, ScopeSpec scopeSpec) {

@@ -814,7 +814,7 @@ public class OraclePackageService {
         List<Long> ids = new ArrayList<>();
         try (ResultSet rs = (ResultSet) cs.getObject(paramIndex)) {
             if (rs != null) {
-                rs.setFetchSize(500);
+                rs.setFetchSize(100);
                 while (rs.next()) {
                     ids.add(rs.getLong(1));
                 }
@@ -827,7 +827,7 @@ public class OraclePackageService {
         List<Object[]> rows = new ArrayList<>();
         try (ResultSet rs = (ResultSet) cs.getObject(paramIndex)) {
             if (rs != null) {
-                rs.setFetchSize(500);
+                rs.setFetchSize(100);
             }
             while (rs != null && rs.next()) {
                 Timestamp ts = rs.getTimestamp(7);
