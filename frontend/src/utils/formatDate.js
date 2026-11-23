@@ -42,3 +42,20 @@ export function formatRelativeDate(dateInput) {
     year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
   });
 }
+
+/**
+ * Formats an ISO date string into a short Spanish calendar date (e.g. "22 nov 2026").
+ * @param {string|Date|undefined|null} dateInput
+ * @returns {string}
+ */
+export function formatShortDate(dateInput) {
+  if (!dateInput) return '';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(date.getTime())) return '';
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}

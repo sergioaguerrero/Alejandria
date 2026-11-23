@@ -38,25 +38,25 @@ public class AiMaterial {
     private StudyRepository studyRepository;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_contenido", nullable = false, length = 20)
+    @Column(name = "tipo_contenido", nullable = false, length = 15)
     private AiContentType contentType;
 
-    @Column(name = "titulo", nullable = false, length = 255)
+    @Column(name = "titulo", nullable = false, length = 150)
     private String title;
 
-    @Column(name = "nombre_repositorio", nullable = false, length = 200)
+    @Column(name = "nombre_repositorio", nullable = false, length = 100)
     private String repositoryName;
 
-    @Column(name = "nombre_materia", nullable = false, length = 200)
+    @Column(name = "nombre_materia", nullable = false, length = 80)
     private String subjectName;
 
-    @Column(name = "alcance", nullable = false, length = 20)
+    @Column(name = "alcance", nullable = false, length = 10)
     private String scope;
 
-    @Column(name = "valor_alcance", length = 200)
+    @Column(name = "valor_alcance", length = 80)
     private String scopeValue;
 
-    @Column(name = "etiqueta_alcance", nullable = false, length = 255)
+    @Column(name = "etiqueta_alcance", nullable = false, length = 100)
     private String scopeLabel;
 
     @Lob

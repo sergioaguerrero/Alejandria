@@ -1,0 +1,10 @@
+.git
+.gitignore
+.idea
+target
+out
+frontend
+docs
+*.pdf
+src/main/resources/application-local.properties
+src/main/resources/application-local.properties.example

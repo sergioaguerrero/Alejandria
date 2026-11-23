@@ -222,6 +222,26 @@ class StatisticsIntegrationTest {
                 .andExpect(jsonPath("$.topSearchTerms[0].term").value("grafos"))
                 .andExpect(jsonPath("$.topSearchTerms[0].count").value(1))
                 .andExpect(jsonPath("$.aiUsage.byType", hasSize(4)));
+
+        // 5. Endpoints de analítica protegidos: sin token -> 401; estudiante -> 403; admin -> 200
+        String fromIso = LocalDateTime.now().minusDays(1).toString();
+        String toIso = LocalDateTime.now().plusDays(1).toString();
+        mockMvc.perform(get("/api/analytics/export")
+                        .param("from", fromIso)
+                        .param("to", toIso))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/analytics/export")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + studentToken)
+                        .param("from", fromIso)
+                        .param("to", toIso))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/analytics/export")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .param("from", fromIso)
+                        .param("to", toIso))
+                .andExpect(status().isOk());
     }
 
     private Role resolveRole(String name, Set<String> permissions) {

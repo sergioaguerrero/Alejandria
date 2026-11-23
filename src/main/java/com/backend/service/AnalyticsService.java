@@ -10,8 +10,9 @@ import com.backend.repository.DemandMetricRepository;
 import com.backend.repository.InteractionRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,17 +20,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class AnalyticsService {
 
+    private static final Logger log = LoggerFactory.getLogger(AnalyticsService.class);
+
     private final InteractionRepository interactionRepository;
     private final DemandMetricRepository demandMetricRepository;
+    private final OraclePackageService oraclePackageService;
 
     @PersistenceContext
     private EntityManager em;
@@ -37,10 +38,14 @@ public class AnalyticsService {
     @Value("${analytics.salt}")
     private String salt;
 
-    public AnalyticsService(InteractionRepository interactionRepository,
-                            DemandMetricRepository demandMetricRepository) {
+    public AnalyticsService(
+            InteractionRepository interactionRepository,
+            DemandMetricRepository demandMetricRepository,
+            OraclePackageService oraclePackageService
+    ) {
         this.interactionRepository = interactionRepository;
         this.demandMetricRepository = demandMetricRepository;
+        this.oraclePackageService = oraclePackageService;
     }
 
     /** Registra una interacción sin hacer esperar al usuario. */
@@ -70,63 +75,51 @@ public class AnalyticsService {
             );
             interactionRepository.save(interaction);
         } catch (Exception e) {
-            // La analítica nunca debe romper la acción principal del usuario
-            System.err.println("No se pudo registrar la interacción: " + e.getMessage());
+            log.warn("No se pudo registrar la interacción analítica ({}): {}", type, e.getMessage());
         }
     }
 
-    /** Agrupa las interacciones del rango y guarda una métrica por materia. */
+    /** Delega el cálculo y MERGE de métricas de demanda directamente a PKG_ANALITICAS.pr_recalcular_metrica_demanda. */
     @Transactional
     public List<DemandMetric> calculateMetrics(String academicPeriod,
                                                LocalDateTime from, LocalDateTime to) {
-        Map<Long, int[]> totals = new HashMap<>();
-
-        for (Object[] row : interactionRepository.countBySubjectAndType(from, to)) {
-            Long subjectId = (Long) row[0];
-            InteractionType type = (InteractionType) row[1];
-            int count = ((Long) row[2]).intValue();
-            int[] t = totals.computeIfAbsent(subjectId, k -> new int[3]);
-            switch (type) {
-                case VIEW -> t[0] += count;
-                case DOWNLOAD -> t[1] += count;
-                case SEARCH -> t[2] += count;
-                default -> { }
-            }
-        }
-
-        List<DemandMetric> result = new ArrayList<>();
-        for (Map.Entry<Long, int[]> e : totals.entrySet()) {
-            int[] t = e.getValue();
-            double index = t[0] * 1.0 + t[1] * 2.0 + t[2] * 1.5;
-
-            DemandMetric metric = demandMetricRepository
-                    .findBySubject_IdAndAcademicPeriod(e.getKey(), academicPeriod)
-                    .orElseGet(() -> new DemandMetric(
-                            em.getReference(Subject.class, e.getKey()), academicPeriod));
-
-            metric.update(t[0], t[1], t[2], index);
-            result.add(demandMetricRepository.save(metric));
-        }
-        return result;
+        oraclePackageService.prRecalcularMetricaDemanda(academicPeriod, from, to);
+        return mostQueriedSubjects(academicPeriod, 100);
     }
 
     @Transactional(readOnly = true)
     public List<DemandMetric> mostQueriedSubjects(String academicPeriod, int n) {
-        return demandMetricRepository
-                .findByAcademicPeriodOrderByTotalQueriesDesc(academicPeriod, PageRequest.of(0, n));
+        List<Long> ids = oraclePackageService.fnMetricasMasConsultadasIds(academicPeriod, n);
+        List<DemandMetric> metrics = oraclePackageService.orderByIds(
+                ids,
+                demandMetricRepository.findAllById(ids),
+                DemandMetric::getId
+        );
+        for (DemandMetric metric : metrics) {
+            if (metric.getSubject() != null) {
+                metric.getSubject().getId();
+            }
+        }
+        return metrics;
     }
 
     @Transactional(readOnly = true)
     public List<Object[]> mostSearchedTopics(int n) {
-        return interactionRepository.topSearchTerms(PageRequest.of(0, n));
+        return oraclePackageService.fnTopTerminosBusqueda(null, n);
     }
 
-    /** CSV sin ningún dato que identifique al usuario. */
+    /** CSV sin ningún dato que identifique al usuario, consultado vía PKG_ANALITICAS.fn_interacciones_rango. */
     @Transactional(readOnly = true)
     public String exportAnonymizedData(LocalDateTime from, LocalDateTime to) {
         StringBuilder csv = new StringBuilder(
                 "anonymous_user_id,type,date,subject_id,resource_id,search_term\n");
-        for (Interaction i : interactionRepository.findByDateBetween(from, to)) {
+        List<Long> ids = oraclePackageService.fnInteraccionesRangoIds(from, to);
+        List<Interaction> interactions = oraclePackageService.orderByIds(
+                ids,
+                interactionRepository.findAllById(ids),
+                Interaction::getId
+        );
+        for (Interaction i : interactions) {
             csv.append(i.getAnonymousUserId()).append(',')
                     .append(i.getType()).append(',')
                     .append(i.getDate()).append(',')

@@ -1,43 +1,29 @@
 package com.backend.service;
 
-import com.backend.cross.CollaboratorStatus;
 import com.backend.cross.NotificationType;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
-import com.backend.domain.repos.RepositoryFollow;
-import com.backend.domain.repos.RepositoryLike;
-import com.backend.domain.repos.RepositoryReactionId;
 import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.RepositoryPageResponse;
 import com.backend.dto.RepositoryRequestDto;
 import com.backend.dto.RepositoryResponseDto;
 import com.backend.exception.AuthException;
-import com.backend.repository.AiMaterialRepository;
 import com.backend.repository.CatalogRepository;
-import com.backend.repository.ReportRepository;
 import com.backend.repository.RepositoryCollaboratorRepository;
 import com.backend.repository.RepositoryFollowRepository;
 import com.backend.repository.RepositoryLikeRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Lógica de negocio de repositorios de estudio persistidos en Oracle.
+ * Lógica de negocio de repositorios de estudio delegando consultas, conteos,
+ * reacciones (me gusta / seguimiento) y eliminación en cascada a PKG_REPOSITORIOS.
  */
 @Service
 public class StudyRepositoryService {
@@ -48,9 +34,8 @@ public class StudyRepositoryService {
     private final RepositoryLikeRepository repositoryLikeRepository;
     private final RepositoryFollowRepository repositoryFollowRepository;
     private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
-    private final AiMaterialRepository aiMaterialRepository;
-    private final ReportRepository reportRepository;
     private final NotificationService notificationService;
+    private final OraclePackageService oraclePackageService;
 
     public StudyRepositoryService(
             StudyRepositoryRepository studyRepositoryRepository,
@@ -59,9 +44,8 @@ public class StudyRepositoryService {
             RepositoryLikeRepository repositoryLikeRepository,
             RepositoryFollowRepository repositoryFollowRepository,
             RepositoryCollaboratorRepository repositoryCollaboratorRepository,
-            AiMaterialRepository aiMaterialRepository,
-            ReportRepository reportRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            OraclePackageService oraclePackageService
     ) {
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.catalogRepository = catalogRepository;
@@ -69,14 +53,13 @@ public class StudyRepositoryService {
         this.repositoryLikeRepository = repositoryLikeRepository;
         this.repositoryFollowRepository = repositoryFollowRepository;
         this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
-        this.aiMaterialRepository = aiMaterialRepository;
-        this.reportRepository = reportRepository;
         this.notificationService = notificationService;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional
     public RepositoryResponseDto create(RepositoryRequestDto dto, User currentUser) {
-        User author = requireAuthenticated(currentUser, "Debes iniciar sesión para crear un repositorio.");
+        User author = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para crear un repositorio.");
         Subject subject = resolveSubject(dto.getSubjectId());
 
         StudyRepository repo = new StudyRepository(
@@ -101,22 +84,36 @@ public class StudyRepositoryService {
     ) {
         int safePage = Math.max(1, page);
         int safeSize = Math.min(Math.max(1, size), 50);
-        Sort sort = resolveSort(order);
-        PageRequest pageRequest = PageRequest.of(safePage - 1, safeSize, sort);
 
         String normalizedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         Integer normalizedSemester = (semester != null && semester > 0) ? semester : null;
 
-        Specification<StudyRepository> spec = buildFilterSpec(subjectId, normalizedSemester, normalizedSearch);
-        Page<StudyRepository> result = studyRepositoryRepository.findAll(spec, pageRequest);
+        List<Long> allIds = oraclePackageService.fnBuscarRepositoriosIds(
+                subjectId,
+                normalizedSemester,
+                normalizedSearch,
+                order
+        );
 
-        List<RepositoryResponseDto> items = mapRepositories(result.getContent(), viewer);
+        long totalElements = allIds.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) totalElements / safeSize));
+        int fromIndex = Math.min((safePage - 1) * safeSize, allIds.size());
+        int toIndex = Math.min(fromIndex + safeSize, allIds.size());
+        List<Long> pageIds = allIds.subList(fromIndex, toIndex);
+
+        List<StudyRepository> pageEntities = oraclePackageService.orderByIds(
+                pageIds,
+                studyRepositoryRepository.findAllById(pageIds),
+                StudyRepository::getId
+        );
+
+        List<RepositoryResponseDto> items = mapRepositories(pageEntities, viewer);
         return new RepositoryPageResponse(
                 items,
-                result.getTotalElements(),
+                totalElements,
                 safePage,
                 safeSize,
-                Math.max(1, result.getTotalPages())
+                totalPages
         );
     }
 
@@ -128,13 +125,18 @@ public class StudyRepositoryService {
 
     @Transactional(readOnly = true)
     public List<RepositoryResponseDto> getByAuthorUsername(String username, User viewer) {
-        List<StudyRepository> list = studyRepositoryRepository.findByAuthorUsernameOrderByCreatedAtDesc(username);
+        List<Long> ids = oraclePackageService.fnRepositoriosPorAutorIds(username);
+        List<StudyRepository> list = oraclePackageService.orderByIds(
+                ids,
+                studyRepositoryRepository.findAllById(ids),
+                StudyRepository::getId
+        );
         return mapRepositories(list, viewer);
     }
 
     @Transactional
     public RepositoryResponseDto update(Long id, RepositoryRequestDto dto, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para editar este repositorio.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para editar este repositorio.");
         StudyRepository repo = findRepoOrThrow(id);
         requireOwner(repo, user, "Solo el dueño puede editar este repositorio.");
 
@@ -149,122 +151,110 @@ public class StudyRepositoryService {
 
     @Transactional
     public void delete(Long id, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para eliminar este repositorio.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para eliminar este repositorio.");
         StudyRepository repo = findRepoOrThrow(id);
         requireOwner(repo, user, "Solo el dueño puede eliminar este repositorio.");
 
-        aiMaterialRepository.clearRepositoryReference(id);
-        reportRepository.clearRepositoryReference(id);
-        repositoryCollaboratorRepository.deleteByStudyRepositoryId(id);
-        repositoryLikeRepository.deleteByIdRepositoryId(id);
-        repositoryFollowRepository.deleteByIdRepositoryId(id);
-        studyRepositoryRepository.delete(repo);
+        deleteRepositoryWithDependencies(id);
     }
 
+    /**
+     * Delega la eliminación en cascada del repositorio y sus dependencias
+     * al procedimiento PKG_REPOSITORIOS.pr_eliminar_repositorio_cascada en Oracle.
+     */
+    @Transactional
+    public void deleteRepositoryWithDependencies(Long repositoryId) {
+        oraclePackageService.prEliminarRepositorioCascada(repositoryId);
+    }
+
+    /**
+     * Delega el toggle de me gusta a PKG_REPOSITORIOS.pr_toggle_me_gusta_repo,
+     * el cual se coordina con el trigger TRG_SYNC_ME_GUSTA_REPO sin duplicar el conteo.
+     */
     @Transactional
     public Map<String, Object> toggleLike(Long id, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para dar me gusta.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para dar me gusta.");
         StudyRepository repo = findRepoOrThrow(id);
+        User author = repo.getAuthor();
+        Long authorId = author != null ? author.getId() : null;
+        String repoName = repo.getName();
 
-        RepositoryReactionId reactionId = new RepositoryReactionId(id, user.getId());
-        boolean alreadyLiked = repositoryLikeRepository.existsById(reactionId);
+        int[] out = oraclePackageService.prToggleMeGustaRepo(id, user.getId());
+        boolean likedNow = out[0] == 1;
+        int totalLikes = out[1];
 
-        if (alreadyLiked) {
-            repositoryLikeRepository.deleteById(reactionId);
-            repo.setLikes(Math.max(0, repo.getLikes() - 1));
-        } else {
-            repositoryLikeRepository.save(new RepositoryLike(id, user.getId()));
-            repo.setLikes(repo.getLikes() + 1);
-            if (repo.getAuthor() != null && !repo.getAuthor().getId().equals(user.getId())) {
-                notificationService.create(
-                        repo.getAuthor(),
-                        NotificationType.LIKE,
-                        "Nuevo me gusta en tu repositorio",
-                        "@" + user.getUsername() + " le dio me gusta a \"" + repo.getName() + "\".",
-                        "/repositories/" + repo.getId()
-                );
-            }
+        if (likedNow && authorId != null && !authorId.equals(user.getId())) {
+            notificationService.create(
+                    author,
+                    NotificationType.LIKE,
+                    "Nuevo me gusta en tu repositorio",
+                    "@" + user.getUsername() + " le dio me gusta a \"" + repoName + "\".",
+                    "/repositories/" + id
+            );
         }
 
-        studyRepositoryRepository.save(repo);
-        return Map.of("liked", !alreadyLiked, "likes", repo.getLikes());
+        return Map.of("liked", likedNow, "likes", totalLikes);
     }
 
     @Transactional
     public Map<String, Object> toggleFollow(Long id, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Inicia sesión para seguir este repositorio.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para seguir este repositorio.");
         findRepoOrThrow(id);
 
-        RepositoryReactionId reactionId = new RepositoryReactionId(id, user.getId());
-        boolean alreadyFollowed = repositoryFollowRepository.existsById(reactionId);
+        long[] out = oraclePackageService.prToggleSeguirRepo(id, user.getId());
+        boolean followedNow = out[0] == 1L;
+        long followersCount = out[1];
 
-        if (alreadyFollowed) {
-            repositoryFollowRepository.deleteById(reactionId);
-        } else {
-            repositoryFollowRepository.save(new RepositoryFollow(id, user.getId()));
-        }
-
-        long followersCount = repositoryFollowRepository.countByIdRepositoryId(id);
-        return Map.of("followed", !alreadyFollowed, "followersCount", followersCount);
+        return Map.of("followed", followedNow, "followersCount", followersCount);
     }
 
     @Transactional(readOnly = true)
     public List<RepositoryResponseDto> getFollowed(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus repositorios seguidos.");
-        List<StudyRepository> followed = repositoryFollowRepository.findFollowedRepositoriesByUserId(user.getId());
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus repositorios seguidos.");
+        List<Long> ids = oraclePackageService.fnRepositoriosSeguidosIds(user.getId());
+        List<StudyRepository> followed = oraclePackageService.orderByIds(
+                ids,
+                studyRepositoryRepository.findAllById(ids),
+                StudyRepository::getId
+        );
         return mapRepositories(followed, user);
     }
 
+    @Transactional(readOnly = true)
     public List<RepositoryResponseDto> mapRepositories(List<StudyRepository> repositories, User viewer) {
         if (repositories.isEmpty()) {
             return List.of();
         }
 
-        List<Long> ids = repositories.stream().map(StudyRepository::getId).toList();
-
-        Map<Long, Integer> docCounts = new HashMap<>();
-        for (Object[] row : resourceRepository.countByStudyRepositoryIds(ids)) {
-            docCounts.put((Long) row[0], ((Long) row[1]).intValue());
-        }
-
-        Map<Long, Long> followerCounts = new HashMap<>();
-        for (Object[] row : repositoryFollowRepository.countFollowersByRepositoryIds(ids)) {
-            followerCounts.put((Long) row[0], (Long) row[1]);
-        }
-
-        Set<Long> likedIds = viewer != null
-                ? new HashSet<>(repositoryLikeRepository.findLikedRepositoryIds(viewer.getId(), ids))
-                : Collections.emptySet();
-
-        Set<Long> followedIds = viewer != null
-                ? new HashSet<>(repositoryFollowRepository.findFollowedRepositoryIds(viewer.getId(), ids))
-                : Collections.emptySet();
-
-        Map<Long, CollaboratorStatus> collabStatuses = new HashMap<>();
-        if (viewer != null) {
-            for (Object[] row : repositoryCollaboratorRepository.findStatusesByUserIdAndRepositoryIds(viewer.getId(), ids)) {
-                collabStatuses.put((Long) row[0], (CollaboratorStatus) row[1]);
-            }
-        }
+        Long viewerId = viewer != null ? viewer.getId() : null;
 
         return repositories.stream()
                 .map(repo -> {
-                    boolean isOwner = viewer != null
+                    Long repoId = repo.getId();
+                    int docCount = resourceRepository.fnContarRecursosPublicados(repoId);
+                    long followersCount = repositoryFollowRepository.fnContarSeguidoresRepo(repoId);
+                    boolean liked = viewerId != null && repositoryLikeRepository.fnUsuarioDioLikeRepo(repoId, viewerId) == 1;
+                    boolean followed = viewerId != null && repositoryFollowRepository.fnUsuarioSigueRepo(repoId, viewerId) == 1;
+
+                    boolean isOwner = viewerId != null
                             && repo.getAuthor() != null
-                            && repo.getAuthor().getId().equals(viewer.getId());
-                    CollaboratorStatus status = collabStatuses.get(repo.getId());
-                    boolean isCollaborator = !isOwner && status == CollaboratorStatus.ACEPTADO;
-                    String collaboratorStatus = isOwner || status == null
+                            && repo.getAuthor().getId().equals(viewerId);
+
+                    String rawCollabStatus = (!isOwner && viewerId != null)
+                            ? repositoryCollaboratorRepository.fnEstadoColaboradorRepo(repoId, viewerId)
+                            : null;
+                    boolean isCollaborator = !isOwner && "ACEPTADO".equalsIgnoreCase(rawCollabStatus);
+                    String collaboratorStatus = isOwner || rawCollabStatus == null
                             ? null
-                            : (status == CollaboratorStatus.ACEPTADO ? "aceptado" : "pendiente");
+                            : (isCollaborator ? "aceptado" : "pendiente");
                     boolean canUpload = isOwner || isCollaborator;
 
                     return RepositoryResponseDto.fromEntity(
                             repo,
-                            docCounts.getOrDefault(repo.getId(), 0),
-                            likedIds.contains(repo.getId()),
-                            followedIds.contains(repo.getId()),
-                            followerCounts.getOrDefault(repo.getId(), 0L),
+                            docCount,
+                            liked,
+                            followed,
+                            followersCount,
                             canUpload,
                             isCollaborator,
                             collaboratorStatus
@@ -274,7 +264,7 @@ public class StudyRepositoryService {
     }
 
     private StudyRepository findRepoOrThrow(Long id) {
-        return studyRepositoryRepository.findByIdWithDetails(id)
+        return studyRepositoryRepository.findById(id)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
                         "REPOSITORY_NOT_FOUND",
@@ -283,7 +273,7 @@ public class StudyRepositoryService {
     }
 
     private Subject resolveSubject(Long subjectId) {
-        return catalogRepository.findByIdWithSemester(subjectId)
+        return catalogRepository.findById(subjectId)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.BAD_REQUEST,
                         "VALIDATION_ERROR",
@@ -292,51 +282,10 @@ public class StudyRepositoryService {
                 ));
     }
 
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
-    }
-
     private void requireOwner(StudyRepository repo, User user, String message) {
         if (repo.getAuthor() == null || !repo.getAuthor().getId().equals(user.getId())) {
             throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", message);
         }
-    }
-
-    private Specification<StudyRepository> buildFilterSpec(Long subjectId, Integer semester, String search) {
-        Specification<StudyRepository> spec = Specification.where(null);
-
-        if (subjectId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("subject").get("id"), subjectId));
-        }
-        if (semester != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("subject").get("semester").get("number"), semester));
-        }
-        if (search != null) {
-            String escaped = search.toLowerCase(Locale.ROOT)
-                    .replace("\\", "\\\\")
-                    .replace("%", "\\%")
-                    .replace("_", "\\_");
-            String pattern = "%" + escaped + "%";
-            spec = spec.and((root, query, cb) -> cb.or(
-                    cb.like(cb.lower(root.get("name")), pattern, '\\'),
-                    cb.like(cb.lower(root.get("description")), pattern, '\\'),
-                    cb.like(cb.lower(root.get("subject").get("name")), pattern, '\\')
-            ));
-        }
-        return spec;
-    }
-
-    private Sort resolveSort(String order) {
-        if ("popular".equalsIgnoreCase(order)) {
-            return Sort.by(Sort.Direction.DESC, "likes").and(Sort.by(Sort.Direction.DESC, "createdAt"));
-        }
-        if ("name".equalsIgnoreCase(order)) {
-            return Sort.by(Sort.Direction.ASC, "name");
-        }
-        return Sort.by(Sort.Direction.DESC, "createdAt");
     }
 
     private RepositoryResponseDto mapSingle(StudyRepository repo, User viewer) {

@@ -8,7 +8,7 @@ public class Tag {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "nombre", nullable = false, unique = true, length = 60)
+    @Column(name = "nombre", nullable = false, unique = true, length = 30)
     private String name;
 
     protected Tag (){}

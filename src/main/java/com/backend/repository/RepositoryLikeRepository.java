@@ -7,15 +7,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collection;
-import java.util.List;
-
 @Repository
 public interface RepositoryLikeRepository extends JpaRepository<RepositoryLike, RepositoryReactionId> {
 
-    @Query("SELECT rl.id.repositoryId FROM RepositoryLike rl WHERE rl.id.userId = :userId AND rl.id.repositoryId IN :repositoryIds")
-    List<Long> findLikedRepositoryIds(@Param("userId") Long userId,
-                                      @Param("repositoryIds") Collection<Long> repositoryIds);
-
-    void deleteByIdRepositoryId(Long repositoryId);
+    @Query(value = "SELECT PKG_REPOSITORIOS.fn_usuario_dio_like_repo(:repositoryId, :userId) FROM DUAL", nativeQuery = true)
+    int fnUsuarioDioLikeRepo(@Param("repositoryId") Long repositoryId, @Param("userId") Long userId);
 }

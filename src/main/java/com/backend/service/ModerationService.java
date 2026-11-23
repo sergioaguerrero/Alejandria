@@ -5,11 +5,8 @@ import com.backend.cross.NotificationType;
 import com.backend.cross.ReportReason;
 import com.backend.cross.ReportStatus;
 import com.backend.cross.ReportTargetType;
-import com.backend.cross.ResourceStatus;
-import com.backend.cross.SanctionType;
 import com.backend.domain.governance.Decision;
 import com.backend.domain.governance.Report;
-import com.backend.domain.governance.UserSanction;
 import com.backend.domain.identity.User;
 import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
@@ -21,73 +18,58 @@ import com.backend.dto.ResolveReportRequest;
 import com.backend.exception.AuthException;
 import com.backend.repository.DecisionRepository;
 import com.backend.repository.ReportRepository;
-import com.backend.repository.RepositoryCollaboratorRepository;
-import com.backend.repository.RepositoryFollowRepository;
-import com.backend.repository.RepositoryLikeRepository;
 import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.UserRepository;
-import com.backend.repository.UserSanctionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
 /**
- * Gestiona creación de reportes por estudiantes y su revisión/resolución administrativa.
+ * Gestiona creación de reportes por estudiantes y su revisión/resolución administrativa
+ * delegando validaciones y resolución transaccional a PKG_MODERACION.
  */
 @Service
 public class ModerationService {
 
-    private static final Set<ReportStatus> PENDING_STATUSES = EnumSet.of(ReportStatus.OPEN, ReportStatus.UNDER_REVIEW);
-
     private final ReportRepository reportRepository;
     private final DecisionRepository decisionRepository;
-    private final UserSanctionRepository userSanctionRepository;
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
     private final StudyRepositoryRepository studyRepositoryRepository;
-    private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
-    private final RepositoryLikeRepository repositoryLikeRepository;
-    private final RepositoryFollowRepository repositoryFollowRepository;
     private final StudyRepositoryService studyRepositoryService;
     private final NotificationService notificationService;
+    private final OraclePackageService oraclePackageService;
 
     public ModerationService(
             ReportRepository reportRepository,
             DecisionRepository decisionRepository,
-            UserSanctionRepository userSanctionRepository,
             UserRepository userRepository,
             ResourceRepository resourceRepository,
             StudyRepositoryRepository studyRepositoryRepository,
-            RepositoryCollaboratorRepository repositoryCollaboratorRepository,
-            RepositoryLikeRepository repositoryLikeRepository,
-            RepositoryFollowRepository repositoryFollowRepository,
             StudyRepositoryService studyRepositoryService,
-            NotificationService notificationService
+            NotificationService notificationService,
+            OraclePackageService oraclePackageService
     ) {
         this.reportRepository = reportRepository;
         this.decisionRepository = decisionRepository;
-        this.userSanctionRepository = userSanctionRepository;
         this.userRepository = userRepository;
         this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
-        this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
-        this.repositoryLikeRepository = repositoryLikeRepository;
-        this.repositoryFollowRepository = repositoryFollowRepository;
         this.studyRepositoryService = studyRepositoryService;
         this.notificationService = notificationService;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional
     public ReportResponseDto createReport(CreateReportRequest request, User currentUser) {
-        User reporter = requireAuthenticated(currentUser, "Debes iniciar sesión para enviar un reporte.");
+        User reporter = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para enviar un reporte.");
 
         ReportTargetType targetType = parseTargetType(request.getTargetType());
         String rawTargetId = request.getTargetId() == null ? "" : request.getTargetId().trim();
@@ -113,10 +95,9 @@ public class ModerationService {
         switch (targetType) {
             case DOCUMENT -> {
                 Long docId = parseId(rawTargetId, "Documento no encontrado.");
-                targetDoc = resourceRepository.findByIdWithDetails(docId)
+                targetDoc = resourceRepository.findById(docId)
                         .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "DOCUMENT_NOT_FOUND", "Documento no encontrado."));
-                if (reportRepository.existsByReporterIdAndTargetTypeAndStatusInAndResourceId(
-                        reporter.getId(), ReportTargetType.DOCUMENT, PENDING_STATUSES, docId)) {
+                if (reportRepository.fnExisteReporteActivo(reporter.getId(), ReportTargetType.DOCUMENT.name(), docId) == 1) {
                     throw duplicateReportException();
                 }
                 targetUser = targetDoc.getUploadedBy();
@@ -124,10 +105,9 @@ public class ModerationService {
             }
             case REPOSITORY -> {
                 Long repoId = parseId(rawTargetId, "Repositorio no encontrado.");
-                targetRepo = studyRepositoryRepository.findByIdWithDetails(repoId)
+                targetRepo = studyRepositoryRepository.findById(repoId)
                         .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPOSITORY_NOT_FOUND", "Repositorio no encontrado."));
-                if (reportRepository.existsByReporterIdAndTargetTypeAndStatusInAndStudyRepositoryId(
-                        reporter.getId(), ReportTargetType.REPOSITORY, PENDING_STATUSES, repoId)) {
+                if (reportRepository.fnExisteReporteActivo(reporter.getId(), ReportTargetType.REPOSITORY.name(), repoId) == 1) {
                     throw duplicateReportException();
                 }
                 targetUser = targetRepo.getAuthor();
@@ -135,10 +115,10 @@ public class ModerationService {
             }
             case PROFILE -> {
                 String cleanUsername = rawTargetId.replaceFirst("^@", "").toLowerCase(Locale.ROOT);
-                targetUser = userRepository.findByUsernameIgnoreCase(cleanUsername)
+                Long targetUserId = userRepository.fnBuscarUsuarioPorUsername(cleanUsername);
+                targetUser = (targetUserId == null ? Optional.<User>empty() : userRepository.findById(targetUserId))
                         .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
-                if (reportRepository.existsByReporterIdAndTargetTypeAndStatusInAndTargetUserId(
-                        reporter.getId(), ReportTargetType.PROFILE, PENDING_STATUSES, targetUser.getId())) {
+                if (reportRepository.fnExisteReporteActivo(reporter.getId(), ReportTargetType.PROFILE.name(), targetUser.getId()) == 1) {
                     throw duplicateReportException();
                 }
                 targetLabel = "@" + targetUser.getUsername();
@@ -164,9 +144,14 @@ public class ModerationService {
 
     @Transactional(readOnly = true)
     public List<ReportResponseDto> getReports(String statusFilter, String reasonFilter, User currentUser) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar la bandeja de reportes.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar la bandeja de reportes.");
 
-        List<Report> allReports = reportRepository.findAllWithDetails();
+        List<Long> reportIds = oraclePackageService.fnListarReportesIds();
+        List<Report> allReports = oraclePackageService.orderByIds(
+                reportIds,
+                reportRepository.findAllById(reportIds),
+                Report::getId
+        );
         Map<Long, Decision> decisionMap = loadDecisions(allReports);
 
         String normalizedStatus = statusFilter == null ? "" : statusFilter.trim().toLowerCase(Locale.ROOT);
@@ -196,11 +181,11 @@ public class ModerationService {
 
     @Transactional(readOnly = true)
     public ReportResponseDto getReportById(Long id, User currentUser, String baseUrl) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar el detalle de un reporte.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar el detalle de un reporte.");
 
-        Report report = reportRepository.findByIdWithDetails(id)
+        Report report = reportRepository.findById(id)
                 .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPORT_NOT_FOUND", "Reporte no encontrado."));
-        Decision decision = decisionRepository.findByReportId(id).orElse(null);
+        Decision decision = findDecisionForReport(id);
 
         User author = resolveAuthor(report);
         Object targetData = buildTargetData(report, currentUser, baseUrl);
@@ -214,7 +199,7 @@ public class ModerationService {
             User currentUser,
             String baseUrl
     ) {
-        User admin = requireAdmin(currentUser, "Solo los administradores pueden resolver reportes.");
+        User admin = AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden resolver reportes.");
 
         ModerationAction action = parseAction(request.getAction());
         String note = request.getNote() == null ? "" : request.getNote().trim();
@@ -222,129 +207,80 @@ public class ModerationService {
             note = note.substring(0, 1000);
         }
 
-        Report report = reportRepository.findByIdWithDetails(reportId)
+        Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPORT_NOT_FOUND", "Reporte no encontrado."));
 
         if (report.getStatus() == ReportStatus.RESOLVED || report.getStatus() == ReportStatus.DISMISSED) {
             throw new AuthException(HttpStatus.CONFLICT, "REPORT_ALREADY_RESOLVED", "Este reporte ya fue resuelto.");
         }
 
-        report.setModerator(admin);
-        report.setStatus(action == ModerationAction.KEEP ? ReportStatus.DISMISSED : ReportStatus.RESOLVED);
-
         User author = resolveAuthor(report);
-        applyModerationAction(action, report, author, admin, note);
 
-        Report savedReport = reportRepository.save(report);
-        Decision decision = decisionRepository.save(new Decision(
-                action,
-                note.isEmpty() ? null : note,
-                savedReport,
-                admin
-        ));
+        // Ejecuta toda la resolución en BD (DECISION, REPORTE, RECURSO_ACADEMICO / REPOSITORIO_ESTUDIO, SANCION_USUARIO, USUARIO)
+        oraclePackageService.prResolverReporte(
+                reportId,
+                admin.getId(),
+                action.name(),
+                note.isEmpty() ? null : note
+        );
 
-        Object targetData = buildTargetData(savedReport, admin, baseUrl);
-        return ReportResponseDto.fromEntity(savedReport, decision, targetData, author);
+        notifyAuthorAfterModeration(action, author, note);
+
+        Report updatedReport = reportRepository.findById(reportId).orElse(report);
+        Decision decision = findDecisionForReport(reportId);
+        User updatedAuthor = resolveAuthor(updatedReport);
+        if (updatedAuthor == null && author != null) {
+            updatedAuthor = userRepository.findById(author.getId()).orElse(author);
+        }
+
+        Object targetData = buildTargetData(updatedReport, admin, baseUrl);
+        return ReportResponseDto.fromEntity(updatedReport, decision, targetData, updatedAuthor);
     }
 
-    private void applyModerationAction(
-            ModerationAction action,
-            Report report,
-            User author,
-            User admin,
-            String note
-    ) {
-        String reasonLabel = ReportResponseDto.toFrontendReason(report.getReason());
+    private void notifyAuthorAfterModeration(ModerationAction action, User author, String note) {
+        if (author == null) {
+            return;
+        }
         String detailMessage = note.isEmpty()
                 ? "Se aplicó una medida de moderación sobre tu contenido reportado."
                 : note;
 
         switch (action) {
-            case KEEP -> {
-                // Reporte descartado sin medidas sobre el contenido ni el autor.
-            }
-            case HIDE -> {
-                if (report.getResource() != null) {
-                    Resource resource = report.getResource();
-                    resource.setStatus(ResourceStatus.HIDDEN);
-                    resourceRepository.save(resource);
-                }
-                if (author != null) {
-                    notificationService.create(
-                            author,
-                            NotificationType.CONTENT_HIDDEN,
-                            "Contenido ocultado por moderación",
-                            detailMessage,
-                            "/terms"
-                    );
-                }
-            }
-            case REMOVE -> {
-                if (report.getResource() != null) {
-                    Resource resource = report.getResource();
-                    resource.setStatus(ResourceStatus.REMOVED);
-                    resourceRepository.save(resource);
-                } else if (report.getStudyRepository() != null) {
-                    Long repoId = report.getStudyRepository().getId();
-                    StudyRepository repo = report.getStudyRepository();
-                    reportRepository.clearRepositoryReference(repoId);
-                    repositoryCollaboratorRepository.deleteByStudyRepositoryId(repoId);
-                    repositoryLikeRepository.deleteByIdRepositoryId(repoId);
-                    repositoryFollowRepository.deleteByIdRepositoryId(repoId);
-                    studyRepositoryRepository.delete(repo);
-                    report.setStudyRepository(null);
-                }
-                if (author != null) {
-                    notificationService.create(
-                            author,
-                            NotificationType.CONTENT_DELETED,
-                            "Contenido eliminado por moderación",
-                            detailMessage,
-                            "/terms"
-                    );
-                }
-            }
-            case WARN_USER -> {
-                if (author != null) {
-                    userSanctionRepository.save(new UserSanction(
-                            author,
-                            admin,
-                            report,
-                            SanctionType.ADVERTENCIA,
-                            "Reporte #" + report.getId() + ": " + reasonLabel,
-                            note.isEmpty() ? null : note
-                    ));
-                    notificationService.create(
-                            author,
-                            NotificationType.WARNING,
-                            "Advertencia de moderación",
-                            detailMessage,
-                            "/terms"
-                    );
-                }
-            }
-            case SUSPEND_USER -> {
-                if (author != null) {
-                    author.setSuspended(true);
-                    userRepository.save(author);
-                    userSanctionRepository.save(new UserSanction(
-                            author,
-                            admin,
-                            report,
-                            SanctionType.SUSPENSION,
-                            "Reporte #" + report.getId() + ": " + reasonLabel,
-                            note.isEmpty() ? null : note
-                    ));
-                    notificationService.create(
-                            author,
-                            NotificationType.SANCTION,
-                            "Cuenta suspendida",
-                            detailMessage,
-                            "/terms"
-                    );
-                }
-            }
+            case KEEP -> { }
+            case HIDE -> notificationService.create(
+                    author,
+                    NotificationType.CONTENT_HIDDEN,
+                    "Contenido ocultado por moderación",
+                    detailMessage,
+                    "/terms"
+            );
+            case REMOVE -> notificationService.create(
+                    author,
+                    NotificationType.CONTENT_DELETED,
+                    "Contenido eliminado por moderación",
+                    detailMessage,
+                    "/terms"
+            );
+            case WARN_USER -> notificationService.create(
+                    author,
+                    NotificationType.WARNING,
+                    "Advertencia de moderación",
+                    detailMessage,
+                    "/terms"
+            );
+            case SUSPEND_USER -> notificationService.create(
+                    author,
+                    NotificationType.SANCTION,
+                    "Cuenta suspendida",
+                    detailMessage,
+                    "/terms"
+            );
         }
+    }
+
+    private Decision findDecisionForReport(Long reportId) {
+        Long decisionId = decisionRepository.fnObtenerDecisionReporte(reportId);
+        return decisionId == null ? null : decisionRepository.findById(decisionId).orElse(null);
     }
 
     private Object buildTargetData(Report report, User viewer, String baseUrl) {
@@ -388,29 +324,25 @@ public class ModerationService {
 
     private Map<Long, Decision> loadDecisions(List<Report> reports) {
         Map<Long, Decision> map = new LinkedHashMap<>();
-        if (reports.isEmpty()) {
-            return map;
-        }
-        List<Long> ids = reports.stream().map(Report::getId).toList();
-        for (Decision decision : decisionRepository.findByReportIdInWithModerator(ids)) {
-            if (decision.getReport() != null) {
-                map.put(decision.getReport().getId(), decision);
+        for (Report report : reports) {
+            Decision decision = findDecisionForReport(report.getId());
+            if (decision != null) {
+                map.put(report.getId(), decision);
             }
         }
         return map;
     }
 
     private void notifyAdminsOfNewReport(Report saved) {
-        for (User candidate : userRepository.findVerifiedUsers()) {
-            if (isAdminUser(candidate)) {
-                notificationService.create(
-                        candidate,
-                        NotificationType.REPORT_PENDING,
-                        "Nuevo reporte pendiente",
-                        "@" + saved.getReporter().getUsername() + " reportó \"" + saved.getTargetLabel() + "\".",
-                        "/admin/reports/" + saved.getId()
-                );
-            }
+        List<Long> adminIds = oraclePackageService.fnAdminsVerificadosIds();
+        for (User admin : userRepository.findAllById(adminIds)) {
+            notificationService.create(
+                    admin,
+                    NotificationType.REPORT_PENDING,
+                    "Nuevo reporte pendiente",
+                    "@" + saved.getReporter().getUsername() + " reportó \"" + saved.getTargetLabel() + "\".",
+                    "/admin/reports/" + saved.getId()
+            );
         }
     }
 
@@ -481,26 +413,5 @@ public class ModerationService {
                 "DUPLICATE_REPORT",
                 "Ya reportaste este contenido. El equipo de administración lo revisará."
         );
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
-    }
-
-    private User requireAdmin(User user, String forbiddenMessage) {
-        User current = requireAuthenticated(user, "Debes iniciar sesión para realizar esta acción.");
-        if (!isAdminUser(current)) {
-            throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage);
-        }
-        return current;
-    }
-
-    private boolean isAdminUser(User user) {
-        return user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
     }
 }

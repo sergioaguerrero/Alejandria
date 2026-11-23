@@ -1,18 +1,20 @@
 package com.backend.service;
 
+import com.backend.cross.ContactMethodType;
 import com.backend.cross.NotificationType;
 import com.backend.domain.academy.Subject;
 import com.backend.domain.identity.User;
-import com.backend.domain.identity.UserFollow;
-import com.backend.domain.identity.UserFollowId;
+import com.backend.domain.identity.UserContact;
 import com.backend.domain.identity.UserSubjectInterest;
 import com.backend.dto.ChangePasswordRequest;
+import com.backend.dto.ContactItemRequest;
 import com.backend.dto.PublicUserProfileDto;
 import com.backend.dto.SubjectDto;
 import com.backend.dto.UpdateProfileRequest;
 import com.backend.dto.UserDto;
 import com.backend.exception.AuthException;
 import com.backend.repository.CatalogRepository;
+import com.backend.repository.UserContactRepository;
 import com.backend.repository.UserFollowRepository;
 import com.backend.repository.UserRepository;
 import com.backend.repository.UserSubjectInterestRepository;
@@ -21,54 +23,82 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Gestiona el perfil privado y público del usuario, seguimiento mutuo y materias de interés.
+ * Gestiona el perfil privado y público del usuario, seguimiento mutuo y materias de interés
+ * invocando funciones y procedimientos de PKG_AUTH_USUARIOS.
  */
 @Service
 public class UserProfileService {
 
+    public static final int MAX_BIO_LENGTH = 500;
+    public static final int MAX_CONTACTS = 8;
+    public static final int MAX_CONTACT_VALUE_LENGTH = 255;
+    public static final int MAX_CONTACT_LABEL_LENGTH = 60;
+
+    private static final Pattern CONTACT_EMAIL_PATTERN =
+            Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$");
+    private static final Pattern WHATSAPP_PATTERN =
+            Pattern.compile("^\\+?[0-9\\s\\-()]{7,20}$");
+
     private final UserRepository userRepository;
+    private final UserContactRepository userContactRepository;
     private final UserFollowRepository userFollowRepository;
     private final UserSubjectInterestRepository userSubjectInterestRepository;
     private final CatalogRepository catalogRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
+    private final OraclePackageService oraclePackageService;
 
     public UserProfileService(
             UserRepository userRepository,
+            UserContactRepository userContactRepository,
             UserFollowRepository userFollowRepository,
             UserSubjectInterestRepository userSubjectInterestRepository,
             CatalogRepository catalogRepository,
             PasswordEncoder passwordEncoder,
-            NotificationService notificationService
+            NotificationService notificationService,
+            OraclePackageService oraclePackageService
     ) {
         this.userRepository = userRepository;
+        this.userContactRepository = userContactRepository;
         this.userFollowRepository = userFollowRepository;
         this.userSubjectInterestRepository = userSubjectInterestRepository;
         this.catalogRepository = catalogRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
+        this.oraclePackageService = oraclePackageService;
+    }
+
+    @Transactional(readOnly = true)
+    public UserDto getMyProfile(User currentUser) {
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu perfil.");
+        List<UserContact> contacts = loadUserContacts(user.getId());
+        return UserDto.fromEntity(user, contacts);
     }
 
     @Transactional
     public UserDto updateProfile(UpdateProfileRequest request, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para editar tu perfil.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para editar tu perfil.");
 
         String cleanName = request.getName() == null ? "" : request.getName().trim().replaceAll("\\s+", " ");
         String cleanUsername = request.getUsername() == null ? "" : request.getUsername().trim().toLowerCase(Locale.ROOT);
         Integer semester = request.getSemester();
+        String rawBio = request.getBio();
+        String cleanBio = rawBio == null ? null : rawBio.replace("\r\n", "\n").trim();
 
         Map<String, String> fields = new LinkedHashMap<>();
         if (cleanName.length() < 3 || cleanName.length() > 80) {
@@ -76,11 +106,11 @@ public class UserProfileService {
         }
         if (!AuthService.isValidUsername(cleanUsername)) {
             fields.put("username", "Entre 3 y 20 caracteres: letras, números, punto o guion bajo.");
-        } else if (userRepository.existsByUsernameIgnoreCaseAndIdNot(cleanUsername, user.getId())) {
+        } else if (userRepository.fnExisteUsernameOtro(cleanUsername, user.getId()) == 1) {
             fields.put("username", "Ese nombre de usuario ya está en uso.");
         }
 
-        boolean isAdmin = isAdminRole(user);
+        boolean isAdmin = AuthGuards.isAdmin(user);
 
         if (!isAdmin) {
             if (semester == null) {
@@ -88,6 +118,15 @@ public class UserProfileService {
             } else if (semester < 1 || semester > 9) {
                 fields.put("semester", "Selecciona un semestre entre 1 y 9.");
             }
+        }
+
+        if (cleanBio != null && cleanBio.length() > MAX_BIO_LENGTH) {
+            fields.put("bio", "La descripción no puede superar los " + MAX_BIO_LENGTH + " caracteres.");
+        }
+
+        List<UserContact> validatedContacts = null;
+        if (request.getContacts() != null) {
+            validatedContacts = validateAndBuildContacts(user, request.getContacts(), fields);
         }
 
         if (!fields.isEmpty()) {
@@ -104,14 +143,28 @@ public class UserProfileService {
         if (!isAdmin) {
             user.setSemester(semester);
         }
+        if (cleanBio != null) {
+            user.setBio(cleanBio.isEmpty() ? null : cleanBio);
+        }
 
         User saved = userRepository.save(user);
-        return UserDto.fromEntity(saved);
+
+        List<UserContact> savedContacts;
+        if (validatedContacts != null) {
+            oraclePackageService.prEliminarContactosUsuario(saved.getId());
+            savedContacts = validatedContacts.isEmpty()
+                    ? Collections.emptyList()
+                    : userContactRepository.saveAll(validatedContacts);
+        } else {
+            savedContacts = loadUserContacts(saved.getId());
+        }
+
+        return UserDto.fromEntity(saved, savedContacts);
     }
 
     @Transactional
     public void changePassword(ChangePasswordRequest request, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para cambiar tu contraseña.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para cambiar tu contraseña.");
 
         String currentPassword = request.getCurrentPassword() == null ? "" : request.getCurrentPassword();
         String newPassword = request.getNewPassword() == null ? "" : request.getNewPassword();
@@ -153,19 +206,18 @@ public class UserProfileService {
 
     @Transactional
     public PublicUserProfileDto toggleFollow(String username, User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para seguir a otros usuarios.");
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para seguir a otros usuarios.");
         User target = findActiveUserByUsername(username);
 
         if (target.getId().equals(viewer.getId())) {
             throw new AuthException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "No puedes seguirte a ti mismo.");
         }
 
-        UserFollowId followId = new UserFollowId(viewer.getId(), target.getId());
-        if (userFollowRepository.existsById(followId)) {
-            userFollowRepository.deleteById(followId);
-        } else {
-            userFollowRepository.save(new UserFollow(viewer.getId(), target.getId()));
-            boolean mutual = userFollowRepository.existsById(new UserFollowId(target.getId(), viewer.getId()));
+        int[] out = oraclePackageService.prToggleSeguirUsuario(viewer.getId(), target.getId());
+        boolean nowFollowing = out[0] == 1;
+        boolean mutual = out[1] == 1;
+
+        if (nowFollowing) {
             notificationService.create(
                     target,
                     mutual ? NotificationType.FRIEND_MATCH : NotificationType.NEW_FOLLOWER,
@@ -182,50 +234,49 @@ public class UserProfileService {
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFriends(User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
-        return mapList(userFollowRepository.findMutualFriends(viewer.getId()), viewer);
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
+        List<Long> ids = oraclePackageService.fnObtenerAmigosMutuosIds(viewer.getId());
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFollowing(User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
-        return mapList(userFollowRepository.findFollowingUsers(viewer.getId()), viewer);
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
+        List<Long> ids = oraclePackageService.fnObtenerSeguidosUsuarioIds(viewer.getId());
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> getFollowers(User currentUser) {
-        User viewer = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
-        return mapList(userFollowRepository.findFollowerUsers(viewer.getId()), viewer);
+        User viewer = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu red de amigos.");
+        List<Long> ids = oraclePackageService.fnObtenerSeguidoresUsuarioIds(viewer.getId());
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<PublicUserProfileDto> searchUsers(String query, User viewer) {
         String cleanQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
-        List<User> candidates = userRepository.findVerifiedUsers().stream()
-                .filter(candidate -> !isAdminRole(candidate))
-                .filter(candidate -> {
-                    if (cleanQuery.isEmpty()) {
-                        return true;
-                    }
-                    String username = candidate.getUsername() == null ? "" : candidate.getUsername().toLowerCase(Locale.ROOT);
-                    String semesterText = candidate.getSemester() != null ? "semestre " + candidate.getSemester() : "";
-                    return username.contains(cleanQuery) || semesterText.contains(cleanQuery);
-                })
-                .toList();
-        return mapList(candidates, viewer);
+        String queryPattern = cleanQuery.isEmpty()
+                ? null
+                : "%" + cleanQuery.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        Integer parsedSemester = parseSemesterFromQuery(cleanQuery);
+        List<Long> ids = oraclePackageService.fnBuscarEstudiantesActivosIds(queryPattern, parsedSemester, 50);
+        return mapList(loadUsersInOrder(ids), viewer);
     }
 
     @Transactional(readOnly = true)
     public List<SubjectDto> getSubjectsOfInterest(User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus materias.");
-        return userSubjectInterestRepository.findSubjectsByUserId(user.getId()).stream()
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus materias.");
+        List<Long> subjectIds = oraclePackageService.fnMateriasInteresUsuarioIds(user.getId());
+        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllById(subjectIds), Subject::getId)
+                .stream()
                 .map(SubjectDto::fromEntity)
                 .toList();
     }
 
     @Transactional
     public List<SubjectDto> updateSubjectsOfInterest(List<Long> rawSubjectIds, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para guardar tus materias.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para guardar tus materias.");
 
         Set<Long> uniqueIds = rawSubjectIds == null
                 ? Collections.emptySet()
@@ -245,8 +296,7 @@ public class UserProfileService {
             );
         }
 
-        userSubjectInterestRepository.deleteByIdUserId(user.getId());
-        userSubjectInterestRepository.flush();
+        oraclePackageService.prEliminarMateriasInteres(user.getId());
 
         if (!validSubjects.isEmpty()) {
             List<UserSubjectInterest> entries = validSubjects.stream()
@@ -255,9 +305,20 @@ public class UserProfileService {
             userSubjectInterestRepository.saveAll(entries);
         }
 
-        return userSubjectInterestRepository.findSubjectsByUserId(user.getId()).stream()
+        List<Long> subjectIds = oraclePackageService.fnMateriasInteresUsuarioIds(user.getId());
+        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllById(subjectIds), Subject::getId)
+                .stream()
                 .map(SubjectDto::fromEntity)
                 .toList();
+    }
+
+    private List<User> loadUsersInOrder(List<Long> ids) {
+        return oraclePackageService.orderByIds(ids, userRepository.findAllById(ids), User::getId);
+    }
+
+    private List<UserContact> loadUserContacts(Long userId) {
+        List<Long> ids = oraclePackageService.fnContactosUsuarioIds(userId);
+        return oraclePackageService.orderByIds(ids, userContactRepository.findAllById(ids), UserContact::getId);
     }
 
     private User findActiveUserByUsername(String rawUsername) {
@@ -265,7 +326,8 @@ public class UserProfileService {
         if (cleanUsername.isEmpty()) {
             throw new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "El usuario no existe.");
         }
-        return userRepository.findByUsernameIgnoreCase(cleanUsername)
+        Long id = userRepository.fnBuscarUsuarioPorUsername(cleanUsername);
+        return (id == null ? Optional.<User>empty() : userRepository.findById(id))
                 .filter(User::isVerified)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
@@ -274,17 +336,21 @@ public class UserProfileService {
                 ));
     }
 
-    private boolean isAdminRole(User user) {
-        return user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
+    private Integer parseSemesterFromQuery(String cleanQuery) {
+        if (cleanQuery == null || cleanQuery.isEmpty()) {
+            return null;
         }
-        return user;
+        String candidate = cleanQuery;
+        if (candidate.startsWith("semestre")) {
+            candidate = candidate.substring("semestre".length()).trim();
+        }
+        if (candidate.matches("^\\d{1,2}$")) {
+            int semester = Integer.parseInt(candidate);
+            if (semester >= 1 && semester <= 12) {
+                return semester;
+            }
+        }
+        return null;
     }
 
     private void applyFullName(User user, String fullName) {
@@ -317,40 +383,143 @@ public class UserProfileService {
             return List.of();
         }
 
-        List<Long> ids = users.stream().map(User::getId).toList();
-
-        Map<Long, Long> followersCounts = new HashMap<>();
-        for (Object[] row : userFollowRepository.countFollowersByUserIds(ids)) {
-            followersCounts.put((Long) row[0], (Long) row[1]);
-        }
-
-        Map<Long, Long> followingCounts = new HashMap<>();
-        for (Object[] row : userFollowRepository.countFollowingByUserIds(ids)) {
-            followingCounts.put((Long) row[0], (Long) row[1]);
-        }
-
-        Set<Long> followingIds = viewer != null
-                ? new HashSet<>(userFollowRepository.findFollowedUserIds(viewer.getId(), ids))
-                : Collections.emptySet();
-
-        Set<Long> followerIds = viewer != null
-                ? new HashSet<>(userFollowRepository.findFollowerUserIds(viewer.getId(), ids))
-                : Collections.emptySet();
+        Long viewerId = viewer != null ? viewer.getId() : null;
 
         return users.stream()
                 .map(target -> {
-                    boolean isSelf = viewer != null && viewer.getId().equals(target.getId());
-                    boolean isFollowing = !isSelf && followingIds.contains(target.getId());
-                    boolean followsMe = !isSelf && followerIds.contains(target.getId());
+                    Long targetId = target.getId();
+                    boolean isSelf = viewerId != null && viewerId.equals(targetId);
+                    long followersCount = userFollowRepository.fnContarSeguidoresUsuario(targetId);
+                    long followingCount = userFollowRepository.fnContarSeguidosUsuario(targetId);
+                    boolean isFollowing = !isSelf && viewerId != null
+                            && userFollowRepository.fnEsSeguidorUsuario(viewerId, targetId) == 1;
+                    boolean followsMe = !isSelf && viewerId != null
+                            && userFollowRepository.fnEsSeguidorUsuario(targetId, viewerId) == 1;
+                    List<UserContact> contacts = loadUserContacts(targetId);
+
                     return PublicUserProfileDto.fromEntity(
                             target,
                             isSelf,
-                            followersCounts.getOrDefault(target.getId(), 0L),
-                            followingCounts.getOrDefault(target.getId(), 0L),
+                            followersCount,
+                            followingCount,
                             isFollowing,
-                            followsMe
+                            followsMe,
+                            contacts
                     );
                 })
                 .toList();
+    }
+
+    private List<UserContact> validateAndBuildContacts(
+            User user,
+            List<ContactItemRequest> rawContacts,
+            Map<String, String> fields
+    ) {
+        if (rawContacts.size() > MAX_CONTACTS) {
+            fields.put("contacts", "Puedes registrar como máximo " + MAX_CONTACTS + " medios de contacto.");
+            return Collections.emptyList();
+        }
+
+        List<UserContact> built = new ArrayList<>();
+        for (int i = 0; i < rawContacts.size(); i++) {
+            ContactItemRequest item = rawContacts.get(i);
+            if (item == null) {
+                fields.put("contacts." + i + ".value", "Completa o elimina este medio de contacto.");
+                continue;
+            }
+
+            ContactMethodType type = ContactMethodType.fromValue(item.getType()).orElse(null);
+            if (type == null) {
+                fields.put("contacts." + i + ".type", "Selecciona un tipo de contacto válido.");
+            }
+
+            String cleanValue = item.getValue() == null ? "" : item.getValue().trim();
+            String cleanLabel = item.getLabel() == null ? "" : item.getLabel().trim();
+
+            if (cleanLabel.length() > MAX_CONTACT_LABEL_LENGTH) {
+                fields.put(
+                        "contacts." + i + ".label",
+                        "La etiqueta no puede superar " + MAX_CONTACT_LABEL_LENGTH + " caracteres."
+                );
+            }
+
+            String valueError = validateContactValue(type, cleanValue);
+            if (valueError != null) {
+                fields.put("contacts." + i + ".value", valueError);
+            }
+
+            if (type != null && valueError == null && cleanLabel.length() <= MAX_CONTACT_LABEL_LENGTH) {
+                built.add(new UserContact(
+                        user,
+                        type,
+                        cleanValue,
+                        cleanLabel.isEmpty() ? null : cleanLabel,
+                        i
+                ));
+            }
+        }
+        return built;
+    }
+
+    private String validateContactValue(ContactMethodType type, String value) {
+        if (value.isEmpty()) {
+            return "Escribe el dato o enlace de contacto.";
+        }
+        if (value.length() > MAX_CONTACT_VALUE_LENGTH) {
+            return "No puede superar " + MAX_CONTACT_VALUE_LENGTH + " caracteres.";
+        }
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+            return "Ese formato de enlace no está permitido.";
+        }
+        if (type == null) {
+            return null;
+        }
+        return switch (type) {
+            case EMAIL -> CONTACT_EMAIL_PATTERN.matcher(value).matches()
+                    ? null
+                    : "Escribe un correo electrónico válido.";
+            case WHATSAPP -> {
+                long digits = value.chars().filter(Character::isDigit).count();
+                yield WHATSAPP_PATTERN.matcher(value).matches() && digits >= 7 && digits <= 15
+                        ? null
+                        : "Escribe un número de WhatsApp válido (ej. +57 300 123 4567).";
+            }
+            case WEBSITE -> isSafeHttpUrl(value)
+                    ? null
+                    : "Ingresa una URL válida que comience con https:// o http://.";
+            case INSTAGRAM, GITHUB, TELEGRAM, LINKEDIN -> validateSocialHandleOrUrl(value);
+            case DISCORD -> value.length() >= 2 && value.length() <= 60
+                    ? null
+                    : "Escribe tu usuario de Discord (entre 2 y 60 caracteres).";
+            case OTHER -> value.length() >= 2
+                    ? null
+                    : "Escribe al menos 2 caracteres.";
+        };
+    }
+
+    private String validateSocialHandleOrUrl(String value) {
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return isSafeHttpUrl(value) ? null : "Ingresa una URL válida.";
+        }
+        if (value.contains(" ") || value.length() < 2) {
+            return "Escribe un usuario válido (sin espacios) o una URL completa.";
+        }
+        return null;
+    }
+
+    private boolean isSafeHttpUrl(String value) {
+        try {
+            URI uri = URI.create(value);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            return scheme != null
+                    && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                    && host != null
+                    && host.contains(".");
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 }

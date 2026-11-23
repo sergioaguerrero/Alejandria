@@ -92,7 +92,6 @@ export default function App() {
               <Route path="/ia/cuestionario/:id" element={<QuizPage />} />
               <Route path="/ai/material/:id" element={<AiMaterialPage />} />
               <Route path="/ia/material/:id" element={<AiMaterialPage />} />
-              <Route path="/ia/cuestionario/:id" element={<QuizPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/users/:username" element={<PublicProfilePage />} />
               <Route path="/friends" element={<FriendsPage />} />

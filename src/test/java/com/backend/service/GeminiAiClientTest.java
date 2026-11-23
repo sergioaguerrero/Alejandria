@@ -40,7 +40,7 @@ class GeminiAiClientTest {
         GeminiAiClient client = new GeminiAiClient(
                 restTemplate,
                 objectMapper,
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=",
                 ""
         );
 
@@ -63,8 +63,8 @@ class GeminiAiClientTest {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
 
-        String primaryUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=";
-        String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=";
+        String primaryUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
+        String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=";
         String geminiPayload = """
                 {
                   "candidates": [{

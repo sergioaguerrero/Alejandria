@@ -14,16 +14,15 @@ import {
   Divider,
   IconButton,
   List,
-  ListItemAvatar,
   ListItemButton,
-  ListItemText,
   Menu,
   Tooltip,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 
-import NotificationTypeIcon from './NotificationTypeIcon.jsx';
+import { NotificationAvatar, NotificationMessage } from './NotificationAvatar.jsx';
 import {
   getNotifications,
   getUnreadNotificationsCount,
@@ -142,9 +141,10 @@ export default function NotificationBell() {
         slotProps={{
           paper: {
             sx: {
-              width: 360,
+              width: 390,
               maxWidth: '100vw',
               maxHeight: 480,
+              borderRadius: 2,
             },
           },
         }}
@@ -155,10 +155,10 @@ export default function NotificationBell() {
             alignItems: 'center',
             justifyContent: 'space-between',
             px: 2,
-            py: 1.5,
+            py: 1.25,
           }}
         >
-          <Typography variant="subtitle1" fontWeight={600}>
+          <Typography variant="subtitle1" fontWeight={700}>
             Notificaciones
           </Typography>
           {unreadCount > 0 && (
@@ -181,53 +181,86 @@ export default function NotificationBell() {
             </Typography>
           </Box>
         ) : (
-          <List disablePadding sx={{ py: 0.5 }}>
-            {notifications.map((notification) => (
-              <ListItemButton
-                key={notification.id}
-                onClick={() => handleItemClick(notification)}
-                sx={{
-                  alignItems: 'flex-start',
-                  gap: 1.5,
-                  py: 1,
-                  px: 2,
-                  bgcolor: notification.read ? 'transparent' : 'action.hover',
-                }}
-              >
-                <ListItemAvatar sx={{ minWidth: 32, mt: 0.5 }}>
-                  <NotificationTypeIcon type={notification.type} fontSize="small" />
-                </ListItemAvatar>
-                <ListItemText
-                  primary={
-                    <Typography
-                      variant="body2"
-                      fontWeight={notification.read ? 400 : 600}
-                      color="text.primary"
+          <List disablePadding>
+            {notifications.map((notification, idx) => (
+              <Box key={notification.id}>
+                {idx > 0 && <Divider />}
+                <ListItemButton
+                  onClick={() => handleItemClick(notification)}
+                  sx={(theme) => ({
+                    alignItems: 'center',
+                    gap: 1.5,
+                    py: 1.25,
+                    px: 2,
+                    bgcolor: notification.read
+                      ? 'transparent'
+                      : alpha(theme.palette.primary.main, 0.06),
+                    '&:hover': {
+                      bgcolor: notification.read
+                        ? 'action.hover'
+                        : alpha(theme.palette.primary.main, 0.1),
+                    },
+                  })}
+                >
+                  <NotificationAvatar type={notification.type} size={36} iconSize={18} />
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.75,
+                        flexWrap: 'wrap',
+                        mb: 0.15,
+                      }}
                     >
-                      {notification.title}
-                    </Typography>
-                  }
-                  secondary={
-                    <Box component="span" sx={{ display: 'block', mt: 0.25 }}>
+                      <Typography
+                        variant="body2"
+                        fontWeight={notification.read ? 500 : 700}
+                        color="text.primary"
+                        sx={{ fontSize: '0.83rem', lineHeight: 1.35 }}
+                      >
+                        {notification.title}
+                      </Typography>
                       <Typography
                         variant="caption"
-                        color="text.secondary"
-                        sx={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
+                        color="text.disabled"
+                        sx={{ fontSize: '0.72rem' }}
                       >
-                        {notification.message}
-                      </Typography>
-                      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.25 }}>
-                        {formatRelativeDate(notification.createdAt)}
+                        · {formatRelativeDate(notification.createdAt)}
                       </Typography>
                     </Box>
-                  }
-                />
-              </ListItemButton>
+
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        fontSize: '0.8rem',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      <NotificationMessage message={notification.message} />
+                    </Typography>
+                  </Box>
+
+                  {!notification.read && (
+                    <Box
+                      aria-label="Sin leer"
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: 'primary.main',
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </Box>
             ))}
           </List>
         )}

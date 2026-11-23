@@ -37,6 +37,7 @@ import ReportDialog from '../../components/common/ReportDialog.jsx';
 import DocumentPreview from '../../components/documents/DocumentPreview.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
+import { formatShortDate } from '../../utils/formatDate.js';
 import { isPreviewable, triggerFileDownload } from '../../utils/fileTypes.js';
 import {
   deleteDocument,
@@ -191,6 +192,7 @@ export default function DocumentDetailPage() {
     MATERIAL_TYPES.find((item) => item.value === documentData.type)?.label ?? documentData.type;
   const termLabel =
     TERMS.find((item) => item.value === documentData.term)?.label ?? `Corte ${documentData.term}`;
+  const uploadDateLabel = formatShortDate(documentData.createdAt);
   // When the file cannot be previewed, the download button lives in the card
   // that replaces the viewer, so it is not repeated here.
   const canPreview = isPreviewable(documentData.file?.extension);
@@ -285,6 +287,10 @@ export default function DocumentDetailPage() {
                     {`@${documentData.authorUsername}`}
                   </Link>
                 </DetailRow>
+
+                {uploadDateLabel && (
+                  <DetailRow label="Fecha de subida">{uploadDateLabel}</DetailRow>
+                )}
 
                 {documentData.tags?.length > 0 && (
                   <>

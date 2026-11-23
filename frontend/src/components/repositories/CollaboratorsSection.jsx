@@ -191,8 +191,8 @@ export default function CollaboratorsSection({
           }}
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <PeopleOutlinedIcon color="primary" fontSize="small" />
-            <Typography variant="subtitle1" fontWeight={700}>
+            <PeopleOutlinedIcon color="primary" sx={{ fontSize: 24 }} />
+            <Typography variant="h6" fontWeight={700}>
               Colaboradores
             </Typography>
           </Stack>
@@ -246,13 +246,6 @@ export default function CollaboratorsSection({
                 Rechazar
               </Button>
             </Stack>
-          </Alert>
-        )}
-
-        {/* Active contributor notice */}
-        {!isOwner && repository.isCollaborator && (
-          <Alert severity="success" sx={{ mb: 2, borderRadius: 1.5 }}>
-            Eres colaborador aceptado: puedes subir documentos a este repositorio.
           </Alert>
         )}
 
@@ -454,6 +447,13 @@ export default function CollaboratorsSection({
               );
             })}
           </Stack>
+        )}
+
+        {/* Active contributor notice */}
+        {!isOwner && repository.isCollaborator && (
+          <Alert severity="success" sx={{ mt: 2, borderRadius: 1.5 }}>
+            Eres colaborador aceptado: puedes subir documentos a este repositorio.
+          </Alert>
         )}
       </CardContent>
 

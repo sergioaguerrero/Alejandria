@@ -32,7 +32,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { alpha } from '@mui/material/styles';
 import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded';
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -56,6 +56,33 @@ import {
   getRepositoriesByUser,
   getRepository,
 } from '../../services/index.js';
+
+function getSelectableCardSx(isSelected, interactiveLift = false) {
+  return (theme) => ({
+    p: 2,
+    height: '100%',
+    borderRadius: 2,
+    cursor: 'pointer',
+    border: '1.5px solid',
+    borderColor: isSelected ? theme.palette.primary.main : theme.palette.divider,
+    bgcolor: isSelected
+      ? alpha(theme.palette.primary.main, 0.1)
+      : theme.palette.background.paper,
+    boxShadow: isSelected
+      ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.35)}`
+      : 'none',
+    transition: 'all 0.15s ease-in-out',
+    '&:hover': {
+      borderColor: isSelected
+        ? theme.palette.primary.main
+        : alpha(theme.palette.primary.main, 0.55),
+      bgcolor: isSelected
+        ? alpha(theme.palette.primary.main, 0.14)
+        : alpha(theme.palette.primary.main, 0.04),
+      ...(interactiveLift ? { transform: 'translateY(-2px)' } : {}),
+    },
+  });
+}
 
 export default function AiStudyPage() {
   const navigate = useNavigate();
@@ -213,20 +240,6 @@ export default function AiStudyPage() {
         </Typography>
       </Box>
 
-      {/* Permanent AI Disclaimer Notice */}
-      <Alert
-        severity="info"
-        icon={<InfoOutlinedIcon />}
-        sx={{ mb: 3, border: 1, borderColor: 'primary.dark' }}
-      >
-        <Typography variant="subtitle2" fontWeight={600}>
-          Aviso sobre el uso de Inteligencia Artificial
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-          Las preguntas y explicaciones son generadas de forma automática por modelos de IA con fines de práctica y autoevaluación. Pueden contener imprecisiones conceptuales.
-        </Typography>
-      </Alert>
-
       {/* Loading State */}
       {isLoading && (
         <Stack spacing={3}>
@@ -325,20 +338,7 @@ export default function AiStudyPage() {
                                     setContentType(typeOption.value);
                                   }
                                 }}
-                                sx={{
-                                  p: 2,
-                                  height: '100%',
-                                  borderRadius: 2,
-                                  cursor: 'pointer',
-                                  border: 2,
-                                  borderColor: isSelected ? 'primary.main' : 'divider',
-                                  bgcolor: isSelected ? 'action.selected' : 'background.paper',
-                                  transition: 'all 0.15s ease-in-out',
-                                  '&:hover': {
-                                    borderColor: 'primary.main',
-                                    bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                                  },
-                                }}
+                                sx={getSelectableCardSx(isSelected)}
                               >
                                 <Stack
                                   direction="row"
@@ -387,20 +387,7 @@ export default function AiStudyPage() {
                               <Grid key={repo.id} size={{ xs: 12, sm: 6 }}>
                                 <Box
                                   onClick={() => setSelectedRepo(repo)}
-                                  sx={{
-                                    p: 2,
-                                    borderRadius: 2,
-                                    cursor: 'pointer',
-                                    border: 2,
-                                    borderColor: isSelected ? 'primary.main' : 'divider',
-                                    bgcolor: isSelected ? 'action.selected' : 'background.paper',
-                                    transition: 'all 0.15s ease-in-out',
-                                    '&:hover': {
-                                      borderColor: 'primary.main',
-                                      bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                                      transform: 'translateY(-2px)',
-                                    },
-                                  }}
+                                  sx={getSelectableCardSx(isSelected, true)}
                                 >
                                   <Stack
                                     direction="row"
@@ -433,7 +420,7 @@ export default function AiStudyPage() {
                                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                     <FolderOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                                     <Typography variant="caption" color="text.secondary">
-                                      {repo.documentCount ?? 0} documentos • @{repo.authorUsername}
+                                      {`${repo.documentCount ?? 0} ${(repo.documentCount ?? 0) === 1 ? 'documento' : 'documentos'} • @${repo.authorUsername}`}
                                     </Typography>
                                   </Stack>
                                 </Box>
@@ -461,32 +448,6 @@ export default function AiStudyPage() {
 
 
                     </Box>
-
-                    {/* Selected Repository Confirmation pill */}
-                    {selectedRepo && (
-                      <Box
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 1.5,
-                          border: 1,
-                          borderColor: 'primary.dark',
-                          bgcolor: 'action.selected',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: 1,
-                        }}
-                      >
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                          <AutoAwesomeIcon color="primary" fontSize="small" />
-                          <Typography variant="body2">
-                            Materia seleccionada: <strong>{selectedRepo.name}</strong> ({selectedRepo.subject?.name ?? 'General'})
-                          </Typography>
-                        </Stack>
-                        <Chip size="small" color="primary" label="Listo para evaluar" />
-                      </Box>
-                    )}
 
                     {/* 2. Scope Selector */}
                     <Box>
@@ -578,10 +539,9 @@ export default function AiStudyPage() {
                         variant="contained"
                         size="large"
                         fullWidth
-                        startIcon={<AutoAwesomeIcon />}
                         disabled={!selectedRepo || quota.remaining <= 0}
                       >
-                        {getAiContentMeta(contentType).submitLabel}
+                        Generar
                       </Button>
                     </Box>
                   </Stack>
@@ -591,6 +551,20 @@ export default function AiStudyPage() {
           </Card>
         </Stack>
       )}
+
+      {/* Permanent AI Disclaimer Notice */}
+      <Alert
+        severity="info"
+        icon={<InfoOutlinedIcon />}
+        sx={{ mt: 3, border: 1, borderColor: 'primary.dark' }}
+      >
+        <Typography variant="subtitle2" fontWeight={600}>
+          Aviso sobre el uso de Inteligencia Artificial
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+          Las preguntas y explicaciones son generadas de forma automática por modelos de IA con fines de práctica y autoevaluación. Pueden contener imprecisiones conceptuales.
+        </Typography>
+      </Alert>
     </Box>
   );
 }

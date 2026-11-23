@@ -12,12 +12,12 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "nombre", nullable = false, unique = true, length = 150)
+    @Column(name = "nombre", nullable = false, unique = true, length = 20)
     private String name;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "PERMISO_ROL", joinColumns = @JoinColumn(name = "rol_id"))
-    @Column(name = "permiso", nullable = false, length = 100)
+    @Column(name = "permiso", nullable = false, length = 20)
     private Set<String> permissions = new HashSet<>();
 
     protected Role() {

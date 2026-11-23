@@ -1,6 +1,7 @@
 package com.backend.domain.repos;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -17,7 +18,7 @@ public class Resource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "titulo", nullable = false, length = 200)
+    @Column(name = "titulo", nullable = false, length = 120)
     private String title;
 
     @Column(name = "descripcion", length = 2000)
@@ -30,13 +31,14 @@ public class Resource {
     @Column(name = "corte", nullable = false)
     private int term = 1;
 
-    @Column(name = "tema", length = 150)
+    @Column(name = "tema", length = 80)
     private String topic;
 
     @Column(name = "nombre_archivo", length = 255)
     private String fileName;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     @Column(name = "archivo_bytes", nullable = false)
     private byte[] fileBytes;
 
@@ -71,6 +73,7 @@ public class Resource {
     @JoinColumn(name = "repositorio_id")
     private StudyRepository studyRepository;
 
+    @BatchSize(size = 30)
     @ManyToMany
     @JoinTable(
             name = "RECURSO_ETIQUETA",
@@ -80,6 +83,42 @@ public class Resource {
     private Set<Tag> tags = new HashSet<>();
 
     protected Resource() {}
+
+    public Resource(
+            Long id,
+            String title,
+            String description,
+            ResourceType type,
+            int term,
+            String topic,
+            String fileName,
+            String mimeType,
+            long fileSizeBytes,
+            LocalDateTime uploadDate,
+            ResourceStatus status,
+            int totalViews,
+            int totalDownloads,
+            User uploadedBy,
+            Subject subject,
+            StudyRepository studyRepository
+    ) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.type = type;
+        this.term = term;
+        this.topic = topic;
+        this.fileName = fileName;
+        this.mimeType = mimeType;
+        this.fileSizeBytes = fileSizeBytes;
+        this.uploadDate = uploadDate;
+        this.status = status;
+        this.totalViews = totalViews;
+        this.totalDownloads = totalDownloads;
+        this.uploadedBy = uploadedBy;
+        this.subject = subject;
+        this.studyRepository = studyRepository;
+    }
 
     public Resource(String title, String description, ResourceType type,
                     byte[] fileBytes, String mimeType, long fileSizeBytes,

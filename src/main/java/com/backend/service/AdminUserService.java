@@ -1,7 +1,6 @@
 package com.backend.service;
 
 import com.backend.cross.NotificationType;
-import com.backend.cross.SanctionType;
 import com.backend.domain.governance.UserSanction;
 import com.backend.domain.identity.User;
 import com.backend.dto.AdminUserResponseDto;
@@ -19,7 +18,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Operaciones administrativas sobre cuentas de usuario: consulta de historial y suspensión/reactivación.
+ * Operaciones administrativas sobre cuentas de usuario: consulta de historial y suspensión/reactivación
+ * invocando funciones y procedimientos de PKG_REPOSITORIOS, PKG_AUTH_USUARIOS y PKG_MODERACION.
  */
 @Service
 public class AdminUserService {
@@ -29,67 +29,70 @@ public class AdminUserService {
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final ResourceRepository resourceRepository;
     private final NotificationService notificationService;
+    private final OraclePackageService oraclePackageService;
 
     public AdminUserService(
             UserRepository userRepository,
             UserSanctionRepository userSanctionRepository,
             StudyRepositoryRepository studyRepositoryRepository,
             ResourceRepository resourceRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            OraclePackageService oraclePackageService
     ) {
         this.userRepository = userRepository;
         this.userSanctionRepository = userSanctionRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.resourceRepository = resourceRepository;
         this.notificationService = notificationService;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional(readOnly = true)
     public AdminUserResponseDto getAdminUser(String idOrUsername, User currentUser) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar la información de gestión de usuarios.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar la información de gestión de usuarios.");
         User target = findUserOrThrow(idOrUsername);
-        long repoCount = studyRepositoryRepository.countByAuthorId(target.getId());
-        long docCount = resourceRepository.countByUploadedById(target.getId());
-        List<UserSanction> sanctions = userSanctionRepository.findByUserIdWithModeratorOrderByCreatedAtDesc(target.getId());
+        long repoCount = studyRepositoryRepository.fnContarReposAutor(target.getId());
+        long docCount = resourceRepository.fnContarRecursosAutor(target.getId());
+        List<Long> sanctionIds = oraclePackageService.fnSancionesUsuarioIds(target.getId());
+        List<UserSanction> sanctions = oraclePackageService.orderByIds(
+                sanctionIds,
+                userSanctionRepository.findAllById(sanctionIds),
+                UserSanction::getId
+        );
         return AdminUserResponseDto.fromEntity(target, repoCount, docCount, sanctions);
     }
 
     @Transactional
     public Map<String, Object> toggleSuspension(String idOrUsername, String rawReason, User currentUser) {
-        User admin = requireAdmin(currentUser, "Solo los administradores pueden suspender o reactivar cuentas.");
+        User admin = AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden suspender o reactivar cuentas.");
         User target = findUserOrThrow(idOrUsername);
 
         if (target.getId().equals(admin.getId())) {
             throw new AuthException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "No puedes suspender tu propia cuenta.");
         }
 
-        boolean nextSuspended = !target.isSuspended();
-        target.setSuspended(nextSuspended);
-        userRepository.save(target);
-
         String cleanReason = rawReason == null ? "" : rawReason.trim();
         if (cleanReason.length() > 300) {
             cleanReason = cleanReason.substring(0, 300);
         }
 
+        boolean nextSuspended = !target.isSuspended();
         String sanctionReason = !cleanReason.isEmpty()
                 ? cleanReason
                 : (nextSuspended ? "Suspensión manual por administración" : "Reactivación de cuenta");
 
-        userSanctionRepository.save(new UserSanction(
-                target,
-                admin,
-                null,
-                nextSuspended ? SanctionType.SUSPENSION : SanctionType.REACTIVACION,
+        boolean suspendedNow = oraclePackageService.prToggleSuspensionUsuario(
+                target.getId(),
+                admin.getId(),
                 sanctionReason,
                 cleanReason.isEmpty() ? null : cleanReason
-        ));
+        );
 
         notificationService.create(
                 target,
-                nextSuspended ? NotificationType.SANCTION : NotificationType.SYSTEM,
-                nextSuspended ? "Cuenta suspendida" : "Cuenta reactivada",
-                nextSuspended
+                suspendedNow ? NotificationType.SANCTION : NotificationType.SYSTEM,
+                suspendedNow ? "Cuenta suspendida" : "Cuenta reactivada",
+                suspendedNow
                         ? "Tu cuenta ha sido suspendida. Motivo: " + sanctionReason + "."
                         : "Tu cuenta ha sido reactivada por el equipo de administración.",
                 "/terms"
@@ -98,7 +101,7 @@ public class AdminUserService {
         return Map.of(
                 "id", target.getId(),
                 "username", target.getUsername(),
-                "suspended", target.isSuspended()
+                "suspended", suspendedNow
         );
     }
 
@@ -112,21 +115,9 @@ public class AdminUserService {
             return userRepository.findById(id)
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
         } catch (NumberFormatException ignored) {
-            return userRepository.findByUsernameIgnoreCase(clean.toLowerCase(Locale.ROOT))
+            Long id = userRepository.fnBuscarUsuarioPorUsername(clean.toLowerCase(Locale.ROOT));
+            return (id == null ? java.util.Optional.<User>empty() : userRepository.findById(id))
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
         }
-    }
-
-    private User requireAdmin(User user, String forbiddenMessage) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Debes iniciar sesión para continuar.");
-        }
-        boolean isAdmin = user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
-        if (!isAdmin) {
-            throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage);
-        }
-        return user;
     }
 }

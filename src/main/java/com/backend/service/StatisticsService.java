@@ -3,21 +3,14 @@ package com.backend.service;
 import com.backend.cross.AiContentType;
 import com.backend.cross.InteractionType;
 import com.backend.cross.ResourceType;
-import com.backend.domain.analytic.Interaction;
 import com.backend.domain.identity.User;
-import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.DocumentDto;
-import com.backend.exception.AuthException;
 import com.backend.repository.AiMaterialRepository;
 import com.backend.repository.AiShareRepository;
 import com.backend.repository.InteractionRepository;
-import com.backend.repository.ReportRepository;
-import com.backend.repository.ResourceRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.UserRepository;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +20,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,7 +28,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Calcula estadísticas personales del estudiante y analíticas globales/avanzadas del administrador.
+ * Calcula estadísticas personales del estudiante y analíticas globales/avanzadas del administrador
+ * invocando las funciones de PKG_ANALITICAS, PKG_REPOSITORIOS, PKG_AUTH_USUARIOS, PKG_IA_ESTUDIO y PKG_MODERACION.
  */
 @Service
 public class StatisticsService {
@@ -45,50 +38,44 @@ public class StatisticsService {
     private static final List<String> MONTH_LABELS = List.of("Sem 1", "Sem 2", "Sem 3", "Sem 4");
     private static final List<String> DAY_HOUR_LABELS = List.of("00:00", "04:00", "08:00", "12:00", "16:00", "20:00");
 
-    private final ResourceRepository resourceRepository;
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final UserRepository userRepository;
-    private final ReportRepository reportRepository;
     private final InteractionRepository interactionRepository;
     private final AiMaterialRepository aiMaterialRepository;
     private final AiShareRepository aiShareRepository;
+    private final OraclePackageService oraclePackageService;
 
     public StatisticsService(
-            ResourceRepository resourceRepository,
             StudyRepositoryRepository studyRepositoryRepository,
             UserRepository userRepository,
-            ReportRepository reportRepository,
             InteractionRepository interactionRepository,
             AiMaterialRepository aiMaterialRepository,
-            AiShareRepository aiShareRepository
+            AiShareRepository aiShareRepository,
+            OraclePackageService oraclePackageService
     ) {
-        this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.userRepository = userRepository;
-        this.reportRepository = reportRepository;
         this.interactionRepository = interactionRepository;
         this.aiMaterialRepository = aiMaterialRepository;
         this.aiShareRepository = aiShareRepository;
+        this.oraclePackageService = oraclePackageService;
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getMyStatistics(String rawPeriod, User currentUser) {
-        User user = requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus estadísticas.");
+        User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus estadísticas.");
         String period = "month".equalsIgnoreCase(rawPeriod) ? "month" : "week";
 
-        List<Object[]> allResourceRows = resourceRepository.findPublishedStatisticsRows();
-        List<StudyRepository> userRepos = studyRepositoryRepository.findByAuthorId(user.getId());
+        List<Object[]> myResourceRows = oraclePackageService.fnEstadisticasRecursosAutor(user.getId());
+        List<Long> userRepoIds = oraclePackageService.fnRepositoriosPorAutorIds(user.getUsername());
+        List<StudyRepository> userRepos = studyRepositoryRepository.findAllById(userRepoIds);
 
         long totalViews = 0;
         long totalDownloads = 0;
         List<Map<String, Object>> myDocuments = new ArrayList<>();
         Map<String, Integer> uploadedSubjectCounts = new LinkedHashMap<>();
 
-        for (Object[] row : allResourceRows) {
-            Long ownerId = ((Number) row[7]).longValue();
-            if (!ownerId.equals(user.getId())) {
-                continue;
-            }
+        for (Object[] row : myResourceRows) {
             int views = ((Number) row[4]).intValue();
             int downloads = ((Number) row[5]).intValue();
             totalViews += views;
@@ -122,10 +109,10 @@ public class StatisticsService {
                 ? today.minusDays(6).atStartOfDay()
                 : today.minusDays(27).atStartOfDay();
 
-        List<Object[]> activityRows = interactionRepository.findAuthorResourceActivitySince(user.getId(), since);
+        List<Object[]> activityRows = oraclePackageService.fnActividadRecursosAutor(user.getId(), since);
         List<Map<String, Object>> activity = buildPersonalActivityTimeline(period, today, activityRows);
 
-        List<Map<String, Object>> topSubjects = interactionRepository.countUserConsultationsBySubject(user.getId())
+        List<Map<String, Object>> topSubjects = oraclePackageService.fnConsultasUsuarioMateria(user.getId())
                 .stream()
                 .limit(5)
                 .map(row -> {
@@ -168,13 +155,11 @@ public class StatisticsService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getGlobalStatistics(User currentUser) {
-        requireAdmin(currentUser, "Solo los administradores pueden consultar las estadísticas globales.");
+        AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar las estadísticas globales.");
 
-        List<User> verifiedUsers = userRepository.findVerifiedUsers();
-        List<User> students = verifiedUsers.stream().filter(u -> !isAdmin(u)).toList();
-
-        long totalRepositories = studyRepositoryRepository.count();
-        List<Object[]> resourceRows = resourceRepository.findPublishedStatisticsRows();
+        long activeStudentsCount = userRepository.fnContarEstudiantesActivos();
+        long totalRepositories = studyRepositoryRepository.fnContarTotalRepositorios();
+        List<Object[]> resourceRows = oraclePackageService.fnEstadisticasRecursosPub();
 
         Map<String, Long> subjectViews = new LinkedHashMap<>();
         Map<String, Long> docsBySubject = new LinkedHashMap<>();
@@ -228,14 +213,10 @@ public class StatisticsService {
                 })
                 .toList();
 
+        Map<Integer, Long> dbSemesterCounts = oraclePackageService.fnEstudiantesPorSemestre();
         Map<Integer, Long> semesterCounts = new LinkedHashMap<>();
         for (int s = 1; s <= 10; s++) {
-            semesterCounts.put(s, 0L);
-        }
-        for (User s : students) {
-            if (s.getSemester() != null && semesterCounts.containsKey(s.getSemester())) {
-                semesterCounts.merge(s.getSemester(), 1L, Long::sum);
-            }
+            semesterCounts.put(s, dbSemesterCounts.getOrDefault(s, 0L));
         }
         List<Map<String, Object>> studentsBySemester = semesterCounts.entrySet().stream()
                 .filter(e -> e.getValue() > 0 || e.getKey() <= 6)
@@ -267,7 +248,7 @@ public class StatisticsService {
         Map<String, Object> totals = new LinkedHashMap<>();
         totals.put("repositories", totalRepositories);
         totals.put("documents", resourceRows.size());
-        totals.put("activeStudents", students.size());
+        totals.put("activeStudents", activeStudentsCount);
         totals.put("totalReports", reportStats.total);
         totals.put("pendingReports", reportStats.pending);
         totals.put("resolvedReports", reportStats.resolved);
@@ -285,15 +266,14 @@ public class StatisticsService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getAdvancedAdminStatistics(String rawPeriod, User currentUser) {
-        requireAdmin(currentUser, "No tienes permisos de administrador.");
+        AuthGuards.requireAdmin(currentUser, "No tienes permisos de administrador.");
         String period = switch (rawPeriod == null ? "" : rawPeriod.trim().toLowerCase(Locale.ROOT)) {
             case "day" -> "day";
             case "month" -> "month";
             default -> "week";
         };
 
-        List<User> students = userRepository.findVerifiedUsers().stream().filter(u -> !isAdmin(u)).toList();
-        long totalStudents = students.size();
+        long totalStudents = userRepository.fnContarEstudiantesActivos();
 
         LocalDate today = LocalDate.now();
         LocalDateTime since = switch (period) {
@@ -302,19 +282,13 @@ public class StatisticsService {
             default -> today.minusDays(6).atStartOfDay();
         };
 
-        List<Object[]> activityRows = interactionRepository.findUserActivitySince(since);
-        Set<Long> uniqueActiveIds = new HashSet<>();
-        for (Object[] row : activityRows) {
-            if (row[0] != null) {
-                uniqueActiveIds.add(((Number) row[0]).longValue());
-            }
-        }
-        long totalActive = uniqueActiveIds.size();
+        List<Object[]> activityRows = oraclePackageService.fnActividadUsuariosDesde(since);
+        long totalActive = interactionRepository.fnContarUsuariosActivos(since);
         int engagementRate = totalStudents > 0 ? (int) Math.round((totalActive * 100.0) / totalStudents) : 0;
 
         List<Map<String, Object>> activeTimeline = buildActiveUsersTimeline(period, today, activityRows);
 
-        List<Object[]> rawTerms = interactionRepository.topSearchTermsSince(since, PageRequest.of(0, 8));
+        List<Object[]> rawTerms = oraclePackageService.fnTopTerminosBusqueda(since, 8);
         long maxSearch = rawTerms.isEmpty() ? 1L : Math.max(1L, ((Number) rawTerms.get(0)[1]).longValue());
         List<Map<String, Object>> topSearchTerms = rawTerms.stream()
                 .map(row -> {
@@ -394,21 +368,26 @@ public class StatisticsService {
     }
 
     private List<Map<String, Object>> buildRecentHistory(Long userId) {
-        List<Interaction> interactions = interactionRepository.findUserViewAndDownloadHistory(userId);
+        List<Object[]> rows = oraclePackageService.fnHistorialUsuario(userId, 30);
         List<Map<String, Object>> history = new ArrayList<>();
         Set<Long> seenDocs = new HashSet<>();
 
-        for (Interaction interaction : interactions) {
-            Resource res = interaction.getResource();
-            if (res == null || !seenDocs.add(res.getId())) {
+        for (Object[] row : rows) {
+            Long resId = ((Number) row[0]).longValue();
+            if (!seenDocs.add(resId)) {
                 continue;
             }
+            String title = (String) row[1];
+            String repoName = row[2] != null ? (String) row[2] : "Repositorio";
+            LocalDateTime date = (LocalDateTime) row[3];
+            ResourceType type = (ResourceType) row[4];
+
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id", String.valueOf(res.getId()));
-            entry.put("title", res.getTitle());
-            entry.put("repositoryName", res.getStudyRepository() != null ? res.getStudyRepository().getName() : "Repositorio");
-            entry.put("date", interaction.getDate());
-            entry.put("type", DocumentDto.toFrontendType(res.getType()));
+            entry.put("id", String.valueOf(resId));
+            entry.put("title", title);
+            entry.put("repositoryName", repoName);
+            entry.put("date", date);
+            entry.put("type", DocumentDto.toFrontendType(type));
             history.add(entry);
             if (history.size() >= 5) {
                 break;
@@ -468,9 +447,9 @@ public class StatisticsService {
     }
 
     private Map<String, Object> buildAiUsage(String period, LocalDate today, LocalDateTime since) {
-        List<Object[]> rows = aiMaterialRepository.findStatisticsRowsSince(since);
-        long totalGenerations = aiMaterialRepository.count();
-        long sharedWithFriends = aiShareRepository.count();
+        List<Object[]> rows = oraclePackageService.fnEstadisticasIaDesde(since);
+        long totalGenerations = aiMaterialRepository.fnContarTotalMaterialIa();
+        long sharedWithFriends = aiShareRepository.fnContarTotalCompartidosIa();
 
         Map<AiContentType, Long> typeCounts = new LinkedHashMap<>();
         for (AiContentType type : AiContentType.values()) {
@@ -571,7 +550,7 @@ public class StatisticsService {
         long pending = 0;
         long resolved = 0;
 
-        for (Object[] row : reportRepository.countGroupedByReasonAndStatus()) {
+        for (Object[] row : oraclePackageService.fnResumenReportes()) {
             String rawReason = String.valueOf(row[0]);
             String rawStatus = String.valueOf(row[1]);
             long count = ((Number) row[2]).longValue();
@@ -614,27 +593,6 @@ public class StatisticsService {
             case "CORRUPTED_FILE" -> "Archivo corrupto";
             default -> "Otros";
         };
-    }
-
-    private User requireAuthenticated(User user, String message) {
-        if (user == null) {
-            throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
-        }
-        return user;
-    }
-
-    private User requireAdmin(User user, String forbiddenMessage) {
-        User current = requireAuthenticated(user, "Debes iniciar sesión para continuar.");
-        if (!isAdmin(current)) {
-            throw new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage);
-        }
-        return current;
-    }
-
-    private boolean isAdmin(User user) {
-        return user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().toLowerCase(Locale.ROOT).contains("admin");
     }
 
     private static final class TopicBucket {
