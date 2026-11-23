@@ -813,8 +813,11 @@ public class OraclePackageService {
     private List<Long> readIdCursor(CallableStatement cs, int paramIndex) throws SQLException {
         List<Long> ids = new ArrayList<>();
         try (ResultSet rs = (ResultSet) cs.getObject(paramIndex)) {
-            while (rs != null && rs.next()) {
-                ids.add(rs.getLong(1));
+            if (rs != null) {
+                rs.setFetchSize(500);
+                while (rs.next()) {
+                    ids.add(rs.getLong(1));
+                }
             }
         }
         return ids;
@@ -823,6 +826,9 @@ public class OraclePackageService {
     private List<Object[]> readResourceStatsCursor(CallableStatement cs, int paramIndex) throws SQLException {
         List<Object[]> rows = new ArrayList<>();
         try (ResultSet rs = (ResultSet) cs.getObject(paramIndex)) {
+            if (rs != null) {
+                rs.setFetchSize(500);
+            }
             while (rs != null && rs.next()) {
                 Timestamp ts = rs.getTimestamp(7);
                 rows.add(new Object[]{
