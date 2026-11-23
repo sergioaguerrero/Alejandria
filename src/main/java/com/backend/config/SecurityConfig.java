@@ -103,6 +103,10 @@ public class SecurityConfig {
                                 "/api/documents/*/download",
                                 "/api/users/*/documents"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.HEAD,
+                                "/api/documents/*/preview",
+                                "/api/documents/*/download"
+                        ).permitAll()
                         .requestMatchers("/api/users/me", "/api/users/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/users", "/api/users/*").permitAll()
                         .requestMatchers("/api/admin/**", "/api/analytics/top-subjects", "/api/analytics/export")
@@ -132,9 +136,14 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(new ArrayList<>(originPatterns));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of(HttpHeaders.CONTENT_DISPOSITION));
+        configuration.setExposedHeaders(List.of(
+                HttpHeaders.CONTENT_DISPOSITION,
+                HttpHeaders.ACCEPT_RANGES,
+                HttpHeaders.CONTENT_RANGE,
+                HttpHeaders.CONTENT_LENGTH
+        ));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
