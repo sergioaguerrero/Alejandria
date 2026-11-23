@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -17,13 +18,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.HtmlUtils;
 
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Implementación del envío de correo transaccional.
- * Permite alternar entre consola local ({@code console}), SMTP ({@code smtp}) y Resend API ({@code resend}).
+ * Permite alternar entre consola local ({@code console}), SMTP ({@code smtp}), Resend ({@code resend}),
+ * Brevo ({@code brevo}) y Google Apps Script ({@code gas}).
  */
 @Service
 public class EmailServiceImpl implements EmailService {
@@ -38,7 +41,12 @@ public class EmailServiceImpl implements EmailService {
     public EmailServiceImpl(MailProperties mailProperties, ObjectProvider<JavaMailSender> mailSenderProvider) {
         this.mailProperties = mailProperties;
         this.mailSenderProvider = mailSenderProvider;
-        this.restClient = RestClient.create();
+        HttpClient httpClient = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+        this.restClient = RestClient.builder()
+                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
+                .build();
     }
 
     @Override
@@ -83,9 +91,10 @@ public class EmailServiceImpl implements EmailService {
                 case "smtp" -> sendViaSmtp(toEmail, subject, plainText, htmlBody);
                 case "resend" -> sendViaResend(toEmail, subject, plainText, htmlBody);
                 case "brevo" -> sendViaBrevo(toEmail, subject, plainText, htmlBody);
+                case "gas", "apps-script", "google-script", "script" -> sendViaGoogleAppsScript(toEmail, subject, plainText, htmlBody);
                 case "console" -> log.info(consoleSummary);
                 default -> log.warn(
-                        "Proveedor de correo desconocido '{}'. Usa 'console', 'smtp', 'resend' o 'brevo'. {}",
+                        "Proveedor de correo desconocido '{}'. Usa 'console', 'smtp', 'resend', 'brevo' o 'gas'. {}",
                         provider,
                         consoleSummary
                 );
@@ -208,6 +217,34 @@ public class EmailServiceImpl implements EmailService {
                 .toBodilessEntity();
 
         log.info("Correo '{}' enviado vía Brevo API a {}", subject, toEmail);
+    }
+
+    private void sendViaGoogleAppsScript(String toEmail, String subject, String plainText, String htmlBody) {
+        String gasUrl = mailProperties.getGasUrl();
+        if (gasUrl == null || gasUrl.isBlank()) {
+            throw new IllegalStateException("Falta app.mail.gas-url (GAS_WEBHOOK_URL) para enviar correos con Google Apps Script.");
+        }
+
+        Map<String, Object> payload = Map.of(
+                "to", toEmail,
+                "subject", subject,
+                "text", plainText,
+                "html", htmlBody,
+                "fromName", "Alejandría UPC"
+        );
+
+        String responseBody = restClient.post()
+                .uri(gasUrl.trim())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(String.class);
+
+        if (responseBody != null && responseBody.contains("\"ok\":false")) {
+            throw new IllegalStateException("Google Apps Script devolvió error: " + responseBody);
+        }
+
+        log.info("Correo '{}' enviado vía Google Apps Script (Gmail oficial) a {}", subject, toEmail);
     }
 
     private Map<String, String> resolveBrevoSender() {
