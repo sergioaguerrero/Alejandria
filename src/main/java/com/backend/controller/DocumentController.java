@@ -215,12 +215,15 @@ public class DocumentController {
                 .filename(filename, StandardCharsets.UTF_8)
                 .build();
 
-        return ResponseEntity.ok()
+        ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
                 .contentType(mediaType)
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
                 .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-                .header("X-Content-Type-Options", "nosniff")
-                .body(resource.getFileBytes());
+                .header("X-Content-Type-Options", "nosniff");
+        if (inline) {
+            builder.header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600");
+        }
+        return builder.body(resource.getFileBytes());
     }
 
     private String currentBaseUrl() {

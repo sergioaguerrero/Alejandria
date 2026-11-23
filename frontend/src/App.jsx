@@ -11,7 +11,9 @@
  * the Sprint 3 views exist.
  */
 
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 
 import AppLayout from './components/layout/AppLayout.jsx';
 import AuthLayout from './components/layout/AuthLayout.jsx';
@@ -25,19 +27,10 @@ import ErrorPage from './pages/error/ErrorPage.jsx';
 import HomePage from './pages/home/HomePage.jsx';
 import MyContentPage from './pages/content/MyContentPage.jsx';
 import MySubjectsPage from './pages/subjects/MySubjectsPage.jsx';
-import MyStatisticsPage from './pages/statistics/MyStatisticsPage.jsx';
 import ProfilePage from './pages/profile/ProfilePage.jsx';
 import NotificationsPage from './pages/notifications/NotificationsPage.jsx';
 import PublicProfilePage from './pages/profile/PublicProfilePage.jsx';
 import FriendsPage from './pages/friends/FriendsPage.jsx';
-import ReportInboxPage from './pages/admin/ReportInboxPage.jsx';
-import ReportDetailPage from './pages/admin/ReportDetailPage.jsx';
-import AdminUserPage from './pages/admin/AdminUserPage.jsx';
-import GlobalStatisticsPage from './pages/admin/GlobalStatisticsPage.jsx';
-import AiStudyPage from './pages/ai/AiStudyPage.jsx';
-import AiMaterialPage from './pages/ai/AiMaterialPage.jsx';
-import QuizPage from './pages/ai/QuizPage.jsx';
-import MyStudyPage from './pages/ai/MyStudyPage.jsx';
 import RepositoryDetailPage from './pages/repositories/RepositoryDetailPage.jsx';
 import RepositoryFormPage from './pages/repositories/RepositoryFormPage.jsx';
 import RulesPage from './pages/rules/RulesPage.jsx';
@@ -47,11 +40,31 @@ import EditDocumentPage from './pages/documents/EditDocumentPage.jsx';
 import UploadDocumentPage from './pages/documents/UploadDocumentPage.jsx';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
+// Lazy-loaded heavy views (Recharts, jsPDF, Admin panels)
+const MyStatisticsPage = lazy(() => import('./pages/statistics/MyStatisticsPage.jsx'));
+const GlobalStatisticsPage = lazy(() => import('./pages/admin/GlobalStatisticsPage.jsx'));
+const ReportInboxPage = lazy(() => import('./pages/admin/ReportInboxPage.jsx'));
+const ReportDetailPage = lazy(() => import('./pages/admin/ReportDetailPage.jsx'));
+const AdminUserPage = lazy(() => import('./pages/admin/AdminUserPage.jsx'));
+const AiStudyPage = lazy(() => import('./pages/ai/AiStudyPage.jsx'));
+const AiMaterialPage = lazy(() => import('./pages/ai/AiMaterialPage.jsx'));
+const QuizPage = lazy(() => import('./pages/ai/QuizPage.jsx'));
+const MyStudyPage = lazy(() => import('./pages/ai/MyStudyPage.jsx'));
+
+function PageLoader() {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '45vh' }}>
+      <CircularProgress size={32} />
+    </Box>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           {/* ── Public routes ─────────────────────────────────────────── */}
           <Route path="/terms" element={<RulesPage />} />
 
@@ -115,7 +128,8 @@ export default function App() {
           {/* ── Errors ────────────────────────────────────────────────── */}
           <Route path="/403" element={<ErrorPage code={403} />} />
           <Route path="*" element={<ErrorPage code={404} />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );
