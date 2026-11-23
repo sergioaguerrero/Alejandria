@@ -48,6 +48,7 @@ import ReportDialog from '../../components/common/ReportDialog.jsx';
 import DocumentItem from '../../components/documents/DocumentItem.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { TERMS } from '../../mocks/catalogs.js';
+import { formatShortDate } from '../../utils/formatDate.js';
 import { triggerFileDownload } from '../../utils/fileTypes.js';
 import {
   deleteRepository,
@@ -57,23 +58,6 @@ import {
   toggleRepositoryLike,
   toggleFollowRepository,
 } from '../../services/index.js';
-
-/**
- * Formats an ISO timestamp for the repository footer metadata.
- * @param {string | undefined} value
- * @returns {string}
- */
-function formatUpdatedDate(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-
-  return new Intl.DateTimeFormat('es-CO', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
 
 export default function RepositoryDetailPage() {
   const { id } = useParams();
@@ -127,6 +111,19 @@ export default function RepositoryDetailPage() {
 
     for (const document of documents) {
       map.get(document.term)?.push(document);
+    }
+
+    for (const termDocs of map.values()) {
+      termDocs.sort((a, b) => {
+        const timeA = a?.createdAt ? new Date(a.createdAt).getTime() : NaN;
+        const timeB = b?.createdAt ? new Date(b.createdAt).getTime() : NaN;
+        if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeB !== timeA) {
+          return timeB - timeA;
+        }
+        if (Number.isFinite(timeB) && !Number.isFinite(timeA)) return 1;
+        if (Number.isFinite(timeA) && !Number.isFinite(timeB)) return -1;
+        return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+      });
     }
 
     return map;
@@ -289,7 +286,7 @@ export default function RepositoryDetailPage() {
   const subject = repository.subject;
   const currentDocuments = documentsByTerm.get(tab) ?? [];
   const followersCount = repository.followersCount ?? repository.followers ?? null;
-  const updatedLabel = formatUpdatedDate(repository.updatedAt);
+  const updatedLabel = formatShortDate(repository.updatedAt);
 
   return (
     <Box>
