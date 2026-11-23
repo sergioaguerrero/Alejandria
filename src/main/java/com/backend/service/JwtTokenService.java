@@ -17,6 +17,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Emite y valida tokens JWT HS256 firmados con HMAC-SHA256 sin dependencias externas.
@@ -29,21 +30,33 @@ public class JwtTokenService {
     private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder URL_DECODER = Base64.getUrlDecoder();
 
+    private record CachedUser(User user, long expiresAtNanos) {}
+
     private final byte[] secretBytes;
     private final long expirationMillis;
+    private final long cacheTtlNanos;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final Map<Long, CachedUser> userCache = new ConcurrentHashMap<>();
 
     public JwtTokenService(
             @Value("${jwt.secret:alejandria-dev-jwt-secret-change-in-production}") String secret,
             @Value("${jwt.expiration:86400000}") long expirationMillis,
+            @Value("${app.jwt.cache-ttl-seconds:15}") long cacheTtlSeconds,
             ObjectMapper objectMapper,
             UserRepository userRepository
     ) {
         this.secretBytes = secret.getBytes(StandardCharsets.UTF_8);
         this.expirationMillis = expirationMillis;
+        this.cacheTtlNanos = Math.max(0L, cacheTtlSeconds) * 1_000_000_000L;
         this.objectMapper = objectMapper;
         this.userRepository = userRepository;
+    }
+
+    public void evictUser(Long userId) {
+        if (userId != null) {
+            userCache.remove(userId);
+        }
     }
 
     public String generateToken(User user) {
@@ -107,10 +120,22 @@ public class JwtTokenService {
                 return Optional.empty();
             }
             Long userId = Long.parseLong(String.valueOf(subObj));
+            if (cacheTtlNanos > 0L) {
+                long now = System.nanoTime();
+                CachedUser cached = userCache.get(userId);
+                if (cached != null && now < cached.expiresAtNanos()) {
+                    return Optional.of(cached.user());
+                }
+            }
             if (userRepository.fnUsuarioPuedeAcceder(userId) == 0) {
+                userCache.remove(userId);
                 return Optional.empty();
             }
-            return userRepository.findById(userId);
+            Optional<User> resolved = userRepository.findWithRoleById(userId);
+            if (cacheTtlNanos > 0L && resolved.isPresent()) {
+                userCache.put(userId, new CachedUser(resolved.get(), System.nanoTime() + cacheTtlNanos));
+            }
+            return resolved;
         } catch (Exception ex) {
             return Optional.empty();
         }

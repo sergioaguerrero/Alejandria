@@ -9,15 +9,30 @@ import http from './http.js';
 import { currentUser } from './authService.js';
 import { store } from '../mocks/store.js';
 
+/** @type {Map<string, Promise<object[]>>} */
+const subjectsCache = new Map();
+
 /**
  * Gets the subject catalog, optionally filtered by semester.
+ * Caches the catalog in memory so switching pages does not hit the backend again.
  * @param {{ semester?: number|string|null }} [filters]
  * @returns {Promise<object[]>}
  */
 export async function getSubjects({ semester = null } = {}) {
   if (!USE_MOCK) {
-    const { data } = await http.get('/subjects', { params: { semester } });
-    return Array.isArray(data) ? data : data?.items ?? [];
+    const cacheKey = semester ? String(semester) : '__ALL__';
+    if (subjectsCache.has(cacheKey)) {
+      return subjectsCache.get(cacheKey);
+    }
+    const request = http
+      .get('/subjects', { params: { semester } })
+      .then(({ data }) => (Array.isArray(data) ? data : data?.items ?? []))
+      .catch((err) => {
+        subjectsCache.delete(cacheKey);
+        throw err;
+      });
+    subjectsCache.set(cacheKey, request);
+    return request;
   }
 
   await waitForMock();

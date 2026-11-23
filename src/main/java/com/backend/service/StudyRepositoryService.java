@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -101,11 +102,13 @@ public class StudyRepositoryService {
         int toIndex = Math.min(fromIndex + safeSize, allIds.size());
         List<Long> pageIds = allIds.subList(fromIndex, toIndex);
 
-        List<StudyRepository> pageEntities = oraclePackageService.orderByIds(
-                pageIds,
-                studyRepositoryRepository.findAllById(pageIds),
-                StudyRepository::getId
-        );
+        List<StudyRepository> pageEntities = pageIds.isEmpty()
+                ? List.of()
+                : oraclePackageService.orderByIds(
+                        pageIds,
+                        studyRepositoryRepository.findAllWithDetailsByIdIn(pageIds),
+                        StudyRepository::getId
+                );
 
         List<RepositoryResponseDto> items = mapRepositories(pageEntities, viewer);
         return new RepositoryPageResponse(
@@ -126,9 +129,12 @@ public class StudyRepositoryService {
     @Transactional(readOnly = true)
     public List<RepositoryResponseDto> getByAuthorUsername(String username, User viewer) {
         List<Long> ids = oraclePackageService.fnRepositoriosPorAutorIds(username);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         List<StudyRepository> list = oraclePackageService.orderByIds(
                 ids,
-                studyRepositoryRepository.findAllById(ids),
+                studyRepositoryRepository.findAllWithDetailsByIdIn(ids),
                 StudyRepository::getId
         );
         return mapRepositories(list, viewer);
@@ -212,9 +218,12 @@ public class StudyRepositoryService {
     public List<RepositoryResponseDto> getFollowed(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus repositorios seguidos.");
         List<Long> ids = oraclePackageService.fnRepositoriosSeguidosIds(user.getId());
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         List<StudyRepository> followed = oraclePackageService.orderByIds(
                 ids,
-                studyRepositoryRepository.findAllById(ids),
+                studyRepositoryRepository.findAllWithDetailsByIdIn(ids),
                 StudyRepository::getId
         );
         return mapRepositories(followed, user);
@@ -227,22 +236,52 @@ public class StudyRepositoryService {
         }
 
         Long viewerId = viewer != null ? viewer.getId() : null;
+        List<Long> repoIds = repositories.stream().map(StudyRepository::getId).toList();
+
+        Map<Long, Object[]> metricsByRepoId = new HashMap<>(repoIds.size());
+        List<Object[]> rawRows = (viewerId != null)
+                ? studyRepositoryRepository.findViewerMetricsByIdIn(repoIds, viewerId)
+                : studyRepositoryRepository.findPublicMetricsByIdIn(repoIds);
+        for (Object[] row : rawRows) {
+            if (row != null && row.length >= 3 && row[0] instanceof Number idNum) {
+                metricsByRepoId.put(idNum.longValue(), row);
+            }
+        }
 
         return repositories.stream()
                 .map(repo -> {
                     Long repoId = repo.getId();
-                    int docCount = resourceRepository.fnContarRecursosPublicados(repoId);
-                    long followersCount = repositoryFollowRepository.fnContarSeguidoresRepo(repoId);
-                    boolean liked = viewerId != null && repositoryLikeRepository.fnUsuarioDioLikeRepo(repoId, viewerId) == 1;
-                    boolean followed = viewerId != null && repositoryFollowRepository.fnUsuarioSigueRepo(repoId, viewerId) == 1;
+                    Object[] row = metricsByRepoId.get(repoId);
+
+                    int docCount = (row != null && row[1] instanceof Number n1)
+                            ? n1.intValue()
+                            : resourceRepository.fnContarRecursosPublicados(repoId);
+                    long followersCount = (row != null && row[2] instanceof Number n2)
+                            ? n2.longValue()
+                            : repositoryFollowRepository.fnContarSeguidoresRepo(repoId);
+                    boolean liked = viewerId != null && (
+                            (row != null && row.length > 3 && row[3] instanceof Number n3)
+                                    ? n3.intValue() == 1
+                                    : repositoryLikeRepository.fnUsuarioDioLikeRepo(repoId, viewerId) == 1
+                    );
+                    boolean followed = viewerId != null && (
+                            (row != null && row.length > 4 && row[4] instanceof Number n4)
+                                    ? n4.intValue() == 1
+                                    : repositoryFollowRepository.fnUsuarioSigueRepo(repoId, viewerId) == 1
+                    );
 
                     boolean isOwner = viewerId != null
                             && repo.getAuthor() != null
                             && repo.getAuthor().getId().equals(viewerId);
 
-                    String rawCollabStatus = (!isOwner && viewerId != null)
-                            ? repositoryCollaboratorRepository.fnEstadoColaboradorRepo(repoId, viewerId)
-                            : null;
+                    String rawCollabStatus = null;
+                    if (!isOwner && viewerId != null) {
+                        if (row != null && row.length > 5) {
+                            rawCollabStatus = row[5] != null ? String.valueOf(row[5]) : null;
+                        } else {
+                            rawCollabStatus = repositoryCollaboratorRepository.fnEstadoColaboradorRepo(repoId, viewerId);
+                        }
+                    }
                     boolean isCollaborator = !isOwner && "ACEPTADO".equalsIgnoreCase(rawCollabStatus);
                     String collaboratorStatus = isOwner || rawCollabStatus == null
                             ? null
@@ -264,7 +303,7 @@ public class StudyRepositoryService {
     }
 
     private StudyRepository findRepoOrThrow(Long id) {
-        return studyRepositoryRepository.findById(id)
+        return studyRepositoryRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
                         "REPOSITORY_NOT_FOUND",
