@@ -13,10 +13,10 @@ import java.util.Optional;
 @Repository
 public interface StudyRepositoryRepository extends JpaRepository<StudyRepository, Long> {
 
-    @Query("SELECT r FROM StudyRepository r JOIN FETCH r.subject JOIN FETCH r.author a LEFT JOIN FETCH a.role WHERE r.id = :id")
+    @Query("SELECT r FROM StudyRepository r JOIN FETCH r.subject s JOIN FETCH s.semester JOIN FETCH r.author a LEFT JOIN FETCH a.role WHERE r.id = :id")
     Optional<StudyRepository> findWithDetailsById(@Param("id") Long id);
 
-    @Query("SELECT r FROM StudyRepository r JOIN FETCH r.subject JOIN FETCH r.author a LEFT JOIN FETCH a.role WHERE r.id IN :ids")
+    @Query("SELECT r FROM StudyRepository r JOIN FETCH r.subject s JOIN FETCH s.semester JOIN FETCH r.author a LEFT JOIN FETCH a.role WHERE r.id IN :ids")
     List<StudyRepository> findAllWithDetailsByIdIn(@Param("ids") Collection<Long> ids);
 
     @Query(value = """

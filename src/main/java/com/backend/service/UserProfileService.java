@@ -268,7 +268,10 @@ public class UserProfileService {
     public List<SubjectDto> getSubjectsOfInterest(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus materias.");
         List<Long> subjectIds = oraclePackageService.fnMateriasInteresUsuarioIds(user.getId());
-        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllById(subjectIds), Subject::getId)
+        if (subjectIds.isEmpty()) {
+            return List.of();
+        }
+        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllWithSemesterByIdIn(subjectIds), Subject::getId)
                 .stream()
                 .map(SubjectDto::fromEntity)
                 .toList();
@@ -306,14 +309,20 @@ public class UserProfileService {
         }
 
         List<Long> subjectIds = oraclePackageService.fnMateriasInteresUsuarioIds(user.getId());
-        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllById(subjectIds), Subject::getId)
+        if (subjectIds.isEmpty()) {
+            return List.of();
+        }
+        return oraclePackageService.orderByIds(subjectIds, catalogRepository.findAllWithSemesterByIdIn(subjectIds), Subject::getId)
                 .stream()
                 .map(SubjectDto::fromEntity)
                 .toList();
     }
 
     private List<User> loadUsersInOrder(List<Long> ids) {
-        return oraclePackageService.orderByIds(ids, userRepository.findAllById(ids), User::getId);
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return oraclePackageService.orderByIds(ids, userRepository.findAllWithRoleByIdIn(ids), User::getId);
     }
 
     private List<UserContact> loadUserContacts(Long userId) {
@@ -384,18 +393,48 @@ public class UserProfileService {
         }
 
         Long viewerId = viewer != null ? viewer.getId() : null;
+        List<Long> userIds = users.stream().map(User::getId).toList();
+
+        Map<Long, Object[]> metricsByUserId = new LinkedHashMap<>(userIds.size());
+        List<Object[]> rawMetrics = (viewerId != null)
+                ? userRepository.findViewerFollowMetricsByIdIn(userIds, viewerId)
+                : userRepository.findPublicFollowMetricsByIdIn(userIds);
+        for (Object[] row : rawMetrics) {
+            if (row != null && row.length >= 3 && row[0] instanceof Number idNum) {
+                metricsByUserId.put(idNum.longValue(), row);
+            }
+        }
+
+        Map<Long, List<UserContact>> contactsByUserId = new LinkedHashMap<>();
+        for (UserContact contact : userContactRepository.findAllByUserIdsOrdered(userIds)) {
+            if (contact.getUser() != null && contact.getUser().getId() != null) {
+                contactsByUserId.computeIfAbsent(contact.getUser().getId(), k -> new ArrayList<>()).add(contact);
+            }
+        }
 
         return users.stream()
                 .map(target -> {
                     Long targetId = target.getId();
                     boolean isSelf = viewerId != null && viewerId.equals(targetId);
-                    long followersCount = userFollowRepository.fnContarSeguidoresUsuario(targetId);
-                    long followingCount = userFollowRepository.fnContarSeguidosUsuario(targetId);
-                    boolean isFollowing = !isSelf && viewerId != null
-                            && userFollowRepository.fnEsSeguidorUsuario(viewerId, targetId) == 1;
-                    boolean followsMe = !isSelf && viewerId != null
-                            && userFollowRepository.fnEsSeguidorUsuario(targetId, viewerId) == 1;
-                    List<UserContact> contacts = loadUserContacts(targetId);
+                    Object[] row = metricsByUserId.get(targetId);
+
+                    long followersCount = (row != null && row[1] instanceof Number n1)
+                            ? n1.longValue()
+                            : userFollowRepository.fnContarSeguidoresUsuario(targetId);
+                    long followingCount = (row != null && row[2] instanceof Number n2)
+                            ? n2.longValue()
+                            : userFollowRepository.fnContarSeguidosUsuario(targetId);
+                    boolean isFollowing = !isSelf && viewerId != null && (
+                            (row != null && row.length > 3 && row[3] instanceof Number n3)
+                                    ? n3.intValue() == 1
+                                    : userFollowRepository.fnEsSeguidorUsuario(viewerId, targetId) == 1
+                    );
+                    boolean followsMe = !isSelf && viewerId != null && (
+                            (row != null && row.length > 4 && row[4] instanceof Number n4)
+                                    ? n4.intValue() == 1
+                                    : userFollowRepository.fnEsSeguidorUsuario(targetId, viewerId) == 1
+                    );
+                    List<UserContact> contacts = contactsByUserId.getOrDefault(targetId, List.of());
 
                     return PublicUserProfileDto.fromEntity(
                             target,

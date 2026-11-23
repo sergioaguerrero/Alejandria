@@ -55,7 +55,7 @@ public class CatalogService {
                 ? List.of()
                 : oraclePackageService.orderByIds(
                         ids,
-                        catalogRepository.findAllById(ids),
+                        catalogRepository.findAllWithSemesterByIdIn(ids),
                         Subject::getId
                 );
 
@@ -79,7 +79,7 @@ public class CatalogService {
                         .findFirst();
             }
         }
-        return catalogRepository.findById(id)
+        return catalogRepository.findWithSemesterById(id)
                 .map(SubjectDto::fromEntity);
     }
 }
