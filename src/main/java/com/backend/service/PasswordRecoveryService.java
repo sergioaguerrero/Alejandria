@@ -46,6 +46,7 @@ public class PasswordRecoveryService {
     private final PasswordEncoder passwordEncoder;
     private final VerificationProperties verificationProperties;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
     private final String defaultFrontendUrl;
 
     public PasswordRecoveryService(
@@ -55,6 +56,7 @@ public class PasswordRecoveryService {
             PasswordEncoder passwordEncoder,
             VerificationProperties verificationProperties,
             OraclePackageService oraclePackageService,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
             @Value("${app.frontend.url:http://localhost:5173}") String defaultFrontendUrl
     ) {
         this.userRepository = userRepository;
@@ -63,6 +65,7 @@ public class PasswordRecoveryService {
         this.passwordEncoder = passwordEncoder;
         this.verificationProperties = verificationProperties;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
         this.defaultFrontendUrl = defaultFrontendUrl;
     }
 
@@ -90,7 +93,7 @@ public class PasswordRecoveryService {
         response.put("success", true);
         response.put("message", NEUTRAL_RECOVERY_MESSAGE);
 
-        Long userId = userRepository.fnBuscarUsuarioPorCorreo(email);
+        Long userId = authUsuariosRepository.buscarUsuarioPorCorreo(email);
         Optional<User> userOpt = userId == null ? Optional.empty() : userRepository.findById(userId);
         if (userOpt.isPresent() && userOpt.get().isVerified()) {
             User user = userOpt.get();
@@ -135,7 +138,7 @@ public class PasswordRecoveryService {
             );
         }
 
-        Long tokenId = tokenRepository.fnObtenerTokenResetHash(hashToken(cleanToken));
+        Long tokenId = authUsuariosRepository.obtenerTokenResetHash(hashToken(cleanToken));
         PasswordResetToken resetToken = (tokenId == null ? Optional.<PasswordResetToken>empty() : tokenRepository.findById(tokenId))
                 .orElseThrow(this::expiredTokenException);
 

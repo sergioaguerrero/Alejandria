@@ -36,6 +36,8 @@ public class CollaboratorService {
     private final StudyRepositoryService studyRepositoryService;
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
+    private final com.backend.repository.RepositoriosRepository repositoriosRepository;
 
     public CollaboratorService(
             RepositoryCollaboratorRepository collaboratorRepository,
@@ -43,7 +45,9 @@ public class CollaboratorService {
             UserRepository userRepository,
             StudyRepositoryService studyRepositoryService,
             NotificationService notificationService,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
+            com.backend.repository.RepositoriosRepository repositoriosRepository
     ) {
         this.collaboratorRepository = collaboratorRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
@@ -51,6 +55,8 @@ public class CollaboratorService {
         this.studyRepositoryService = studyRepositoryService;
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
+        this.repositoriosRepository = repositoriosRepository;
     }
 
     @Transactional(readOnly = true)
@@ -98,7 +104,7 @@ public class CollaboratorService {
             );
         }
 
-        Long targetUserId = userRepository.fnBuscarUsuarioPorUsername(cleanUsername);
+        Long targetUserId = authUsuariosRepository.buscarUsuarioPorUsername(cleanUsername);
         User target = (targetUserId == null ? Optional.<User>empty() : userRepository.findById(targetUserId))
                 .filter(User::isVerified)
                 .filter(candidate -> candidate.getRole() == null
@@ -118,7 +124,7 @@ public class CollaboratorService {
             );
         }
 
-        String existingStatus = collaboratorRepository.fnEstadoColaboradorRepo(repositoryId, target.getId());
+        String existingStatus = repositoriosRepository.estadoColaboradorRepo(repositoryId, target.getId());
         if (existingStatus != null) {
             String msg = "ACEPTADO".equalsIgnoreCase(existingStatus)
                     ? "@" + target.getUsername() + " ya es colaborador de este repositorio."
@@ -146,7 +152,7 @@ public class CollaboratorService {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para responder la invitación.");
         StudyRepository repo = findRepoOrThrow(repositoryId);
 
-        Long collabId = collaboratorRepository.fnObtenerColaboradorId(repositoryId, user.getId());
+        Long collabId = repositoriosRepository.obtenerColaboradorId(repositoryId, user.getId());
         RepositoryCollaborator invite = (collabId == null ? Optional.<RepositoryCollaborator>empty() : collaboratorRepository.findById(collabId))
                 .filter(c -> c.getStatus() == CollaboratorStatus.PENDIENTE)
                 .orElseThrow(() -> new AuthException(
@@ -198,7 +204,7 @@ public class CollaboratorService {
             );
         }
 
-        Long collabId = collaboratorRepository.fnObtenerColabPorUsername(repositoryId, cleanTarget);
+        Long collabId = repositoriosRepository.obtenerColabPorUsername(repositoryId, cleanTarget);
         if (collabId != null) {
             collaboratorRepository.deleteById(collabId);
         }

@@ -39,10 +39,4 @@ public interface StudyRepositoryRepository extends JpaRepository<StudyRepository
             WHERE r.id IN (:repoIds)
             """, nativeQuery = true)
     List<Object[]> findViewerMetricsByIdIn(@Param("repoIds") Collection<Long> repoIds, @Param("viewerId") Long viewerId);
-
-    @Query(value = "SELECT PKG_REPOSITORIOS.fn_contar_repos_autor(:authorId) FROM DUAL", nativeQuery = true)
-    long fnContarReposAutor(@Param("authorId") Long authorId);
-
-    @Query(value = "SELECT PKG_REPOSITORIOS.fn_contar_total_repositorios() FROM DUAL", nativeQuery = true)
-    long fnContarTotalRepositorios();
 }

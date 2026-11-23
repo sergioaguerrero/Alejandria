@@ -49,6 +49,8 @@ public class ModerationService {
     private final StudyRepositoryService studyRepositoryService;
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.ModeracionRepository moderacionRepository;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
 
     public ModerationService(
             ReportRepository reportRepository,
@@ -58,7 +60,9 @@ public class ModerationService {
             StudyRepositoryRepository studyRepositoryRepository,
             StudyRepositoryService studyRepositoryService,
             NotificationService notificationService,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            com.backend.repository.ModeracionRepository moderacionRepository,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository
     ) {
         this.reportRepository = reportRepository;
         this.decisionRepository = decisionRepository;
@@ -68,6 +72,8 @@ public class ModerationService {
         this.studyRepositoryService = studyRepositoryService;
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
+        this.moderacionRepository = moderacionRepository;
+        this.authUsuariosRepository = authUsuariosRepository;
     }
 
     @Transactional
@@ -101,7 +107,7 @@ public class ModerationService {
                 Resource docMeta = resourceRepository.findAllMetadataByIdIn(List.of(docId)).stream()
                         .findFirst()
                         .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "DOCUMENT_NOT_FOUND", "Documento no encontrado."));
-                if (reportRepository.fnExisteReporteActivo(reporter.getId(), ReportTargetType.DOCUMENT.name(), docId) == 1) {
+                if (moderacionRepository.existeReporteActivo(reporter.getId(), ReportTargetType.DOCUMENT.name(), docId) == 1) {
                     throw duplicateReportException();
                 }
                 targetDoc = resourceRepository.getReferenceById(docId);
@@ -112,7 +118,7 @@ public class ModerationService {
                 Long repoId = parseId(rawTargetId, "Repositorio no encontrado.");
                 targetRepo = studyRepositoryRepository.findById(repoId)
                         .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPOSITORY_NOT_FOUND", "Repositorio no encontrado."));
-                if (reportRepository.fnExisteReporteActivo(reporter.getId(), ReportTargetType.REPOSITORY.name(), repoId) == 1) {
+                if (moderacionRepository.existeReporteActivo(reporter.getId(), ReportTargetType.REPOSITORY.name(), repoId) == 1) {
                     throw duplicateReportException();
                 }
                 targetUser = targetRepo.getAuthor();
@@ -120,10 +126,10 @@ public class ModerationService {
             }
             case PROFILE -> {
                 String cleanUsername = rawTargetId.replaceFirst("^@", "").toLowerCase(Locale.ROOT);
-                Long targetUserId = userRepository.fnBuscarUsuarioPorUsername(cleanUsername);
+                Long targetUserId = authUsuariosRepository.buscarUsuarioPorUsername(cleanUsername);
                 targetUser = (targetUserId == null ? Optional.<User>empty() : userRepository.findById(targetUserId))
                         .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
-                if (reportRepository.fnExisteReporteActivo(reporter.getId(), ReportTargetType.PROFILE.name(), targetUser.getId()) == 1) {
+                if (moderacionRepository.existeReporteActivo(reporter.getId(), ReportTargetType.PROFILE.name(), targetUser.getId()) == 1) {
                     throw duplicateReportException();
                 }
                 targetLabel = "@" + targetUser.getUsername();
@@ -284,7 +290,7 @@ public class ModerationService {
     }
 
     private Decision findDecisionForReport(Long reportId) {
-        Long decisionId = decisionRepository.fnObtenerDecisionReporte(reportId);
+        Long decisionId = moderacionRepository.obtenerDecisionReporte(reportId);
         return decisionId == null ? null : decisionRepository.findById(decisionId).orElse(null);
     }
 

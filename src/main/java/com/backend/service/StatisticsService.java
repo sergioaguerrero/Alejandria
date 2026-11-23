@@ -39,26 +39,26 @@ public class StatisticsService {
     private static final List<String> DAY_HOUR_LABELS = List.of("00:00", "04:00", "08:00", "12:00", "16:00", "20:00");
 
     private final StudyRepositoryRepository studyRepositoryRepository;
-    private final UserRepository userRepository;
-    private final InteractionRepository interactionRepository;
-    private final AiMaterialRepository aiMaterialRepository;
-    private final AiShareRepository aiShareRepository;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
+    private final com.backend.repository.RepositoriosRepository repositoriosRepository;
+    private final com.backend.repository.AnaliticasRepository analiticasRepository;
+    private final com.backend.repository.IaEstudioRepository iaEstudioRepository;
 
     public StatisticsService(
             StudyRepositoryRepository studyRepositoryRepository,
-            UserRepository userRepository,
-            InteractionRepository interactionRepository,
-            AiMaterialRepository aiMaterialRepository,
-            AiShareRepository aiShareRepository,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
+            com.backend.repository.RepositoriosRepository repositoriosRepository,
+            com.backend.repository.AnaliticasRepository analiticasRepository,
+            com.backend.repository.IaEstudioRepository iaEstudioRepository
     ) {
         this.studyRepositoryRepository = studyRepositoryRepository;
-        this.userRepository = userRepository;
-        this.interactionRepository = interactionRepository;
-        this.aiMaterialRepository = aiMaterialRepository;
-        this.aiShareRepository = aiShareRepository;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
+        this.repositoriosRepository = repositoriosRepository;
+        this.analiticasRepository = analiticasRepository;
+        this.iaEstudioRepository = iaEstudioRepository;
     }
 
     @Transactional(readOnly = true)
@@ -157,8 +157,8 @@ public class StatisticsService {
     public Map<String, Object> getGlobalStatistics(User currentUser) {
         AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar las estadísticas globales.");
 
-        long activeStudentsCount = userRepository.fnContarEstudiantesActivos();
-        long totalRepositories = studyRepositoryRepository.fnContarTotalRepositorios();
+        long activeStudentsCount = authUsuariosRepository.contarEstudiantesActivos();
+        long totalRepositories = repositoriosRepository.contarTotalRepositorios();
         List<Object[]> resourceRows = oraclePackageService.fnEstadisticasRecursosPub();
 
         Map<String, Long> subjectViews = new LinkedHashMap<>();
@@ -273,7 +273,7 @@ public class StatisticsService {
             default -> "week";
         };
 
-        long totalStudents = userRepository.fnContarEstudiantesActivos();
+        long totalStudents = authUsuariosRepository.contarEstudiantesActivos();
 
         LocalDate today = LocalDate.now();
         LocalDateTime since = switch (period) {
@@ -283,7 +283,7 @@ public class StatisticsService {
         };
 
         List<Object[]> activityRows = oraclePackageService.fnActividadUsuariosDesde(since);
-        long totalActive = interactionRepository.fnContarUsuariosActivos(since);
+        long totalActive = analiticasRepository.contarUsuariosActivos(since);
         int engagementRate = totalStudents > 0 ? (int) Math.round((totalActive * 100.0) / totalStudents) : 0;
 
         List<Map<String, Object>> activeTimeline = buildActiveUsersTimeline(period, today, activityRows);
@@ -448,8 +448,8 @@ public class StatisticsService {
 
     private Map<String, Object> buildAiUsage(String period, LocalDate today, LocalDateTime since) {
         List<Object[]> rows = oraclePackageService.fnEstadisticasIaDesde(since);
-        long totalGenerations = aiMaterialRepository.fnContarTotalMaterialIa();
-        long sharedWithFriends = aiShareRepository.fnContarTotalCompartidosIa();
+        long totalGenerations = iaEstudioRepository.contarTotalMaterialIa();
+        long sharedWithFriends = iaEstudioRepository.contarTotalCompartidosIa();
 
         Map<AiContentType, Long> typeCounts = new LinkedHashMap<>();
         for (AiContentType type : AiContentType.values()) {

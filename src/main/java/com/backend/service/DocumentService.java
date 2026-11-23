@@ -71,30 +71,30 @@ public class DocumentService {
     private final ResourceRepository resourceRepository;
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final TagRepository tagRepository;
-    private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final com.backend.repository.RepositoriosRepository repositoriosRepository;
 
     public DocumentService(
             ResourceRepository resourceRepository,
             StudyRepositoryRepository studyRepositoryRepository,
             TagRepository tagRepository,
-            RepositoryCollaboratorRepository repositoryCollaboratorRepository,
             NotificationService notificationService,
             OraclePackageService oraclePackageService,
             ObjectMapper objectMapper,
-            JdbcTemplate jdbcTemplate
+            JdbcTemplate jdbcTemplate,
+            com.backend.repository.RepositoriosRepository repositoriosRepository
     ) {
         this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.tagRepository = tagRepository;
-        this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
         this.objectMapper = objectMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.repositoriosRepository = repositoriosRepository;
     }
 
     @Transactional
@@ -120,7 +120,7 @@ public class DocumentService {
 
         boolean isOwner = repo.getAuthor() != null && repo.getAuthor().getId().equals(author.getId());
         boolean isCollaborator = !isOwner
-                && repositoryCollaboratorRepository.fnEsColaboradorAceptado(repo.getId(), author.getId()) == 1;
+                && repositoriosRepository.esColaboradorAceptado(repo.getId(), author.getId()) == 1;
         if (!isOwner && !isCollaborator) {
             throw new AuthException(
                     HttpStatus.FORBIDDEN,
@@ -606,7 +606,7 @@ public class DocumentService {
                     clean = clean.substring(0, 30);
                 }
                 final String tagName = clean;
-                Long tagId = tagRepository.fnObtenerEtiquetaNombre(tagName);
+                Long tagId = repositoriosRepository.obtenerEtiquetaNombre(tagName);
                 Tag tag = (tagId == null ? java.util.Optional.<Tag>empty() : tagRepository.findById(tagId))
                         .orElseGet(() -> tagRepository.save(new Tag(tagName)));
                 tags.add(tag);
