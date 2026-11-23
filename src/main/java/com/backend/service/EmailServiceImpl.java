@@ -82,9 +82,10 @@ public class EmailServiceImpl implements EmailService {
             switch (provider) {
                 case "smtp" -> sendViaSmtp(toEmail, subject, plainText, htmlBody);
                 case "resend" -> sendViaResend(toEmail, subject, plainText, htmlBody);
+                case "brevo" -> sendViaBrevo(toEmail, subject, plainText, htmlBody);
                 case "console" -> log.info(consoleSummary);
                 default -> log.warn(
-                        "Proveedor de correo desconocido '{}'. Usa 'console', 'smtp' o 'resend'. {}",
+                        "Proveedor de correo desconocido '{}'. Usa 'console', 'smtp', 'resend' o 'brevo'. {}",
                         provider,
                         consoleSummary
                 );
@@ -180,6 +181,55 @@ public class EmailServiceImpl implements EmailService {
                 .toBodilessEntity();
 
         log.info("Correo '{}' enviado vía Resend API a {}", subject, toEmail);
+    }
+
+    private void sendViaBrevo(String toEmail, String subject, String plainText, String htmlBody) {
+        String apiKey = mailProperties.getBrevoApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("Falta app.mail.brevo-api-key (BREVO_API_KEY) para enviar correos con Brevo.");
+        }
+
+        Map<String, String> sender = resolveBrevoSender();
+        Map<String, Object> payload = Map.of(
+                "sender", sender,
+                "to", List.of(Map.of("email", toEmail)),
+                "subject", subject,
+                "textContent", plainText,
+                "htmlContent", htmlBody
+        );
+
+        restClient.post()
+                .uri(mailProperties.getBrevoUrl())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .header("api-key", apiKey.trim())
+                .body(payload)
+                .retrieve()
+                .toBodilessEntity();
+
+        log.info("Correo '{}' enviado vía Brevo API a {}", subject, toEmail);
+    }
+
+    private Map<String, String> resolveBrevoSender() {
+        String rawFrom = mailProperties.getFrom();
+        if (rawFrom == null || rawFrom.isBlank() || rawFrom.endsWith(DEFAULT_LOCAL_FROM_SUFFIX)) {
+            JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+            if (mailSender instanceof JavaMailSenderImpl impl && impl.getUsername() != null && !impl.getUsername().isBlank()) {
+                return Map.of("name", "Alejandría UPC", "email", impl.getUsername().trim());
+            }
+        }
+        if (rawFrom != null && !rawFrom.isBlank()) {
+            String trimmed = rawFrom.trim();
+            int lt = trimmed.indexOf('<');
+            int gt = trimmed.indexOf('>', lt + 1);
+            if (lt >= 0 && gt > lt) {
+                String name = trimmed.substring(0, lt).trim().replace("\"", "");
+                String email = trimmed.substring(lt + 1, gt).trim();
+                return Map.of("name", name.isEmpty() ? "Alejandría UPC" : name, "email", email);
+            }
+            return Map.of("name", "Alejandría UPC", "email", trimmed);
+        }
+        throw new IllegalStateException("Falta configurar APP_MAIL_FROM con el correo remitente verificado en Brevo.");
     }
 
     private String buildVerificationPlainText(String recipientName, String code, int expirationMinutes) {
