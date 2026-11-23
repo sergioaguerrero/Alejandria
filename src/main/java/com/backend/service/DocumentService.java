@@ -18,11 +18,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.sql.Blob;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -72,6 +75,7 @@ public class DocumentService {
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     public DocumentService(
             ResourceRepository resourceRepository,
@@ -80,7 +84,8 @@ public class DocumentService {
             RepositoryCollaboratorRepository repositoryCollaboratorRepository,
             NotificationService notificationService,
             OraclePackageService oraclePackageService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            JdbcTemplate jdbcTemplate
     ) {
         this.resourceRepository = resourceRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
@@ -89,6 +94,7 @@ public class DocumentService {
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
         this.objectMapper = objectMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -295,6 +301,74 @@ public class DocumentService {
         requireAuthor(resource, user, "Solo el autor puede eliminar este documento.");
 
         oraclePackageService.prEliminarRecursoCascada(id);
+    }
+
+    @Transactional
+    public Resource getFileMetadata(Long id, boolean incrementDownloads) {
+        Resource resource = findResourceMetadataOrThrow(id);
+        if (incrementDownloads) {
+            oraclePackageService.prIncrementarDescarga(id);
+            resource.setTotalDownloads(resource.getTotalDownloads() + 1);
+        }
+        if (resource.getSubject() != null) {
+            resource.getSubject().getId();
+        }
+        return resource;
+    }
+
+    /**
+     * Transmite el BLOB directamente desde Oracle al OutputStream HTTP en bloques de 1 MB
+     * sin cargar el archivo completo en el Heap de la JVM. Soporta rangos parciales (HTTP 206).
+     */
+    public void streamFileBytes(Long id, long startInclusive, long endInclusive, OutputStream out) {
+        final int chunkSize = 1024 * 1024; // 1 MB por lectura RPC de LOB
+        Boolean found = jdbcTemplate.query(
+                "SELECT archivo_bytes FROM RECURSO_ACADEMICO WHERE id = ?",
+                ps -> ps.setLong(1, id),
+                rs -> {
+                    if (!rs.next()) {
+                        return false;
+                    }
+                    Blob blob = rs.getBlob(1);
+                    if (blob == null) {
+                        return true;
+                    }
+                    try {
+                        long blobLen = blob.length();
+                        if (blobLen <= 0 || startInclusive >= blobLen) {
+                            return true;
+                        }
+                        long effectiveEnd = Math.min(endInclusive, blobLen - 1L);
+                        long pos = startInclusive + 1L; // JDBC Blob.getBytes usa índice base 1
+                        long limitPos = effectiveEnd + 1L;
+                        while (pos <= limitPos) {
+                            int bytesToRead = (int) Math.min(chunkSize, limitPos - pos + 1L);
+                            byte[] chunk = blob.getBytes(pos, bytesToRead);
+                            if (chunk == null || chunk.length == 0) {
+                                break;
+                            }
+                            out.write(chunk);
+                            pos += chunk.length;
+                        }
+                        out.flush();
+                    } catch (IOException ex) {
+                        log.debug("Stream cerrado por el cliente durante transferencia del documento {}: {}", id, ex.getMessage());
+                    } finally {
+                        try {
+                            blob.free();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    return true;
+                }
+        );
+        if (!Boolean.TRUE.equals(found)) {
+            throw new AuthException(
+                    HttpStatus.NOT_FOUND,
+                    "DOCUMENT_NOT_FOUND",
+                    "El documento no existe o fue eliminado."
+            );
+        }
     }
 
     @Transactional

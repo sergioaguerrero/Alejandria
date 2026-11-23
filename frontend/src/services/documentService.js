@@ -573,6 +573,7 @@ export async function downloadDocument(id) {
   if (!USE_MOCK) {
     const { data } = await http.get(`/documents/${id}/download`, {
       responseType: 'blob',
+      timeout: 120000,
     });
     return { url: URL.createObjectURL(data), name: `documento-${id}` };
   }
