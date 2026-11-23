@@ -11,6 +11,9 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.role WHERE u.id = :id")
+    Optional<User> findWithRoleById(@Param("id") Long id);
+
     @Query(value = "SELECT PKG_AUTH_USUARIOS.fn_usuario_puede_acceder(:userId) FROM DUAL", nativeQuery = true)
     int fnUsuarioPuedeAcceder(@Param("userId") Long userId);
 
