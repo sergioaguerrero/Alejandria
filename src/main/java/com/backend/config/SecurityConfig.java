@@ -46,17 +46,26 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             CorsConfigurationSource corsConfigurationSource,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Value("${cors.allowed.origins:http://localhost:5173}") String allowedOrigins
     ) throws Exception {
+        StringBuilder frameAncestors = new StringBuilder("frame-ancestors 'self' http://localhost:* http://127.0.0.1:*");
+        if (allowedOrigins != null) {
+            for (String origin : allowedOrigins.split(",")) {
+                String clean = origin.trim();
+                if (!clean.isEmpty()) {
+                    frameAncestors.append(' ').append(clean);
+                }
+            }
+        }
+
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers
-                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-                        .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "frame-ancestors 'self' http://localhost:* http://127.0.0.1:*"
-                        ))
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(frameAncestors.toString()))
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
