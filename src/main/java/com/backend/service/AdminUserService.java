@@ -5,8 +5,8 @@ import com.backend.domain.governance.UserSanction;
 import com.backend.domain.identity.User;
 import com.backend.dto.AdminUserResponseDto;
 import com.backend.exception.AuthException;
-import com.backend.repository.ResourceRepository;
-import com.backend.repository.StudyRepositoryRepository;
+import com.backend.repository.AuthUsuariosRepository;
+import com.backend.repository.RepositoriosRepository;
 import com.backend.repository.UserRepository;
 import com.backend.repository.UserSanctionRepository;
 import org.springframework.http.HttpStatus;
@@ -26,39 +26,41 @@ public class AdminUserService {
 
     private final UserRepository userRepository;
     private final UserSanctionRepository userSanctionRepository;
-    private final StudyRepositoryRepository studyRepositoryRepository;
-    private final ResourceRepository resourceRepository;
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
+    private final AuthUsuariosRepository authUsuariosRepository;
+    private final RepositoriosRepository repositoriosRepository;
 
     public AdminUserService(
             UserRepository userRepository,
             UserSanctionRepository userSanctionRepository,
-            StudyRepositoryRepository studyRepositoryRepository,
-            ResourceRepository resourceRepository,
             NotificationService notificationService,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            AuthUsuariosRepository authUsuariosRepository,
+            RepositoriosRepository repositoriosRepository
     ) {
         this.userRepository = userRepository;
         this.userSanctionRepository = userSanctionRepository;
-        this.studyRepositoryRepository = studyRepositoryRepository;
-        this.resourceRepository = resourceRepository;
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
+        this.repositoriosRepository = repositoriosRepository;
     }
 
     @Transactional(readOnly = true)
     public AdminUserResponseDto getAdminUser(String idOrUsername, User currentUser) {
         AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar la información de gestión de usuarios.");
         User target = findUserOrThrow(idOrUsername);
-        long repoCount = studyRepositoryRepository.fnContarReposAutor(target.getId());
-        long docCount = resourceRepository.fnContarRecursosAutor(target.getId());
+        long repoCount = repositoriosRepository.contarReposAutor(target.getId());
+        long docCount = repositoriosRepository.contarRecursosAutor(target.getId());
         List<Long> sanctionIds = oraclePackageService.fnSancionesUsuarioIds(target.getId());
-        List<UserSanction> sanctions = oraclePackageService.orderByIds(
-                sanctionIds,
-                userSanctionRepository.findAllById(sanctionIds),
-                UserSanction::getId
-        );
+        List<UserSanction> sanctions = sanctionIds.isEmpty()
+                ? List.of()
+                : oraclePackageService.orderByIds(
+                        sanctionIds,
+                        userSanctionRepository.findAllWithModeratorByIdIn(sanctionIds),
+                        UserSanction::getId
+                );
         return AdminUserResponseDto.fromEntity(target, repoCount, docCount, sanctions);
     }
 
@@ -112,11 +114,11 @@ public class AdminUserService {
         String clean = idOrUsername.trim();
         try {
             Long id = Long.parseLong(clean);
-            return userRepository.findById(id)
+            return userRepository.findWithRoleById(id)
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
         } catch (NumberFormatException ignored) {
-            Long id = userRepository.fnBuscarUsuarioPorUsername(clean.toLowerCase(Locale.ROOT));
-            return (id == null ? java.util.Optional.<User>empty() : userRepository.findById(id))
+            Long id = authUsuariosRepository.buscarUsuarioPorUsername(clean.toLowerCase(Locale.ROOT));
+            return (id == null ? java.util.Optional.<User>empty() : userRepository.findWithRoleById(id))
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
         }
     }

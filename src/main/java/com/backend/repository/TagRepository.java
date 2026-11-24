@@ -6,9 +6,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
+
 @Repository
 public interface TagRepository extends JpaRepository<Tag, Long> {
 
-    @Query(value = "SELECT PKG_REPOSITORIOS.fn_obtener_etiqueta_nombre(:name) FROM DUAL", nativeQuery = true)
-    Long fnObtenerEtiquetaNombre(@Param("name") String name);
+    @Query("SELECT t FROM Tag t WHERE t.name IN :names")
+    List<Tag> findAllByNameIn(@Param("names") Collection<String> names);
 }

@@ -6,9 +6,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
 @Repository
 public interface DecisionRepository extends JpaRepository<Decision, Long> {
 
-    @Query(value = "SELECT PKG_MODERACION.fn_obtener_decision_reporte(:reportId) FROM DUAL", nativeQuery = true)
-    Long fnObtenerDecisionReporte(@Param("reportId") Long reportId);
+    @Query("SELECT d FROM Decision d LEFT JOIN FETCH d.moderator WHERE d.report.id IN :reportIds")
+    List<Decision> findAllWithModeratorByReportIdIn(@Param("reportIds") Collection<Long> reportIds);
+
+    @Query("SELECT d FROM Decision d LEFT JOIN FETCH d.moderator WHERE d.id = :id")
+    Optional<Decision> findWithModeratorById(@Param("id") Long id);
 }

@@ -6,12 +6,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
+
 @Repository
 public interface AiShareRepository extends JpaRepository<AiShare, Long> {
 
-    @Query(value = "SELECT PKG_IA_ESTUDIO.fn_contar_total_compartidos_ia() FROM DUAL", nativeQuery = true)
-    long fnContarTotalCompartidosIa();
-
-    @Query(value = "SELECT PKG_IA_ESTUDIO.fn_obtener_compartido_ia(:materialId, :recipientId) FROM DUAL", nativeQuery = true)
-    Long fnObtenerCompartidoIa(@Param("materialId") Long materialId, @Param("recipientId") Long recipientId);
+    @Query("""
+            SELECT s FROM AiShare s
+            JOIN FETCH s.material m
+            JOIN FETCH m.owner
+            LEFT JOIN FETCH m.studyRepository
+            JOIN FETCH s.sender
+            WHERE s.id IN :ids
+            """)
+    List<AiShare> findAllWithDetailsByIdIn(@Param("ids") Collection<Long> ids);
 }
