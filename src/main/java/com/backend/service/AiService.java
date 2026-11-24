@@ -251,6 +251,9 @@ public class AiService {
     public List<Map<String, Object>> getMyStudyMaterials(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver tu material de estudio guardado.");
         List<Long> ids = oraclePackageService.fnObtenerGuardadosIaIds(user.getId());
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         return oraclePackageService.orderByIds(ids, aiMaterialRepository.findAllById(ids), AiMaterial::getId)
                 .stream()
                 .map(m -> toMaterialDto(m, null))
@@ -337,7 +340,10 @@ public class AiService {
     public List<Map<String, Object>> getSharedWithMe(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver el contenido compartido contigo.");
         List<Long> shareIds = oraclePackageService.fnCompartidosConmigoIaIds(user.getId());
-        return oraclePackageService.orderByIds(shareIds, aiShareRepository.findAllById(shareIds), AiShare::getId)
+        if (shareIds.isEmpty()) {
+            return List.of();
+        }
+        return oraclePackageService.orderByIds(shareIds, aiShareRepository.findAllWithDetailsByIdIn(shareIds), AiShare::getId)
                 .stream()
                 .map(share -> toMaterialDto(share.getMaterial(), share))
                 .toList();

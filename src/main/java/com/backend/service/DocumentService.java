@@ -598,6 +598,7 @@ public class DocumentService {
         }
         try {
             List<String> rawTags = objectMapper.readValue(tagsJson, new TypeReference<>() {});
+            Set<String> cleanedNames = new LinkedHashSet<>();
             for (String raw : rawTags) {
                 if (raw == null) continue;
                 String clean = raw.trim().toLowerCase(Locale.ROOT);
@@ -605,10 +606,25 @@ public class DocumentService {
                 if (clean.length() > 30) {
                     clean = clean.substring(0, 30);
                 }
-                final String tagName = clean;
-                Long tagId = repositoriosRepository.obtenerEtiquetaNombre(tagName);
-                Tag tag = (tagId == null ? java.util.Optional.<Tag>empty() : tagRepository.findById(tagId))
-                        .orElseGet(() -> tagRepository.save(new Tag(tagName)));
+                cleanedNames.add(clean);
+            }
+            if (cleanedNames.isEmpty()) {
+                return tags;
+            }
+            Map<String, Tag> existingByName = new LinkedHashMap<>();
+            for (Tag existing : tagRepository.findAllByNameIn(cleanedNames)) {
+                if (existing.getName() != null) {
+                    existingByName.put(existing.getName().toLowerCase(Locale.ROOT), existing);
+                }
+            }
+            for (String tagName : cleanedNames) {
+                Tag tag = existingByName.get(tagName);
+                if (tag == null) {
+                    Long tagId = repositoriosRepository.obtenerEtiquetaNombre(tagName);
+                    tag = (tagId == null ? java.util.Optional.<Tag>empty() : tagRepository.findById(tagId))
+                            .orElseGet(() -> tagRepository.save(new Tag(tagName)));
+                    existingByName.put(tagName, tag);
+                }
                 tags.add(tag);
             }
             return tags;

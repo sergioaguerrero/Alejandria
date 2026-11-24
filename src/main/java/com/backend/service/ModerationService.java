@@ -158,9 +158,12 @@ public class ModerationService {
         AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar la bandeja de reportes.");
 
         List<Long> reportIds = oraclePackageService.fnListarReportesIds();
+        if (reportIds.isEmpty()) {
+            return List.of();
+        }
         List<Report> allReports = oraclePackageService.orderByIds(
                 reportIds,
-                reportRepository.findAllById(reportIds),
+                reportRepository.findAllWithDetailsByIdIn(reportIds),
                 Report::getId
         );
         Map<Long, Decision> decisionMap = loadDecisions(allReports);
@@ -194,7 +197,7 @@ public class ModerationService {
     public ReportResponseDto getReportById(Long id, User currentUser, String baseUrl) {
         AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar el detalle de un reporte.");
 
-        Report report = reportRepository.findById(id)
+        Report report = reportRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "REPORT_NOT_FOUND", "Reporte no encontrado."));
         Decision decision = findDecisionForReport(id);
 
@@ -291,7 +294,7 @@ public class ModerationService {
 
     private Decision findDecisionForReport(Long reportId) {
         Long decisionId = moderacionRepository.obtenerDecisionReporte(reportId);
-        return decisionId == null ? null : decisionRepository.findById(decisionId).orElse(null);
+        return decisionId == null ? null : decisionRepository.findWithModeratorById(decisionId).orElse(null);
     }
 
     private Object buildTargetData(Report report, User viewer, String baseUrl) {
@@ -347,11 +350,14 @@ public class ModerationService {
     }
 
     private Map<Long, Decision> loadDecisions(List<Report> reports) {
+        if (reports.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> reportIds = reports.stream().map(Report::getId).toList();
         Map<Long, Decision> map = new LinkedHashMap<>();
-        for (Report report : reports) {
-            Decision decision = findDecisionForReport(report.getId());
-            if (decision != null) {
-                map.put(report.getId(), decision);
+        for (Decision decision : decisionRepository.findAllWithModeratorByReportIdIn(reportIds)) {
+            if (decision.getReport() != null && decision.getReport().getId() != null) {
+                map.put(decision.getReport().getId(), decision);
             }
         }
         return map;

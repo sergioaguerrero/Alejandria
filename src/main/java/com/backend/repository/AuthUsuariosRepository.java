@@ -55,79 +55,173 @@ public class AuthUsuariosRepository {
     private final SimpleJdbcCall prMarcarNotificacionesLeidasCall;
 
     public AuthUsuariosRepository(JdbcTemplate jdbcTemplate) {
-        this.fnUsuarioPuedeAccederCall = functionCall(jdbcTemplate, PKG, "fn_usuario_puede_acceder");
-        this.fnSonAmigosMutuosCall = functionCall(jdbcTemplate, PKG, "fn_son_amigos_mutuos");
-        this.fnEsSeguidorUsuarioCall = functionCall(jdbcTemplate, PKG, "fn_es_seguidor_usuario");
-        this.fnContarSeguidoresUsuarioCall = functionCall(jdbcTemplate, PKG, "fn_contar_seguidores_usuario");
-        this.fnContarSeguidosUsuarioCall = functionCall(jdbcTemplate, PKG, "fn_contar_seguidos_usuario");
-        this.fnContarNotifNoLeidasCall = functionCall(jdbcTemplate, PKG, "fn_contar_notif_no_leidas");
-        this.fnContarEstudiantesActivosCall = functionCall(jdbcTemplate, PKG, "fn_contar_estudiantes_activos");
-        this.fnObtenerAmigosMutuosCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_obtener_amigos_mutuos");
-        this.fnObtenerSeguidosUsuarioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_obtener_seguidos_usuario");
-        this.fnObtenerSeguidoresUsuarioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_obtener_seguidores_usuario");
-        this.fnUsuariosVerificadosCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_usuarios_verificados");
-        this.fnAdminsVerificadosCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_admins_verificados");
-        this.fnBuscarEstudiantesActivosCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_buscar_estudiantes_activos");
+        this.fnUsuarioPuedeAccederCall = functionCall(
+                jdbcTemplate, PKG, "fn_usuario_puede_acceder",
+                inNumeric("p_usuario_id")
+        );
+        this.fnSonAmigosMutuosCall = functionCall(
+                jdbcTemplate, PKG, "fn_son_amigos_mutuos",
+                inNumeric("p_usuario1_id"), inNumeric("p_usuario2_id")
+        );
+        this.fnEsSeguidorUsuarioCall = functionCall(
+                jdbcTemplate, PKG, "fn_es_seguidor_usuario",
+                inNumeric("p_seguidor_id"), inNumeric("p_seguido_id")
+        );
+        this.fnContarSeguidoresUsuarioCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_seguidores_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.fnContarSeguidosUsuarioCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_seguidos_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.fnContarNotifNoLeidasCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_notif_no_leidas",
+                inNumeric("p_usuario_id")
+        );
+        this.fnContarEstudiantesActivosCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_estudiantes_activos"
+        );
+        this.fnObtenerAmigosMutuosCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_obtener_amigos_mutuos",
+                inNumeric("p_usuario_id")
+        );
+        this.fnObtenerSeguidosUsuarioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_obtener_seguidos_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.fnObtenerSeguidoresUsuarioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_obtener_seguidores_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.fnUsuariosVerificadosCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_usuarios_verificados"
+        );
+        this.fnAdminsVerificadosCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_admins_verificados"
+        );
+        this.fnBuscarEstudiantesActivosCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_buscar_estudiantes_activos",
+                inVarchar("p_patron"), inNumeric("p_semestre"), inNumeric("p_limite")
+        );
         this.fnEstudiantesPorSemestreCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_estudiantes_por_semestre",
                 (rs, rowNum) -> new Object[]{rs.getInt(1), rs.getLong(2)}
         );
-        this.fnListarNotificacionesCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_listar_notificaciones");
-        this.fnMateriasInteresUsuarioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_materias_interes_usuario");
-        this.fnContactosUsuarioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_contactos_usuario");
-        this.fnBuscarUsuarioPorUsernameCall = functionCall(jdbcTemplate, PKG, "fn_buscar_usuario_por_username");
-        this.fnBuscarUsuarioPorCorreoCall = functionCall(jdbcTemplate, PKG, "fn_buscar_usuario_por_correo");
-        this.fnExisteUsernameOtroCall = functionCall(jdbcTemplate, PKG, "fn_existe_username_otro");
-        this.fnObtenerUltimoOtpActivoCall = functionCall(jdbcTemplate, PKG, "fn_obtener_ultimo_otp_activo");
-        this.fnObtenerTokenResetHashCall = functionCall(jdbcTemplate, PKG, "fn_obtener_token_reset_hash");
-        this.fnObtenerRolPorNombreCall = functionCall(jdbcTemplate, PKG, "fn_obtener_rol_por_nombre");
-        this.fnObtenerNotificacionUsrCall = functionCall(jdbcTemplate, PKG, "fn_obtener_notificacion_usr");
-        this.prEliminarContactosUsuarioCall = procedureCall(jdbcTemplate, PKG, "pr_eliminar_contactos_usuario");
-        this.prEliminarMateriasInteresCall = procedureCall(jdbcTemplate, PKG, "pr_eliminar_materias_interes");
-        this.prToggleSeguirUsuarioCall = procedureCall(jdbcTemplate, PKG, "pr_toggle_seguir_usuario");
-        this.prInvalidarCodigosOtpCall = procedureCall(jdbcTemplate, PKG, "pr_invalidar_codigos_otp");
-        this.prInvalidarTokensResetCall = procedureCall(jdbcTemplate, PKG, "pr_invalidar_tokens_reset");
-        this.prLimpiarCredencialesExpiradasCall = procedureCall(jdbcTemplate, PKG, "pr_limpiar_credenciales_expiradas");
-        this.prLimpiarUsuariosNoVerifCall = procedureCall(jdbcTemplate, PKG, "pr_limpiar_usuarios_no_verif");
-        this.prMarcarNotificacionesLeidasCall = procedureCall(jdbcTemplate, PKG, "pr_marcar_notificaciones_leidas");
+        this.fnListarNotificacionesCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_listar_notificaciones",
+                inNumeric("p_usuario_id")
+        );
+        this.fnMateriasInteresUsuarioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_materias_interes_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.fnContactosUsuarioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_contactos_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.fnBuscarUsuarioPorUsernameCall = functionCall(
+                jdbcTemplate, PKG, "fn_buscar_usuario_por_username",
+                inVarchar("p_username")
+        );
+        this.fnBuscarUsuarioPorCorreoCall = functionCall(
+                jdbcTemplate, PKG, "fn_buscar_usuario_por_correo",
+                inVarchar("p_correo")
+        );
+        this.fnExisteUsernameOtroCall = functionCall(
+                jdbcTemplate, PKG, "fn_existe_username_otro",
+                inVarchar("p_username"), inNumeric("p_excluir_id")
+        );
+        this.fnObtenerUltimoOtpActivoCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_ultimo_otp_activo",
+                inNumeric("p_usuario_id")
+        );
+        this.fnObtenerTokenResetHashCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_token_reset_hash",
+                inVarchar("p_token_hash")
+        );
+        this.fnObtenerRolPorNombreCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_rol_por_nombre",
+                inVarchar("p_nombre")
+        );
+        this.fnObtenerNotificacionUsrCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_notificacion_usr",
+                inNumeric("p_notificacion_id"), inNumeric("p_usuario_id")
+        );
+        this.prEliminarContactosUsuarioCall = procedureCall(
+                jdbcTemplate, PKG, "pr_eliminar_contactos_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.prEliminarMateriasInteresCall = procedureCall(
+                jdbcTemplate, PKG, "pr_eliminar_materias_interes",
+                inNumeric("p_usuario_id")
+        );
+        this.prToggleSeguirUsuarioCall = procedureCall(
+                jdbcTemplate, PKG, "pr_toggle_seguir_usuario",
+                inNumeric("p_seguidor_id"), inNumeric("p_seguido_id"),
+                outNumeric("p_siguiendo"), outNumeric("p_es_mutuo")
+        );
+        this.prInvalidarCodigosOtpCall = procedureCall(
+                jdbcTemplate, PKG, "pr_invalidar_codigos_otp",
+                inNumeric("p_usuario_id")
+        );
+        this.prInvalidarTokensResetCall = procedureCall(
+                jdbcTemplate, PKG, "pr_invalidar_tokens_reset",
+                inNumeric("p_usuario_id")
+        );
+        this.prLimpiarCredencialesExpiradasCall = procedureCall(
+                jdbcTemplate, PKG, "pr_limpiar_credenciales_expiradas",
+                inTimestamp("p_corte"),
+                outNumeric("p_codigos_borrados"), outNumeric("p_tokens_borrados")
+        );
+        this.prLimpiarUsuariosNoVerifCall = procedureCall(
+                jdbcTemplate, PKG, "pr_limpiar_usuarios_no_verif",
+                inTimestamp("p_corte"),
+                outNumeric("p_borrados")
+        );
+        this.prMarcarNotificacionesLeidasCall = procedureCall(
+                jdbcTemplate, PKG, "pr_marcar_notificaciones_leidas",
+                inNumeric("p_usuario_id"),
+                outNumeric("p_actualizadas")
+        );
     }
 
     public int usuarioPuedeAcceder(Long userId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_usuario_id", userId);
-        return toInt(fnUsuarioPuedeAccederCall.executeFunction(Integer.class, in));
+        return executeInt(fnUsuarioPuedeAccederCall, in);
     }
 
     public int sonAmigosMutuos(Long user1Id, Long user2Id) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_usuario1_id", user1Id)
                 .addValue("p_usuario2_id", user2Id);
-        return toInt(fnSonAmigosMutuosCall.executeFunction(Integer.class, in));
+        return executeInt(fnSonAmigosMutuosCall, in);
     }
 
     public int esSeguidorUsuario(Long followerId, Long followedId) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_seguidor_id", followerId)
                 .addValue("p_seguido_id", followedId);
-        return toInt(fnEsSeguidorUsuarioCall.executeFunction(Integer.class, in));
+        return executeInt(fnEsSeguidorUsuarioCall, in);
     }
 
     public long contarSeguidoresUsuario(Long userId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_usuario_id", userId);
-        return toLong(fnContarSeguidoresUsuarioCall.executeFunction(Long.class, in));
+        return executeLong(fnContarSeguidoresUsuarioCall, in);
     }
 
     public long contarSeguidosUsuario(Long userId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_usuario_id", userId);
-        return toLong(fnContarSeguidosUsuarioCall.executeFunction(Long.class, in));
+        return executeLong(fnContarSeguidosUsuarioCall, in);
     }
 
     public long contarNotifNoLeidas(Long userId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_usuario_id", userId);
-        return toLong(fnContarNotifNoLeidasCall.executeFunction(Long.class, in));
+        return executeLong(fnContarNotifNoLeidasCall, in);
     }
 
     public long contarEstudiantesActivos() {
-        return toLong(fnContarEstudiantesActivosCall.executeFunction(Long.class, EMPTY_PARAMS));
+        return executeLong(fnContarEstudiantesActivosCall, EMPTY_PARAMS);
     }
 
     public List<Long> obtenerAmigosMutuosIds(Long userId) {
@@ -199,7 +293,7 @@ public class AuthUsuariosRepository {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_username", username)
                 .addValue("p_excluir_id", excludeId);
-        return toInt(fnExisteUsernameOtroCall.executeFunction(Integer.class, in));
+        return executeInt(fnExisteUsernameOtroCall, in);
     }
 
     public Long obtenerUltimoOtpActivo(Long userId) {

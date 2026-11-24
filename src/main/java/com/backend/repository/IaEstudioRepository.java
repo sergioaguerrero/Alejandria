@@ -33,17 +33,37 @@ public class IaEstudioRepository {
     private final SimpleJdbcCall prCompartirMaterialIaCall;
 
     public IaEstudioRepository(JdbcTemplate jdbcTemplate) {
-        this.fnUsadosHoyIaCall = functionCall(jdbcTemplate, PKG, "fn_usados_hoy_ia");
-        this.fnCuotaRestanteIaCall = functionCall(jdbcTemplate, PKG, "fn_cuota_restante_ia");
-        this.fnContarTotalMaterialIaCall = functionCall(jdbcTemplate, PKG, "fn_contar_total_material_ia");
-        this.fnContarTotalCompartidosIaCall = functionCall(jdbcTemplate, PKG, "fn_contar_total_compartidos_ia");
-        this.fnObtenerGuardadosIaCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_obtener_guardados_ia");
+        this.fnUsadosHoyIaCall = functionCall(
+                jdbcTemplate, PKG, "fn_usados_hoy_ia",
+                inNumeric("p_usuario_id")
+        );
+        this.fnCuotaRestanteIaCall = functionCall(
+                jdbcTemplate, PKG, "fn_cuota_restante_ia",
+                inNumeric("p_usuario_id"), inNumeric("p_limite_diario")
+        );
+        this.fnContarTotalMaterialIaCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_total_material_ia"
+        );
+        this.fnContarTotalCompartidosIaCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_total_compartidos_ia"
+        );
+        this.fnObtenerGuardadosIaCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_obtener_guardados_ia",
+                inNumeric("p_usuario_id")
+        );
         this.fnAmigosCompartidosIaCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_amigos_compartidos_ia",
-                (rs, rowNum) -> rs.getString(1)
+                (rs, rowNum) -> rs.getString(1),
+                inNumeric("p_material_id"), inNumeric("p_remitente_id")
         );
-        this.fnCompartidosConmigoIaCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_compartidos_conmigo_ia");
-        this.fnObtenerCompartidoIaCall = functionCall(jdbcTemplate, PKG, "fn_obtener_compartido_ia");
+        this.fnCompartidosConmigoIaCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_compartidos_conmigo_ia",
+                inNumeric("p_destinatario_id")
+        );
+        this.fnObtenerCompartidoIaCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_compartido_ia",
+                inNumeric("p_material_id"), inNumeric("p_destinatario_id")
+        );
         this.fnEstadisticasIaDesdeCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_estadisticas_ia_desde",
                 (rs, rowNum) -> {
@@ -62,30 +82,35 @@ public class IaEstudioRepository {
                             subjectName,
                             ts != null ? ts.toLocalDateTime() : null
                     };
-                }
+                },
+                inTimestamp("p_desde")
         );
-        this.prCompartirMaterialIaCall = procedureCall(jdbcTemplate, PKG, "pr_compartir_material_ia");
+        this.prCompartirMaterialIaCall = procedureCall(
+                jdbcTemplate, PKG, "pr_compartir_material_ia",
+                inNumeric("p_material_id"), inNumeric("p_remitente_id"),
+                inNumeric("p_destinatario_id"), inVarchar("p_nota")
+        );
     }
 
     public long usadosHoyIa(Long userId) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_usuario_id", userId);
-        return toLong(fnUsadosHoyIaCall.executeFunction(Long.class, in));
+        return executeLong(fnUsadosHoyIaCall, in);
     }
 
     public long cuotaRestanteIa(Long userId, int dailyLimit) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_usuario_id", userId)
                 .addValue("p_limite_diario", dailyLimit);
-        return toLong(fnCuotaRestanteIaCall.executeFunction(Long.class, in));
+        return executeLong(fnCuotaRestanteIaCall, in);
     }
 
     public long contarTotalMaterialIa() {
-        return toLong(fnContarTotalMaterialIaCall.executeFunction(Long.class, EMPTY_PARAMS));
+        return executeLong(fnContarTotalMaterialIaCall, EMPTY_PARAMS);
     }
 
     public long contarTotalCompartidosIa() {
-        return toLong(fnContarTotalCompartidosIaCall.executeFunction(Long.class, EMPTY_PARAMS));
+        return executeLong(fnContarTotalCompartidosIaCall, EMPTY_PARAMS);
     }
 
     public List<Long> obtenerGuardadosIaIds(Long userId) {

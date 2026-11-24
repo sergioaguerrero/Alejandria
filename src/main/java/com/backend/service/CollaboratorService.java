@@ -67,9 +67,12 @@ public class CollaboratorService {
                 && repo.getAuthor().getId().equals(viewer.getId());
 
         List<Long> ids = oraclePackageService.fnColaboradoresRepositorioIds(repositoryId);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         List<RepositoryCollaborator> records = oraclePackageService.orderByIds(
                 ids,
-                collaboratorRepository.findAllById(ids),
+                collaboratorRepository.findAllWithDetailsByIdIn(ids),
                 RepositoryCollaborator::getId
         );
 
@@ -214,9 +217,12 @@ public class CollaboratorService {
     public CollaborationsResponseDto getMyCollaborations(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver tus colaboraciones.");
         List<Long> ids = oraclePackageService.fnColaboracionesUsuarioIds(user.getId());
+        if (ids.isEmpty()) {
+            return new CollaborationsResponseDto(List.of(), List.of());
+        }
         List<RepositoryCollaborator> records = oraclePackageService.orderByIds(
                 ids,
-                collaboratorRepository.findAllById(ids),
+                collaboratorRepository.findAllWithDetailsByIdIn(ids),
                 RepositoryCollaborator::getId
         );
         if (records.isEmpty()) {

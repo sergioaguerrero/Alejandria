@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 
@@ -69,64 +70,154 @@ public class RepositoriosRepository {
     private final SimpleJdbcCall prEliminarRecursoCascadaCall;
 
     public RepositoriosRepository(JdbcTemplate jdbcTemplate) {
-        this.fnContarRecursosPublicadosCall = functionCall(jdbcTemplate, PKG, "fn_contar_recursos_publicados");
-        this.fnContarSeguidoresRepoCall = functionCall(jdbcTemplate, PKG, "fn_contar_seguidores_repo");
-        this.fnUsuarioDioLikeRepoCall = functionCall(jdbcTemplate, PKG, "fn_usuario_dio_like_repo");
-        this.fnUsuarioSigueRepoCall = functionCall(jdbcTemplate, PKG, "fn_usuario_sigue_repo");
-        this.fnEstadoColaboradorRepoCall = functionCall(jdbcTemplate, PKG, "fn_estado_colaborador_repo");
-        this.fnEsColaboradorAceptadoCall = functionCall(jdbcTemplate, PKG, "fn_es_colaborador_aceptado");
-        this.fnContarReposAutorCall = functionCall(jdbcTemplate, PKG, "fn_contar_repos_autor");
-        this.fnContarRecursosAutorCall = functionCall(jdbcTemplate, PKG, "fn_contar_recursos_autor");
-        this.fnContarTotalRepositoriosCall = functionCall(jdbcTemplate, PKG, "fn_contar_total_repositorios");
-        this.fnBuscarRepositoriosCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_buscar_repositorios");
-        this.fnRepositoriosPorAutorCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_repositorios_por_autor");
-        this.fnRepositoriosSeguidosCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_repositorios_seguidos");
-        this.fnSeguidoresVerificadosRepoCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_seguidores_verificados_repo");
-        this.fnColaboradoresRepositorioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_colaboradores_repositorio");
-        this.fnColaboracionesUsuarioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_colaboraciones_usuario");
-        this.fnRecursosPorRepositorioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_recursos_por_repositorio");
-        this.fnRecursosPorAutorCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_recursos_por_autor");
-        this.fnBuscarRecursosCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_buscar_recursos");
+        this.fnContarRecursosPublicadosCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_recursos_publicados",
+                inNumeric("p_repositorio_id")
+        );
+        this.fnContarSeguidoresRepoCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_seguidores_repo",
+                inNumeric("p_repositorio_id")
+        );
+        this.fnUsuarioDioLikeRepoCall = functionCall(
+                jdbcTemplate, PKG, "fn_usuario_dio_like_repo",
+                inNumeric("p_repositorio_id"), inNumeric("p_usuario_id")
+        );
+        this.fnUsuarioSigueRepoCall = functionCall(
+                jdbcTemplate, PKG, "fn_usuario_sigue_repo",
+                inNumeric("p_repositorio_id"), inNumeric("p_usuario_id")
+        );
+        this.fnEstadoColaboradorRepoCall = functionCall(
+                jdbcTemplate, PKG, "fn_estado_colaborador_repo",
+                Types.VARCHAR,
+                inNumeric("p_repositorio_id"), inNumeric("p_usuario_id")
+        );
+        this.fnEsColaboradorAceptadoCall = functionCall(
+                jdbcTemplate, PKG, "fn_es_colaborador_aceptado",
+                inNumeric("p_repositorio_id"), inNumeric("p_usuario_id")
+        );
+        this.fnContarReposAutorCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_repos_autor",
+                inNumeric("p_autor_id")
+        );
+        this.fnContarRecursosAutorCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_recursos_autor",
+                inNumeric("p_autor_id")
+        );
+        this.fnContarTotalRepositoriosCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_total_repositorios"
+        );
+        this.fnBuscarRepositoriosCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_buscar_repositorios",
+                inNumeric("p_materia_id"), inNumeric("p_semestre"),
+                inVarchar("p_texto"), inVarchar("p_orden")
+        );
+        this.fnRepositoriosPorAutorCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_repositorios_por_autor",
+                inVarchar("p_username")
+        );
+        this.fnRepositoriosSeguidosCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_repositorios_seguidos",
+                inNumeric("p_usuario_id")
+        );
+        this.fnSeguidoresVerificadosRepoCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_seguidores_verificados_repo",
+                inNumeric("p_repositorio_id")
+        );
+        this.fnColaboradoresRepositorioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_colaboradores_repositorio",
+                inNumeric("p_repositorio_id")
+        );
+        this.fnColaboracionesUsuarioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_colaboraciones_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.fnRecursosPorRepositorioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_recursos_por_repositorio",
+                inNumeric("p_repositorio_id"), inNumeric("p_corte")
+        );
+        this.fnRecursosPorAutorCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_recursos_por_autor",
+                inVarchar("p_username")
+        );
+        this.fnBuscarRecursosCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_buscar_recursos",
+                inVarchar("p_texto"), inNumeric("p_materia_id"),
+                inNumeric("p_semestre"), inNumeric("p_corte"),
+                inVarchar("p_tipo"), inVarchar("p_tema"), inVarchar("p_orden")
+        );
         this.fnEstadisticasRecursosPubCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_estadisticas_recursos_pub", RESOURCE_STATS_ROW_MAPPER
         );
         this.fnEstadisticasRecursosAutorCall = cursorFunctionCall(
-                jdbcTemplate, PKG, "fn_estadisticas_recursos_autor", RESOURCE_STATS_ROW_MAPPER
+                jdbcTemplate, PKG, "fn_estadisticas_recursos_autor", RESOURCE_STATS_ROW_MAPPER,
+                inNumeric("p_autor_id")
         );
-        this.fnListarMateriasCatalogoCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_listar_materias_catalogo");
-        this.fnObtenerEtiquetaNombreCall = functionCall(jdbcTemplate, PKG, "fn_obtener_etiqueta_nombre");
-        this.fnObtenerColaboradorIdCall = functionCall(jdbcTemplate, PKG, "fn_obtener_colaborador_id");
-        this.fnObtenerColabPorUsernameCall = functionCall(jdbcTemplate, PKG, "fn_obtener_colab_por_username");
-        this.prToggleMeGustaRepoCall = procedureCall(jdbcTemplate, PKG, "pr_toggle_me_gusta_repo");
-        this.prToggleSeguirRepoCall = procedureCall(jdbcTemplate, PKG, "pr_toggle_seguir_repo");
-        this.prIncrementarVistaCall = procedureCall(jdbcTemplate, PKG, "pr_incrementar_vista");
-        this.prIncrementarDescargaCall = procedureCall(jdbcTemplate, PKG, "pr_incrementar_descarga");
-        this.prEliminarRepositorioCascadaCall = procedureCall(jdbcTemplate, PKG, "pr_eliminar_repositorio_cascada");
-        this.prEliminarRecursoCascadaCall = procedureCall(jdbcTemplate, PKG, "pr_eliminar_recurso_cascada");
+        this.fnListarMateriasCatalogoCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_listar_materias_catalogo",
+                inNumeric("p_semestre_id"), inNumeric("p_numero_semestre")
+        );
+        this.fnObtenerEtiquetaNombreCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_etiqueta_nombre",
+                inVarchar("p_nombre")
+        );
+        this.fnObtenerColaboradorIdCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_colaborador_id",
+                inNumeric("p_repositorio_id"), inNumeric("p_usuario_id")
+        );
+        this.fnObtenerColabPorUsernameCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_colab_por_username",
+                inNumeric("p_repositorio_id"), inVarchar("p_username")
+        );
+        this.prToggleMeGustaRepoCall = procedureCall(
+                jdbcTemplate, PKG, "pr_toggle_me_gusta_repo",
+                inNumeric("p_repositorio_id"), inNumeric("p_usuario_id"),
+                outNumeric("p_liked"), outNumeric("p_total_likes")
+        );
+        this.prToggleSeguirRepoCall = procedureCall(
+                jdbcTemplate, PKG, "pr_toggle_seguir_repo",
+                inNumeric("p_repositorio_id"), inNumeric("p_usuario_id"),
+                outNumeric("p_followed"), outNumeric("p_total_seguidores")
+        );
+        this.prIncrementarVistaCall = procedureCall(
+                jdbcTemplate, PKG, "pr_incrementar_vista",
+                inNumeric("p_recurso_id")
+        );
+        this.prIncrementarDescargaCall = procedureCall(
+                jdbcTemplate, PKG, "pr_incrementar_descarga",
+                inNumeric("p_recurso_id")
+        );
+        this.prEliminarRepositorioCascadaCall = procedureCall(
+                jdbcTemplate, PKG, "pr_eliminar_repositorio_cascada",
+                inNumeric("p_repositorio_id")
+        );
+        this.prEliminarRecursoCascadaCall = procedureCall(
+                jdbcTemplate, PKG, "pr_eliminar_recurso_cascada",
+                inNumeric("p_recurso_id")
+        );
     }
 
     public int contarRecursosPublicados(Long repositoryId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_repositorio_id", repositoryId);
-        return toInt(fnContarRecursosPublicadosCall.executeFunction(Integer.class, in));
+        return executeInt(fnContarRecursosPublicadosCall, in);
     }
 
     public long contarSeguidoresRepo(Long repositoryId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_repositorio_id", repositoryId);
-        return toLong(fnContarSeguidoresRepoCall.executeFunction(Long.class, in));
+        return executeLong(fnContarSeguidoresRepoCall, in);
     }
 
     public int usuarioDioLikeRepo(Long repositoryId, Long userId) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_repositorio_id", repositoryId)
                 .addValue("p_usuario_id", userId);
-        return toInt(fnUsuarioDioLikeRepoCall.executeFunction(Integer.class, in));
+        return executeInt(fnUsuarioDioLikeRepoCall, in);
     }
 
     public int usuarioSigueRepo(Long repositoryId, Long userId) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_repositorio_id", repositoryId)
                 .addValue("p_usuario_id", userId);
-        return toInt(fnUsuarioSigueRepoCall.executeFunction(Integer.class, in));
+        return executeInt(fnUsuarioSigueRepoCall, in);
     }
 
     public String estadoColaboradorRepo(Long repositoryId, Long userId) {
@@ -140,21 +231,21 @@ public class RepositoriosRepository {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_repositorio_id", repositoryId)
                 .addValue("p_usuario_id", userId);
-        return toInt(fnEsColaboradorAceptadoCall.executeFunction(Integer.class, in));
+        return executeInt(fnEsColaboradorAceptadoCall, in);
     }
 
     public long contarReposAutor(Long authorId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_autor_id", authorId);
-        return toLong(fnContarReposAutorCall.executeFunction(Long.class, in));
+        return executeLong(fnContarReposAutorCall, in);
     }
 
     public long contarRecursosAutor(Long authorId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_autor_id", authorId);
-        return toLong(fnContarRecursosAutorCall.executeFunction(Long.class, in));
+        return executeLong(fnContarRecursosAutorCall, in);
     }
 
     public long contarTotalRepositorios() {
-        return toLong(fnContarTotalRepositoriosCall.executeFunction(Long.class, EMPTY_PARAMS));
+        return executeLong(fnContarTotalRepositoriosCall, EMPTY_PARAMS);
     }
 
     public List<Long> buscarRepositoriosIds(Long subjectId, Integer semester, String search, String order) {

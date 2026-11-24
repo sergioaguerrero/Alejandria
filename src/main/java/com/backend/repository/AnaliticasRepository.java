@@ -8,7 +8,6 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,11 +36,18 @@ public class AnaliticasRepository {
     private final SimpleJdbcCall prRecalcularMetricaDemandaCall;
 
     public AnaliticasRepository(JdbcTemplate jdbcTemplate) {
-        this.fnIndiceDemandaMateriaCall = functionCall(jdbcTemplate, PKG, "fn_indice_demanda_materia");
-        this.fnContarUsuariosActivosCall = functionCall(jdbcTemplate, PKG, "fn_contar_usuarios_activos");
+        this.fnIndiceDemandaMateriaCall = functionCall(
+                jdbcTemplate, PKG, "fn_indice_demanda_materia",
+                inNumeric("p_materia_id"), inTimestamp("p_desde"), inTimestamp("p_hasta")
+        );
+        this.fnContarUsuariosActivosCall = functionCall(
+                jdbcTemplate, PKG, "fn_contar_usuarios_activos",
+                inTimestamp("p_desde")
+        );
         this.fnTopTerminosBusquedaCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_top_terminos_busqueda",
-                (rs, rowNum) -> new Object[]{rs.getString(1), rs.getLong(2)}
+                (rs, rowNum) -> new Object[]{rs.getString(1), rs.getLong(2)},
+                inTimestamp("p_desde"), inNumeric("p_limite")
         );
         this.fnHistorialUsuarioCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_historial_usuario",
@@ -55,7 +61,8 @@ public class AnaliticasRepository {
                             ts != null ? ts.toLocalDateTime() : null,
                             rawType != null ? ResourceType.valueOf(rawType) : ResourceType.NOTE
                     };
-                }
+                },
+                inNumeric("p_usuario_id"), inNumeric("p_limite")
         );
         this.fnContarPorMateriaYTipoCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_contar_por_materia_y_tipo",
@@ -63,11 +70,13 @@ public class AnaliticasRepository {
                         rs.getLong(1),
                         InteractionType.valueOf(rs.getString(2)),
                         rs.getLong(3)
-                }
+                },
+                inTimestamp("p_desde"), inTimestamp("p_hasta")
         );
         this.fnConsultasUsuarioMateriaCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_consultas_usuario_materia",
-                (rs, rowNum) -> new Object[]{rs.getString(1), rs.getLong(2)}
+                (rs, rowNum) -> new Object[]{rs.getString(1), rs.getLong(2)},
+                inNumeric("p_usuario_id")
         );
         this.fnActividadRecursosAutorCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_actividad_recursos_autor",
@@ -77,7 +86,8 @@ public class AnaliticasRepository {
                             InteractionType.valueOf(rs.getString(1)),
                             ts != null ? ts.toLocalDateTime() : null
                     };
-                }
+                },
+                inNumeric("p_autor_id"), inTimestamp("p_desde")
         );
         this.fnActividadUsuariosDesdeCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_actividad_usuarios_desde",
@@ -89,12 +99,25 @@ public class AnaliticasRepository {
                             userId,
                             ts != null ? ts.toLocalDateTime() : null
                     };
-                }
+                },
+                inTimestamp("p_desde")
         );
-        this.fnInteraccionesRangoCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_interacciones_rango");
-        this.fnMetricasMasConsultadasCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_metricas_mas_consultadas");
-        this.fnObtenerMetricaMateriaCall = functionCall(jdbcTemplate, PKG, "fn_obtener_metrica_materia");
-        this.prRecalcularMetricaDemandaCall = procedureCall(jdbcTemplate, PKG, "pr_recalcular_metrica_demanda");
+        this.fnInteraccionesRangoCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_interacciones_rango",
+                inTimestamp("p_desde"), inTimestamp("p_hasta")
+        );
+        this.fnMetricasMasConsultadasCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_metricas_mas_consultadas",
+                inVarchar("p_periodo"), inNumeric("p_limite")
+        );
+        this.fnObtenerMetricaMateriaCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_metrica_materia",
+                inNumeric("p_materia_id"), inVarchar("p_periodo")
+        );
+        this.prRecalcularMetricaDemandaCall = procedureCall(
+                jdbcTemplate, PKG, "pr_recalcular_metrica_demanda",
+                inVarchar("p_periodo"), inTimestamp("p_desde"), inTimestamp("p_hasta")
+        );
     }
 
     public double indiceDemandaMateria(Long subjectId, LocalDateTime from, LocalDateTime to) {
@@ -102,13 +125,13 @@ public class AnaliticasRepository {
                 .addValue("p_materia_id", subjectId);
         addTimestamp(in, "p_desde", from);
         addTimestamp(in, "p_hasta", to);
-        return toDouble(fnIndiceDemandaMateriaCall.executeFunction(BigDecimal.class, in));
+        return executeDouble(fnIndiceDemandaMateriaCall, in);
     }
 
     public long contarUsuariosActivos(LocalDateTime since) {
         MapSqlParameterSource in = new MapSqlParameterSource();
         addTimestamp(in, "p_desde", since);
-        return toLong(fnContarUsuariosActivosCall.executeFunction(Long.class, in));
+        return executeLong(fnContarUsuariosActivosCall, in);
     }
 
     public List<Object[]> topTerminosBusqueda(LocalDateTime since, int limit) {

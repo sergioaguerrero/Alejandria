@@ -59,16 +59,20 @@ public class NotificationService {
 
         Map<Long, User> recipients = new LinkedHashMap<>();
         List<Long> repoFollowerIds = oraclePackageService.fnSeguidoresVerificadosRepoIds(repo.getId());
-        for (User follower : userRepository.findAllById(repoFollowerIds)) {
-            if (!follower.getId().equals(author.getId())) {
-                recipients.put(follower.getId(), follower);
+        if (!repoFollowerIds.isEmpty()) {
+            for (User follower : userRepository.findAllById(repoFollowerIds)) {
+                if (!follower.getId().equals(author.getId())) {
+                    recipients.put(follower.getId(), follower);
+                }
             }
         }
 
         List<Long> authorFollowerIds = oraclePackageService.fnObtenerSeguidoresUsuarioIds(author.getId());
-        for (User follower : userRepository.findAllById(authorFollowerIds)) {
-            if (!follower.getId().equals(author.getId())) {
-                recipients.put(follower.getId(), follower);
+        if (!authorFollowerIds.isEmpty()) {
+            for (User follower : userRepository.findAllById(authorFollowerIds)) {
+                if (!follower.getId().equals(author.getId())) {
+                    recipients.put(follower.getId(), follower);
+                }
             }
         }
 
@@ -90,6 +94,9 @@ public class NotificationService {
     public List<NotificationDto> listForUser(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus notificaciones.");
         List<Long> ids = oraclePackageService.fnListarNotificacionesIds(user.getId());
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         return oraclePackageService.orderByIds(ids, notificationRepository.findAllById(ids), Notification::getId)
                 .stream()
                 .map(NotificationDto::fromEntity)

@@ -28,16 +28,36 @@ public class ModeracionRepository {
     private final SimpleJdbcCall prToggleSuspensionUsuarioCall;
 
     public ModeracionRepository(JdbcTemplate jdbcTemplate) {
-        this.fnExisteReporteActivoCall = functionCall(jdbcTemplate, PKG, "fn_existe_reporte_activo");
+        this.fnExisteReporteActivoCall = functionCall(
+                jdbcTemplate, PKG, "fn_existe_reporte_activo",
+                inNumeric("p_reportante_id"), inVarchar("p_tipo_objetivo"), inNumeric("p_objetivo_id")
+        );
         this.fnResumenReportesCall = cursorFunctionCall(
                 jdbcTemplate, PKG, "fn_resumen_reportes",
                 (rs, rowNum) -> new Object[]{rs.getString(1), rs.getString(2), rs.getLong(3)}
         );
-        this.fnListarReportesCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_listar_reportes");
-        this.fnObtenerDecisionCall = functionCall(jdbcTemplate, PKG, "fn_obtener_decision_reporte");
-        this.fnSancionesUsuarioCall = idCursorFunctionCall(jdbcTemplate, PKG, "fn_sanciones_usuario");
-        this.prResolverReporteCall = procedureCall(jdbcTemplate, PKG, "pr_resolver_reporte");
-        this.prToggleSuspensionUsuarioCall = procedureCall(jdbcTemplate, PKG, "pr_toggle_suspension_usuario");
+        this.fnListarReportesCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_listar_reportes"
+        );
+        this.fnObtenerDecisionCall = functionCall(
+                jdbcTemplate, PKG, "fn_obtener_decision_reporte",
+                inNumeric("p_reporte_id")
+        );
+        this.fnSancionesUsuarioCall = idCursorFunctionCall(
+                jdbcTemplate, PKG, "fn_sanciones_usuario",
+                inNumeric("p_usuario_id")
+        );
+        this.prResolverReporteCall = procedureCall(
+                jdbcTemplate, PKG, "pr_resolver_reporte",
+                inNumeric("p_reporte_id"), inNumeric("p_moderador_id"),
+                inVarchar("p_accion"), inVarchar("p_justificacion")
+        );
+        this.prToggleSuspensionUsuarioCall = procedureCall(
+                jdbcTemplate, PKG, "pr_toggle_suspension_usuario",
+                inNumeric("p_usuario_id"), inNumeric("p_moderador_id"),
+                inVarchar("p_motivo"), inVarchar("p_nota"),
+                outNumeric("p_suspendido")
+        );
     }
 
     public int existeReporteActivo(Long reporterId, String targetType, Long targetId) {
@@ -45,7 +65,7 @@ public class ModeracionRepository {
                 .addValue("p_reportante_id", reporterId)
                 .addValue("p_tipo_objetivo", targetType)
                 .addValue("p_objetivo_id", targetId);
-        return toInt(fnExisteReporteActivoCall.executeFunction(Integer.class, in));
+        return executeInt(fnExisteReporteActivoCall, in);
     }
 
     public List<Object[]> resumenReportes() {

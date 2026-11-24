@@ -54,11 +54,13 @@ public class AdminUserService {
         long repoCount = repositoriosRepository.contarReposAutor(target.getId());
         long docCount = repositoriosRepository.contarRecursosAutor(target.getId());
         List<Long> sanctionIds = oraclePackageService.fnSancionesUsuarioIds(target.getId());
-        List<UserSanction> sanctions = oraclePackageService.orderByIds(
-                sanctionIds,
-                userSanctionRepository.findAllById(sanctionIds),
-                UserSanction::getId
-        );
+        List<UserSanction> sanctions = sanctionIds.isEmpty()
+                ? List.of()
+                : oraclePackageService.orderByIds(
+                        sanctionIds,
+                        userSanctionRepository.findAllWithModeratorByIdIn(sanctionIds),
+                        UserSanction::getId
+                );
         return AdminUserResponseDto.fromEntity(target, repoCount, docCount, sanctions);
     }
 
@@ -112,11 +114,11 @@ public class AdminUserService {
         String clean = idOrUsername.trim();
         try {
             Long id = Long.parseLong(clean);
-            return userRepository.findById(id)
+            return userRepository.findWithRoleById(id)
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
         } catch (NumberFormatException ignored) {
             Long id = authUsuariosRepository.buscarUsuarioPorUsername(clean.toLowerCase(Locale.ROOT));
-            return (id == null ? java.util.Optional.<User>empty() : userRepository.findById(id))
+            return (id == null ? java.util.Optional.<User>empty() : userRepository.findWithRoleById(id))
                     .orElseThrow(() -> new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado."));
         }
     }
