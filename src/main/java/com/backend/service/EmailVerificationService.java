@@ -46,6 +46,7 @@ public class EmailVerificationService {
     private final EmailService emailService;
     private final VerificationProperties properties;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
     private final Clock clock;
 
     @Autowired
@@ -54,9 +55,10 @@ public class EmailVerificationService {
             UserRepository userRepository,
             EmailService emailService,
             VerificationProperties properties,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository
     ) {
-        this(codeRepository, userRepository, emailService, properties, oraclePackageService, Clock.systemDefaultZone());
+        this(codeRepository, userRepository, emailService, properties, oraclePackageService, authUsuariosRepository, Clock.systemDefaultZone());
     }
 
     EmailVerificationService(
@@ -66,7 +68,7 @@ public class EmailVerificationService {
             VerificationProperties properties,
             Clock clock
     ) {
-        this(codeRepository, userRepository, emailService, properties, null, clock);
+        this(codeRepository, userRepository, emailService, properties, null, null, clock);
     }
 
     EmailVerificationService(
@@ -75,6 +77,7 @@ public class EmailVerificationService {
             EmailService emailService,
             VerificationProperties properties,
             OraclePackageService oraclePackageService,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
             Clock clock
     ) {
         this.codeRepository = codeRepository;
@@ -82,6 +85,7 @@ public class EmailVerificationService {
         this.emailService = emailService;
         this.properties = properties;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
         this.clock = clock;
     }
 
@@ -277,12 +281,19 @@ public class EmailVerificationService {
     }
 
     private Optional<EmailVerificationCode> findLatestActiveCode(Long userId) {
-        Long codeId = codeRepository.fnObtenerUltimoOtpActivo(userId);
+        if (authUsuariosRepository == null) {
+            return userRepository.findById(userId)
+                    .flatMap(codeRepository::findTopByUserAndUsedFalseOrderByCreatedAtDesc);
+        }
+        Long codeId = authUsuariosRepository.obtenerUltimoOtpActivo(userId);
         return codeId == null ? Optional.empty() : codeRepository.findById(codeId);
     }
 
     private Optional<User> findUserByEmail(String email) {
-        Long userId = userRepository.fnBuscarUsuarioPorCorreo(email);
+        if (authUsuariosRepository == null) {
+            return userRepository.findByInstitutionalEmail(email);
+        }
+        Long userId = authUsuariosRepository.buscarUsuarioPorCorreo(email);
         return userId == null ? Optional.empty() : userRepository.findById(userId);
     }
 

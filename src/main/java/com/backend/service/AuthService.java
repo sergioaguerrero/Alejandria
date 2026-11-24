@@ -43,6 +43,7 @@ public class AuthService {
     private final EmailVerificationService emailVerificationService;
     private final JwtTokenService jwtTokenService;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
 
     public AuthService(
             UserRepository userRepository,
@@ -51,7 +52,8 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             EmailVerificationService emailVerificationService,
             JwtTokenService jwtTokenService,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository
     ) {
         this.userRepository = userRepository;
         this.userContactRepository = userContactRepository;
@@ -60,6 +62,7 @@ public class AuthService {
         this.emailVerificationService = emailVerificationService;
         this.jwtTokenService = jwtTokenService;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
     }
 
     @Transactional
@@ -183,7 +186,7 @@ public class AuthService {
             );
         }
 
-        if (userRepository.fnUsuarioPuedeAcceder(user.getId()) == 0) {
+        if (authUsuariosRepository.usuarioPuedeAcceder(user.getId()) == 0) {
             if (user.isSuspended()) {
                 throw new AuthException(
                         HttpStatus.FORBIDDEN,
@@ -213,12 +216,12 @@ public class AuthService {
     }
 
     private Optional<User> findByEmail(String email) {
-        Long id = userRepository.fnBuscarUsuarioPorCorreo(email);
+        Long id = authUsuariosRepository.buscarUsuarioPorCorreo(email);
         return id == null ? Optional.empty() : userRepository.findById(id);
     }
 
     private Optional<User> findByUsername(String username) {
-        Long id = userRepository.fnBuscarUsuarioPorUsername(username);
+        Long id = authUsuariosRepository.buscarUsuarioPorUsername(username);
         return id == null ? Optional.empty() : userRepository.findById(id);
     }
 
@@ -244,9 +247,9 @@ public class AuthService {
     }
 
     private Role resolveStudentRole() {
-        Long roleId = roleRepository.fnObtenerRolPorNombre("ESTUDIANTE");
+        Long roleId = authUsuariosRepository.obtenerRolPorNombre("ESTUDIANTE");
         if (roleId == null) {
-            roleId = roleRepository.fnObtenerRolPorNombre("STUDENT");
+            roleId = authUsuariosRepository.obtenerRolPorNombre("STUDENT");
         }
         if (roleId != null) {
             Optional<Role> found = roleRepository.findById(roleId);

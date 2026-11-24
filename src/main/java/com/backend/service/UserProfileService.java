@@ -56,31 +56,31 @@ public class UserProfileService {
 
     private final UserRepository userRepository;
     private final UserContactRepository userContactRepository;
-    private final UserFollowRepository userFollowRepository;
     private final UserSubjectInterestRepository userSubjectInterestRepository;
     private final CatalogRepository catalogRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
 
     public UserProfileService(
             UserRepository userRepository,
             UserContactRepository userContactRepository,
-            UserFollowRepository userFollowRepository,
             UserSubjectInterestRepository userSubjectInterestRepository,
             CatalogRepository catalogRepository,
             PasswordEncoder passwordEncoder,
             NotificationService notificationService,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository
     ) {
         this.userRepository = userRepository;
         this.userContactRepository = userContactRepository;
-        this.userFollowRepository = userFollowRepository;
         this.userSubjectInterestRepository = userSubjectInterestRepository;
         this.catalogRepository = catalogRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
     }
 
     @Transactional(readOnly = true)
@@ -106,7 +106,7 @@ public class UserProfileService {
         }
         if (!AuthService.isValidUsername(cleanUsername)) {
             fields.put("username", "Entre 3 y 20 caracteres: letras, números, punto o guion bajo.");
-        } else if (userRepository.fnExisteUsernameOtro(cleanUsername, user.getId()) == 1) {
+        } else if (authUsuariosRepository.existeUsernameOtro(cleanUsername, user.getId()) == 1) {
             fields.put("username", "Ese nombre de usuario ya está en uso.");
         }
 
@@ -335,7 +335,7 @@ public class UserProfileService {
         if (cleanUsername.isEmpty()) {
             throw new AuthException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "El usuario no existe.");
         }
-        Long id = userRepository.fnBuscarUsuarioPorUsername(cleanUsername);
+        Long id = authUsuariosRepository.buscarUsuarioPorUsername(cleanUsername);
         return (id == null ? Optional.<User>empty() : userRepository.findById(id))
                 .filter(User::isVerified)
                 .orElseThrow(() -> new AuthException(
@@ -420,19 +420,19 @@ public class UserProfileService {
 
                     long followersCount = (row != null && row[1] instanceof Number n1)
                             ? n1.longValue()
-                            : userFollowRepository.fnContarSeguidoresUsuario(targetId);
+                            : authUsuariosRepository.contarSeguidoresUsuario(targetId);
                     long followingCount = (row != null && row[2] instanceof Number n2)
                             ? n2.longValue()
-                            : userFollowRepository.fnContarSeguidosUsuario(targetId);
+                            : authUsuariosRepository.contarSeguidosUsuario(targetId);
                     boolean isFollowing = !isSelf && viewerId != null && (
                             (row != null && row.length > 3 && row[3] instanceof Number n3)
                                     ? n3.intValue() == 1
-                                    : userFollowRepository.fnEsSeguidorUsuario(viewerId, targetId) == 1
+                                    : authUsuariosRepository.esSeguidorUsuario(viewerId, targetId) == 1
                     );
                     boolean followsMe = !isSelf && viewerId != null && (
                             (row != null && row.length > 4 && row[4] instanceof Number n4)
                                     ? n4.intValue() == 1
-                                    : userFollowRepository.fnEsSeguidorUsuario(targetId, viewerId) == 1
+                                    : authUsuariosRepository.esSeguidorUsuario(targetId, viewerId) == 1
                     );
                     List<UserContact> contacts = contactsByUserId.getOrDefault(targetId, List.of());
 

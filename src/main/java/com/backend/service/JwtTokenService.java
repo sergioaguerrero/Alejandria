@@ -1,6 +1,7 @@
 package com.backend.service;
 
 import com.backend.domain.identity.User;
+import com.backend.repository.AuthUsuariosRepository;
 import com.backend.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ public class JwtTokenService {
     private final long cacheTtlNanos;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final AuthUsuariosRepository authUsuariosRepository;
     private final Map<Long, CachedUser> userCache = new ConcurrentHashMap<>();
 
     public JwtTokenService(
@@ -44,13 +46,15 @@ public class JwtTokenService {
             @Value("${jwt.expiration:86400000}") long expirationMillis,
             @Value("${app.jwt.cache-ttl-seconds:15}") long cacheTtlSeconds,
             ObjectMapper objectMapper,
-            UserRepository userRepository
+            UserRepository userRepository,
+            AuthUsuariosRepository authUsuariosRepository
     ) {
         this.secretBytes = secret.getBytes(StandardCharsets.UTF_8);
         this.expirationMillis = expirationMillis;
         this.cacheTtlNanos = Math.max(0L, cacheTtlSeconds) * 1_000_000_000L;
         this.objectMapper = objectMapper;
         this.userRepository = userRepository;
+        this.authUsuariosRepository = authUsuariosRepository;
     }
 
     public void evictUser(Long userId) {
@@ -127,7 +131,7 @@ public class JwtTokenService {
                     return Optional.of(cached.user());
                 }
             }
-            if (userRepository.fnUsuarioPuedeAcceder(userId) == 0) {
+            if (authUsuariosRepository.usuarioPuedeAcceder(userId) == 0) {
                 userCache.remove(userId);
                 return Optional.empty();
             }

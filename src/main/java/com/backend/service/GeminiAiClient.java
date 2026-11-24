@@ -41,10 +41,13 @@ public class GeminiAiClient implements AiGenerationClient {
     private static final Logger log = LoggerFactory.getLogger(GeminiAiClient.class);
 
     private static final List<String> FALLBACK_FLASH_MODELS = List.of(
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
-            "gemini-flash-lite-latest"
+            "gemini-3.8-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-flash-latest",
+            "gemini-flash-lite-latest",
+            "gemini-pro-latest"
     );
 
     private static final int MAX_DOCS_IN_PROMPT = 6;
@@ -181,6 +184,13 @@ public class GeminiAiClient implements AiGenerationClient {
                     HttpStatus.TOO_MANY_REQUESTS,
                     "AI_PROVIDER_RATE_LIMIT",
                     "El proveedor de IA alcanzó temporalmente su límite de solicitudes. Intenta en unos segundos."
+            );
+        }
+        if (status == 503) {
+            return new AuthException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "AI_PROVIDER_UNAVAILABLE",
+                    "El proveedor de IA está experimentando alta demanda temporal. Intenta nuevamente en unos segundos."
             );
         }
         return new AuthException(

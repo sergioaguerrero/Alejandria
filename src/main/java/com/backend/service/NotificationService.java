@@ -7,6 +7,7 @@ import com.backend.domain.repos.Resource;
 import com.backend.domain.repos.StudyRepository;
 import com.backend.dto.NotificationDto;
 import com.backend.exception.AuthException;
+import com.backend.repository.AuthUsuariosRepository;
 import com.backend.repository.NotificationRepository;
 import com.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -27,15 +28,18 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final OraclePackageService oraclePackageService;
+    private final AuthUsuariosRepository authUsuariosRepository;
 
     public NotificationService(
             NotificationRepository notificationRepository,
             UserRepository userRepository,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            AuthUsuariosRepository authUsuariosRepository
     ) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.oraclePackageService = oraclePackageService;
+        this.authUsuariosRepository = authUsuariosRepository;
     }
 
     @Transactional
@@ -55,16 +59,20 @@ public class NotificationService {
 
         Map<Long, User> recipients = new LinkedHashMap<>();
         List<Long> repoFollowerIds = oraclePackageService.fnSeguidoresVerificadosRepoIds(repo.getId());
-        for (User follower : userRepository.findAllById(repoFollowerIds)) {
-            if (!follower.getId().equals(author.getId())) {
-                recipients.put(follower.getId(), follower);
+        if (!repoFollowerIds.isEmpty()) {
+            for (User follower : userRepository.findAllById(repoFollowerIds)) {
+                if (!follower.getId().equals(author.getId())) {
+                    recipients.put(follower.getId(), follower);
+                }
             }
         }
 
         List<Long> authorFollowerIds = oraclePackageService.fnObtenerSeguidoresUsuarioIds(author.getId());
-        for (User follower : userRepository.findAllById(authorFollowerIds)) {
-            if (!follower.getId().equals(author.getId())) {
-                recipients.put(follower.getId(), follower);
+        if (!authorFollowerIds.isEmpty()) {
+            for (User follower : userRepository.findAllById(authorFollowerIds)) {
+                if (!follower.getId().equals(author.getId())) {
+                    recipients.put(follower.getId(), follower);
+                }
             }
         }
 
@@ -86,6 +94,9 @@ public class NotificationService {
     public List<NotificationDto> listForUser(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para ver tus notificaciones.");
         List<Long> ids = oraclePackageService.fnListarNotificacionesIds(user.getId());
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         return oraclePackageService.orderByIds(ids, notificationRepository.findAllById(ids), Notification::getId)
                 .stream()
                 .map(NotificationDto::fromEntity)
@@ -95,13 +106,13 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public long countUnread(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus notificaciones.");
-        return notificationRepository.fnContarNotifNoLeidas(user.getId());
+        return authUsuariosRepository.contarNotifNoLeidas(user.getId());
     }
 
     @Transactional
     public void markAsRead(Long notificationId, User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para realizar esta acción.");
-        Long validId = notificationRepository.fnObtenerNotificacionUsr(notificationId, user.getId());
+        Long validId = authUsuariosRepository.obtenerNotificacionUsr(notificationId, user.getId());
         Notification notification = (validId == null ? java.util.Optional.<Notification>empty() : notificationRepository.findById(validId))
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,

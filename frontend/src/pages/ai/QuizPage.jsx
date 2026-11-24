@@ -27,6 +27,7 @@ import {
   Skeleton,
   Snackbar,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -37,6 +38,7 @@ import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
 import NavigateBeforeOutlinedIcon from '@mui/icons-material/NavigateBeforeOutlined';
 import NavigateNextOutlinedIcon from '@mui/icons-material/NavigateNextOutlined';
 import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 
@@ -45,7 +47,9 @@ import {
   submitQuizAnswers,
   toggleSaveQuizToMyStudy,
 } from '../../services/index.js';
+import { getAiContentMeta } from '../../utils/aiContentMeta.js';
 
+import AiTypeIcon from '../../components/ai/AiTypeIcon.jsx';
 import DownloadAiPdfButton from '../../components/ai/DownloadAiPdfButton.jsx';
 import SaveAiStudyButton from '../../components/ai/SaveAiStudyButton.jsx';
 import ShareAiDialog from '../../components/ai/ShareAiDialog.jsx';
@@ -212,6 +216,7 @@ export default function QuizPage() {
     );
   }
 
+  const typeMeta = getAiContentMeta('quiz');
   const { correctCount, scorePercentage } = calculateScore();
   const progressPercent = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
   const answeredCount = Object.keys(userAnswers).length;
@@ -221,30 +226,36 @@ export default function QuizPage() {
       {/* Top back navigation & metadata */}
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 2, gap: 1 }}
+        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 2, gap: 1.5 }}
       >
-        <Button
-          component={RouterLink}
-          to="/ai"
-          startIcon={<ArrowBackOutlinedIcon />}
-          size="small"
-          color="inherit"
-        >
-          Generador de IA
-        </Button>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Button
+            component={RouterLink}
+            to="/ai"
+            startIcon={<ArrowBackOutlinedIcon />}
+            size="small"
+            color="inherit"
+          >
+            Generador de IA
+          </Button>
+          <Button
+            component={RouterLink}
+            to="/ai/my-study"
+            startIcon={<SchoolOutlinedIcon />}
+            size="small"
+            color="inherit"
+          >
+            Mi estudio
+          </Button>
+        </Stack>
 
         <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-          {!quiz.isSharedWithMe && (
-            <Button
-              variant="outlined"
-              color="primary"
-              size="small"
-              startIcon={<ShareOutlinedIcon />}
-              onClick={() => setShareOpen(true)}
-            >
-              Compartir con amigos
-            </Button>
-          )}
+          <Chip
+            size="small"
+            color={typeMeta.colorKey}
+            icon={<AiTypeIcon type="quiz" fontSize="small" />}
+            label={typeMeta.label}
+          />
           <Chip
             size="small"
             color="primary"
@@ -268,8 +279,8 @@ export default function QuizPage() {
       <Card sx={{ mb: 3, border: 1, borderColor: 'divider', borderRadius: 2 }}>
         <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}
+            direction={{ xs: 'column', md: 'row' }}
+            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between', gap: 2 }}
           >
             <Box sx={{ minWidth: 0, flex: '1 1 240px' }}>
               <Typography variant="h5" component="h1" fontWeight={700} gutterBottom>
@@ -283,8 +294,8 @@ export default function QuizPage() {
             <Stack
               spacing={1}
               sx={{
-                width: { xs: '100%', sm: 170 },
-                alignSelf: { xs: 'stretch', sm: 'center' },
+                width: { xs: '100%', md: 170 },
+                alignSelf: { xs: 'stretch', md: 'center' },
                 flexShrink: 0,
               }}
             >
@@ -306,13 +317,36 @@ export default function QuizPage() {
                   })
                 }
               />
-              {!quiz.isSharedWithMe && (
-                <SaveAiStudyButton
-                  fullWidth
-                  saved={savedInMyStudy}
-                  disabled={isSaving}
-                  onClick={handleToggleSave}
+              {quiz.isSharedWithMe ? (
+                <Chip
+                  color="info"
+                  variant="outlined"
+                  label={`Compartido por @${quiz.sharedBy}`}
+                  sx={{ fontWeight: 600, alignSelf: { xs: 'flex-start', md: 'flex-end' } }}
                 />
+              ) : (
+                <>
+                  <SaveAiStudyButton
+                    fullWidth
+                    saved={savedInMyStudy}
+                    disabled={isSaving}
+                    onClick={handleToggleSave}
+                  />
+                  <Tooltip title="Compartir con amigos">
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      fullWidth
+                      startIcon={<ShareOutlinedIcon />}
+                      onClick={() => setShareOpen(true)}
+                      aria-label="Compartir con amigos"
+                      sx={{ whiteSpace: 'nowrap' }}
+                    >
+                      Compartir
+                    </Button>
+                  </Tooltip>
+                </>
               )}
             </Stack>
           </Stack>

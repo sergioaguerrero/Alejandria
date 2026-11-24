@@ -38,10 +38,4 @@ public interface ResourceRepository extends JpaRepository<Resource, Long> {
             WHERE r.id IN :ids
             """)
     List<Object[]> findTagPairsByResourceIdIn(@Param("ids") Collection<Long> ids);
-
-    @Query(value = "SELECT PKG_REPOSITORIOS.fn_contar_recursos_publicados(:repositoryId) FROM DUAL", nativeQuery = true)
-    int fnContarRecursosPublicados(@Param("repositoryId") Long repositoryId);
-
-    @Query(value = "SELECT PKG_REPOSITORIOS.fn_contar_recursos_autor(:authorId) FROM DUAL", nativeQuery = true)
-    long fnContarRecursosAutor(@Param("authorId") Long authorId);
 }

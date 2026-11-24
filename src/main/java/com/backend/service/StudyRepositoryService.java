@@ -31,31 +31,22 @@ public class StudyRepositoryService {
 
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final CatalogRepository catalogRepository;
-    private final ResourceRepository resourceRepository;
-    private final RepositoryLikeRepository repositoryLikeRepository;
-    private final RepositoryFollowRepository repositoryFollowRepository;
-    private final RepositoryCollaboratorRepository repositoryCollaboratorRepository;
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
+    private final com.backend.repository.RepositoriosRepository repositoriosRepository;
 
     public StudyRepositoryService(
             StudyRepositoryRepository studyRepositoryRepository,
             CatalogRepository catalogRepository,
-            ResourceRepository resourceRepository,
-            RepositoryLikeRepository repositoryLikeRepository,
-            RepositoryFollowRepository repositoryFollowRepository,
-            RepositoryCollaboratorRepository repositoryCollaboratorRepository,
             NotificationService notificationService,
-            OraclePackageService oraclePackageService
+            OraclePackageService oraclePackageService,
+            com.backend.repository.RepositoriosRepository repositoriosRepository
     ) {
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.catalogRepository = catalogRepository;
-        this.resourceRepository = resourceRepository;
-        this.repositoryLikeRepository = repositoryLikeRepository;
-        this.repositoryFollowRepository = repositoryFollowRepository;
-        this.repositoryCollaboratorRepository = repositoryCollaboratorRepository;
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
+        this.repositoriosRepository = repositoriosRepository;
     }
 
     @Transactional
@@ -255,19 +246,19 @@ public class StudyRepositoryService {
 
                     int docCount = (row != null && row[1] instanceof Number n1)
                             ? n1.intValue()
-                            : resourceRepository.fnContarRecursosPublicados(repoId);
+                            : repositoriosRepository.contarRecursosPublicados(repoId);
                     long followersCount = (row != null && row[2] instanceof Number n2)
                             ? n2.longValue()
-                            : repositoryFollowRepository.fnContarSeguidoresRepo(repoId);
+                            : repositoriosRepository.contarSeguidoresRepo(repoId);
                     boolean liked = viewerId != null && (
                             (row != null && row.length > 3 && row[3] instanceof Number n3)
                                     ? n3.intValue() == 1
-                                    : repositoryLikeRepository.fnUsuarioDioLikeRepo(repoId, viewerId) == 1
+                                    : repositoriosRepository.usuarioDioLikeRepo(repoId, viewerId) == 1
                     );
                     boolean followed = viewerId != null && (
                             (row != null && row.length > 4 && row[4] instanceof Number n4)
                                     ? n4.intValue() == 1
-                                    : repositoryFollowRepository.fnUsuarioSigueRepo(repoId, viewerId) == 1
+                                    : repositoriosRepository.usuarioSigueRepo(repoId, viewerId) == 1
                     );
 
                     boolean isOwner = viewerId != null
@@ -279,7 +270,7 @@ public class StudyRepositoryService {
                         if (row != null && row.length > 5) {
                             rawCollabStatus = row[5] != null ? String.valueOf(row[5]) : null;
                         } else {
-                            rawCollabStatus = repositoryCollaboratorRepository.fnEstadoColaboradorRepo(repoId, viewerId);
+                            rawCollabStatus = repositoriosRepository.estadoColaboradorRepo(repoId, viewerId);
                         }
                     }
                     boolean isCollaborator = !isOwner && "ACEPTADO".equalsIgnoreCase(rawCollabStatus);

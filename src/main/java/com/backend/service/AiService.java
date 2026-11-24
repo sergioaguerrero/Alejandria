@@ -49,13 +49,14 @@ public class AiService {
     private final AiShareRepository aiShareRepository;
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final ResourceRepository resourceRepository;
-    private final UserFollowRepository userFollowRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final AiGenerationClient aiGenerationClient;
     private final OraclePackageService oraclePackageService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final com.backend.repository.IaEstudioRepository iaEstudioRepository;
+    private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
     private final int dailyLimit;
 
     public AiService(
@@ -63,34 +64,36 @@ public class AiService {
             AiShareRepository aiShareRepository,
             StudyRepositoryRepository studyRepositoryRepository,
             ResourceRepository resourceRepository,
-            UserFollowRepository userFollowRepository,
             UserRepository userRepository,
             NotificationService notificationService,
             AiGenerationClient aiGenerationClient,
             OraclePackageService oraclePackageService,
             ObjectMapper objectMapper,
             TransactionTemplate transactionTemplate,
+            com.backend.repository.IaEstudioRepository iaEstudioRepository,
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
             @Value("${ai.daily-limit:5}") int dailyLimit
     ) {
         this.aiMaterialRepository = aiMaterialRepository;
         this.aiShareRepository = aiShareRepository;
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.resourceRepository = resourceRepository;
-        this.userFollowRepository = userFollowRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.aiGenerationClient = aiGenerationClient;
         this.oraclePackageService = oraclePackageService;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
+        this.iaEstudioRepository = iaEstudioRepository;
+        this.authUsuariosRepository = authUsuariosRepository;
         this.dailyLimit = Math.max(1, dailyLimit);
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getDailyQuota(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para usar el generador con IA.");
-        long used = aiMaterialRepository.fnUsadosHoyIa(user.getId());
-        long remaining = aiMaterialRepository.fnCuotaRestanteIa(user.getId(), dailyLimit);
+        long used = iaEstudioRepository.usadosHoyIa(user.getId());
+        long remaining = iaEstudioRepository.cuotaRestanteIa(user.getId(), dailyLimit);
 
         Map<String, Object> quota = new LinkedHashMap<>();
         quota.put("total", dailyLimit);
@@ -112,7 +115,7 @@ public class AiService {
         ScopeSpec scopeSpec = parseScope(safeBody.get("scope"), safeBody.get("scopeValue"));
 
         PreparationContext context = transactionTemplate.execute(status -> {
-            if (aiMaterialRepository.fnCuotaRestanteIa(user.getId(), dailyLimit) <= 0) {
+            if (iaEstudioRepository.cuotaRestanteIa(user.getId(), dailyLimit) <= 0) {
                 throw new AuthException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "AI_QUOTA_EXCEEDED",
@@ -162,7 +165,7 @@ public class AiService {
         NormalizedPayload normalized = normalizeGeneratedPayload(contentType, context.repo(), generatedNode);
 
         return transactionTemplate.execute(status -> {
-            if (aiMaterialRepository.fnCuotaRestanteIa(user.getId(), dailyLimit) <= 0) {
+            if (iaEstudioRepository.cuotaRestanteIa(user.getId(), dailyLimit) <= 0) {
                 throw new AuthException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "AI_QUOTA_EXCEEDED",
@@ -248,6 +251,9 @@ public class AiService {
     public List<Map<String, Object>> getMyStudyMaterials(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver tu material de estudio guardado.");
         List<Long> ids = oraclePackageService.fnObtenerGuardadosIaIds(user.getId());
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         return oraclePackageService.orderByIds(ids, aiMaterialRepository.findAllById(ids), AiMaterial::getId)
                 .stream()
                 .map(m -> toMaterialDto(m, null))
@@ -290,9 +296,9 @@ public class AiService {
 
         Map<String, User> friendsByUsername = new LinkedHashMap<>();
         for (String target : targets) {
-            Long friendId = userRepository.fnBuscarUsuarioPorUsername(target);
+            Long friendId = authUsuariosRepository.buscarUsuarioPorUsername(target);
             User friend = friendId == null ? null : userRepository.findById(friendId).orElse(null);
-            if (friend == null || !friend.isVerified() || userFollowRepository.fnSonAmigosMutuos(user.getId(), friend.getId()) == 0) {
+            if (friend == null || !friend.isVerified() || authUsuariosRepository.sonAmigosMutuos(user.getId(), friend.getId()) == 0) {
                 throw new AuthException(
                         HttpStatus.FORBIDDEN,
                         "NOT_MUTUAL_FRIEND",
@@ -334,7 +340,10 @@ public class AiService {
     public List<Map<String, Object>> getSharedWithMe(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Inicia sesión para ver el contenido compartido contigo.");
         List<Long> shareIds = oraclePackageService.fnCompartidosConmigoIaIds(user.getId());
-        return oraclePackageService.orderByIds(shareIds, aiShareRepository.findAllById(shareIds), AiShare::getId)
+        if (shareIds.isEmpty()) {
+            return List.of();
+        }
+        return oraclePackageService.orderByIds(shareIds, aiShareRepository.findAllWithDetailsByIdIn(shareIds), AiShare::getId)
                 .stream()
                 .map(share -> toMaterialDto(share.getMaterial(), share))
                 .toList();
@@ -571,7 +580,7 @@ public class AiService {
         if (material.getOwner().getId().equals(user.getId())) {
             return null;
         }
-        Long shareId = aiShareRepository.fnObtenerCompartidoIa(material.getId(), user.getId());
+        Long shareId = iaEstudioRepository.obtenerCompartidoIa(material.getId(), user.getId());
         return (shareId == null ? Optional.<AiShare>empty() : aiShareRepository.findById(shareId))
                 .orElseThrow(() -> new AuthException(HttpStatus.FORBIDDEN, "FORBIDDEN", forbiddenMessage));
     }
