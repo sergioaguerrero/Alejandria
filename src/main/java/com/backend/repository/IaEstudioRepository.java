@@ -111,7 +111,7 @@ public class IaEstudioRepository {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_material_id", materialId)
                 .addValue("p_destinatario_id", recipientId);
-        return fnObtenerCompartidoIaCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerCompartidoIaCall, in);
     }
 
     public List<Object[]> estadisticasIaDesde(LocalDateTime since) {

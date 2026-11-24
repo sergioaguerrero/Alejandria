@@ -59,7 +59,7 @@ public class ModeracionRepository {
     public Long obtenerDecisionReporte(Long reportId) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_reporte_id", reportId);
-        return fnObtenerDecisionCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerDecisionCall, in);
     }
 
     public List<Long> sancionesUsuarioIds(Long userId) {

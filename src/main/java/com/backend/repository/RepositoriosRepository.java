@@ -243,21 +243,21 @@ public class RepositoriosRepository {
 
     public Long obtenerEtiquetaNombre(String name) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_nombre", name);
-        return fnObtenerEtiquetaNombreCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerEtiquetaNombreCall, in);
     }
 
     public Long obtenerColaboradorId(Long repositoryId, Long userId) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_repositorio_id", repositoryId)
                 .addValue("p_usuario_id", userId);
-        return fnObtenerColaboradorIdCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerColaboradorIdCall, in);
     }
 
     public Long obtenerColabPorUsername(Long repositoryId, String username) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_repositorio_id", repositoryId)
                 .addValue("p_username", username);
-        return fnObtenerColabPorUsernameCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerColabPorUsernameCall, in);
     }
 
     public int[] toggleMeGustaRepo(Long repositoryId, Long userId) {

@@ -169,7 +169,7 @@ public class AnaliticasRepository {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_materia_id", subjectId)
                 .addValue("p_periodo", academicPeriod);
-        return fnObtenerMetricaMateriaCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerMetricaMateriaCall, in);
     }
 
     public void recalcularMetricaDemanda(String period, LocalDateTime from, LocalDateTime to) {

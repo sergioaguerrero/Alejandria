@@ -187,12 +187,12 @@ public class AuthUsuariosRepository {
 
     public Long buscarUsuarioPorUsername(String username) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_username", username);
-        return fnBuscarUsuarioPorUsernameCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnBuscarUsuarioPorUsernameCall, in);
     }
 
     public Long buscarUsuarioPorCorreo(String email) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_correo", email);
-        return fnBuscarUsuarioPorCorreoCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnBuscarUsuarioPorCorreoCall, in);
     }
 
     public int existeUsernameOtro(String username, Long excludeId) {
@@ -204,24 +204,24 @@ public class AuthUsuariosRepository {
 
     public Long obtenerUltimoOtpActivo(Long userId) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_usuario_id", userId);
-        return fnObtenerUltimoOtpActivoCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerUltimoOtpActivoCall, in);
     }
 
     public Long obtenerTokenResetHash(String tokenHash) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_token_hash", tokenHash);
-        return fnObtenerTokenResetHashCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerTokenResetHashCall, in);
     }
 
     public Long obtenerRolPorNombre(String name) {
         SqlParameterSource in = new MapSqlParameterSource().addValue("p_nombre", name);
-        return fnObtenerRolPorNombreCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerRolPorNombreCall, in);
     }
 
     public Long obtenerNotificacionUsr(Long notificationId, Long userId) {
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("p_notificacion_id", notificationId)
                 .addValue("p_usuario_id", userId);
-        return fnObtenerNotificacionUsrCall.executeFunction(Long.class, in);
+        return executeNullableLong(fnObtenerNotificacionUsrCall, in);
     }
 
     public void eliminarContactosUsuario(Long userId) {

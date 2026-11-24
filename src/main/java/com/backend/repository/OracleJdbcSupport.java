@@ -87,6 +87,14 @@ final class OracleJdbcSupport {
         return value instanceof Number n ? n.longValue() : 0L;
     }
 
+    static Long toNullableLong(Object value) {
+        return value instanceof Number n ? n.longValue() : null;
+    }
+
+    static Long executeNullableLong(SimpleJdbcCall call, SqlParameterSource in) {
+        return toNullableLong(call.executeFunction(Object.class, in));
+    }
+
     static double toDouble(Object value) {
         return value instanceof Number n ? n.doubleValue() : 0.0;
     }
