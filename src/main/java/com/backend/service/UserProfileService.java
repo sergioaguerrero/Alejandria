@@ -62,6 +62,7 @@ public class UserProfileService {
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
     private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
+    private final JwtTokenService jwtTokenService;
 
     public UserProfileService(
             UserRepository userRepository,
@@ -71,7 +72,8 @@ public class UserProfileService {
             PasswordEncoder passwordEncoder,
             NotificationService notificationService,
             OraclePackageService oraclePackageService,
-            com.backend.repository.AuthUsuariosRepository authUsuariosRepository
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
+            JwtTokenService jwtTokenService
     ) {
         this.userRepository = userRepository;
         this.userContactRepository = userContactRepository;
@@ -81,6 +83,7 @@ public class UserProfileService {
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
         this.authUsuariosRepository = authUsuariosRepository;
+        this.jwtTokenService = jwtTokenService;
     }
 
     @Transactional(readOnly = true)
@@ -148,6 +151,7 @@ public class UserProfileService {
         }
 
         User saved = userRepository.save(user);
+        jwtTokenService.evictUser(saved.getId());
 
         List<UserContact> savedContacts;
         if (validatedContacts != null) {
@@ -196,6 +200,7 @@ public class UserProfileService {
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        jwtTokenService.evictUser(user.getId());
     }
 
     @Transactional(readOnly = true)

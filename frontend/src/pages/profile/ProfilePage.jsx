@@ -46,12 +46,15 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlined';
+import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 
 import EmptyState from '../../components/common/EmptyState.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import ProfileBioAndContacts, { ContactTypeIcon } from '../../components/users/ProfileBioAndContacts.jsx';
 import ProfileCounters from '../../components/users/ProfileCounters.jsx';
+import ProfileImageEditorDialog from '../../components/users/ProfileImageEditorDialog.jsx';
+import ProfileImageLightbox from '../../components/users/ProfileImageLightbox.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
 import {
@@ -69,6 +72,7 @@ import {
   validateBioAndContacts,
 } from '../../utils/contactMethods.js';
 import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
+import { DEFAULT_BANNER_GRADIENT, resolveMediaUrl } from '../../utils/profileMedia.js';
 import { initials } from '../../utils/users.js';
 
 const SEMESTERS = Array.from({ length: 10 }, (_, index) => index + 1);
@@ -95,7 +99,17 @@ function termLabel(term) {
 }
 
 export default function ProfilePage() {
-  const { user, isAdmin, updateProfile, refreshUser, changePassword } = useAuth();
+  const {
+    user,
+    isAdmin,
+    updateProfile,
+    uploadAvatar,
+    deleteAvatar,
+    uploadBanner,
+    deleteBanner,
+    refreshUser,
+    changePassword,
+  } = useAuth();
 
   const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [repositories, setRepositories] = useState([]);
@@ -107,6 +121,8 @@ export default function ProfilePage() {
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editTab, setEditTab] = useState('profile'); // 'profile' | 'contacts' | 'password'
+  const [imageEditorKind, setImageEditorKind] = useState(null); // null | 'avatar' | 'banner'
+  const [lightboxKind, setLightboxKind] = useState(null); // null | 'avatar' | 'banner'
 
   // Profile form state
   const [profileValues, setProfileValues] = useState(() => ({
@@ -328,22 +344,103 @@ export default function ProfilePage() {
     repositories.reduce((acc, repo) => acc + (repo.likes || 0), 0) +
     documents.reduce((acc, doc) => acc + (doc.likes || 0), 0);
 
+  const avatarSrc = resolveMediaUrl(user?.avatarUrl);
+  const bannerSrc = resolveMediaUrl(user?.bannerUrl);
+
+  const handleSaveProfileImage = async (file) => {
+    if (imageEditorKind === 'banner') {
+      await uploadBanner(file);
+      setNotice({ severity: 'success', message: 'Tu banner de perfil se actualizó correctamente.' });
+    } else {
+      await uploadAvatar(file);
+      setNotice({ severity: 'success', message: 'Tu foto de perfil se actualizó correctamente.' });
+    }
+  };
+
+  const handleRemoveProfileImage = async () => {
+    if (imageEditorKind === 'banner') {
+      await deleteBanner();
+      setNotice({ severity: 'success', message: 'Se restauró el banner predeterminado.' });
+    } else {
+      await deleteAvatar();
+      setNotice({ severity: 'success', message: 'Se eliminó tu foto de perfil.' });
+    }
+  };
+
   return (
     <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
-      {/* Banner using the project's official color palette */}
+      {/* Profile Banner — hover highlights, click enlarges, button edits */}
       <Box
+        role={bannerSrc ? 'button' : undefined}
+        tabIndex={bannerSrc ? 0 : undefined}
+        aria-label={bannerSrc ? 'Ver banner en grande' : undefined}
+        onClick={() => {
+          if (bannerSrc) setLightboxKind('banner');
+        }}
+        onKeyDown={(e) => {
+          if (bannerSrc && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            setLightboxKind('banner');
+          }
+        }}
         sx={{
           width: '100%',
           height: { xs: 150, sm: 200, md: 230 },
           borderRadius: 3,
-          background: 'linear-gradient(135deg, #0B1220 0%, #152944 35%, #1D3557 70%, #2563EB 100%)',
+          backgroundImage: bannerSrc ? `url("${bannerSrc}")` : DEFAULT_BANNER_GRADIENT,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           position: 'relative',
           overflow: 'hidden',
-          boxShadow: 'inset 0 0 50px rgba(0,0,0,0.6)',
-          border: '1px solid',
+          boxShadow: bannerSrc
+            ? 'inset 0 -36px 60px rgba(0,0,0,0.35)'
+            : 'inset 0 0 50px rgba(0,0,0,0.6)',
+          border: '2px solid',
           borderColor: 'divider',
+          cursor: bannerSrc ? 'zoom-in' : 'default',
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease',
+          '&:hover': {
+            borderColor: 'primary.main',
+            boxShadow: (theme) =>
+              `0 0 0 2px ${theme.palette.primary.main}44, ${
+                bannerSrc ? 'inset 0 -36px 60px rgba(0,0,0,0.35)' : 'inset 0 0 50px rgba(0,0,0,0.6)'
+              }`,
+            filter: 'brightness(1.04)',
+          },
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineColor: 'primary.main',
+            outlineOffset: 2,
+          },
         }}
-      />
+      >
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<PhotoCameraOutlinedIcon fontSize="small" />}
+          onClick={(e) => {
+            e.stopPropagation();
+            setImageEditorKind('banner');
+          }}
+          sx={{
+            position: 'absolute',
+            right: { xs: 12, sm: 16 },
+            bottom: { xs: 12, sm: 16 },
+            bgcolor: 'rgba(11, 18, 32, 0.72)',
+            color: '#fff',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255,255,255,0.22)',
+            boxShadow: 2,
+            textTransform: 'none',
+            fontWeight: 600,
+            '&:hover': {
+              bgcolor: 'rgba(11, 18, 32, 0.88)',
+            },
+          }}
+        >
+          {bannerSrc ? 'Editar banner' : 'Subir banner'}
+        </Button>
+      </Box>
 
       {/* Profile Header Information */}
       <Box sx={{ px: { xs: 2, sm: 3 }, position: 'relative', mb: 3 }}>
@@ -365,23 +462,91 @@ export default function ProfilePage() {
               gap: { xs: 1.5, sm: 2.5 },
             }}
           >
-            <Avatar
+            {/* Avatar — hover highlights, click enlarges, camera button edits */}
+            <Box
               sx={{
-                width: { xs: 90, sm: 110, md: 120 },
-                height: { xs: 90, sm: 110, md: 120 },
-                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                fontWeight: 700,
-                bgcolor: '#F59E0B',
-                color: '#0B1220',
-                border: '4px solid',
-                borderColor: 'background.paper',
-                boxShadow: 3,
+                position: 'relative',
                 mt: { xs: -5.5, sm: -7, md: -7.5 },
                 flexShrink: 0,
               }}
             >
-              {initials(user)}
-            </Avatar>
+              <Box
+                role={avatarSrc ? 'button' : undefined}
+                tabIndex={avatarSrc ? 0 : undefined}
+                aria-label={avatarSrc ? 'Ver foto de perfil en grande' : undefined}
+                onClick={() => {
+                  if (avatarSrc) setLightboxKind('avatar');
+                }}
+                onKeyDown={(e) => {
+                  if (avatarSrc && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    setLightboxKind('avatar');
+                  }
+                }}
+                sx={{
+                  position: 'relative',
+                  borderRadius: '50%',
+                  cursor: avatarSrc ? 'zoom-in' : 'default',
+                  display: 'inline-flex',
+                  transition: 'transform 0.18s ease, box-shadow 0.2s ease',
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}`,
+                  },
+                  '&:focus-visible': {
+                    outline: '2px solid',
+                    outlineColor: 'primary.main',
+                    outlineOffset: 3,
+                  },
+                }}
+              >
+                <Avatar
+                  src={avatarSrc}
+                  alt={user?.name || user?.username}
+                  sx={{
+                    width: { xs: 90, sm: 110, md: 120 },
+                    height: { xs: 90, sm: 110, md: 120 },
+                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                    fontWeight: 700,
+                    bgcolor: '#F59E0B',
+                    color: '#0B1220',
+                    border: '4px solid',
+                    borderColor: 'background.paper',
+                    boxShadow: 3,
+                  }}
+                >
+                  {initials(user)}
+                </Avatar>
+              </Box>
+
+              <Tooltip title={avatarSrc ? 'Cambiar foto de perfil' : 'Subir foto de perfil'}>
+                <IconButton
+                  size="small"
+                  aria-label="Editar foto de perfil"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setImageEditorKind('avatar');
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    right: 2,
+                    bottom: 2,
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    border: '2px solid',
+                    borderColor: 'background.paper',
+                    boxShadow: 2,
+                    width: { xs: 30, sm: 34 },
+                    height: { xs: 30, sm: 34 },
+                    '&:hover': {
+                      bgcolor: 'primary.dark',
+                    },
+                  }}
+                >
+                  <PhotoCameraOutlinedIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
             <Box sx={{ pt: { xs: 0, sm: 1.5 } }}>
               <Typography variant="h4" component="h1" fontWeight={700} sx={{ lineHeight: 1.2 }}>
@@ -650,6 +815,93 @@ export default function ProfilePage() {
               {editTab === 'profile' && (
                 <Stack spacing={2.5}>
                   {profileGeneralError && <Alert severity="error">{profileGeneralError}</Alert>}
+
+                  {/* Quick visual selector for avatar & banner inside edit modal */}
+                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2.5, overflow: 'hidden' }}>
+                    <Box
+                      onClick={() => setImageEditorKind('banner')}
+                      sx={{
+                        height: 84,
+                        borderRadius: 1.75,
+                        backgroundImage: bannerSrc ? `url("${bannerSrc}")` : DEFAULT_BANNER_GRADIENT,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'flex-end',
+                        p: 1,
+                        '&:hover': { filter: 'brightness(0.92)' },
+                      }}
+                    >
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<PhotoCameraOutlinedIcon sx={{ fontSize: 15 }} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImageEditorKind('banner');
+                        }}
+                        sx={{
+                          py: 0.25,
+                          px: 1.25,
+                          fontSize: '0.75rem',
+                          bgcolor: 'rgba(11, 18, 32, 0.72)',
+                          color: '#fff',
+                          textTransform: 'none',
+                          '&:hover': { bgcolor: 'rgba(11, 18, 32, 0.9)' },
+                        }}
+                      >
+                        Banner
+                      </Button>
+                    </Box>
+
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      sx={{ alignItems: 'center', justifyContent: 'space-between', px: 1, pt: 1 }}
+                    >
+                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                        <Avatar
+                          src={avatarSrc}
+                          onClick={() => setImageEditorKind('avatar')}
+                          sx={{
+                            width: 56,
+                            height: 56,
+                            mt: -4,
+                            fontSize: '1.2rem',
+                            fontWeight: 700,
+                            bgcolor: '#F59E0B',
+                            color: '#0B1220',
+                            border: '3px solid',
+                            borderColor: 'background.paper',
+                            boxShadow: 2,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {initials(user)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight={700}>
+                            Foto y banner
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Personaliza la apariencia de tu perfil
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<PhotoCameraOutlinedIcon fontSize="small" />}
+                        onClick={() => setImageEditorKind('avatar')}
+                      >
+                        Cambiar foto
+                      </Button>
+                    </Stack>
+                  </Paper>
 
                   <TextField
                     label="Nombre completo"
@@ -993,6 +1245,29 @@ export default function ProfilePage() {
           )}
         </DialogActions>
       </Dialog>
+
+      <ProfileImageEditorDialog
+        key={imageEditorKind ?? 'closed'}
+        open={Boolean(imageEditorKind)}
+        kind={imageEditorKind ?? 'avatar'}
+        currentUrl={imageEditorKind === 'banner' ? user?.bannerUrl : user?.avatarUrl}
+        fallbackInitials={initials(user)}
+        onClose={() => setImageEditorKind(null)}
+        onSave={handleSaveProfileImage}
+        onRemove={handleRemoveProfileImage}
+      />
+
+      <ProfileImageLightbox
+        open={Boolean(lightboxKind)}
+        kind={lightboxKind ?? 'avatar'}
+        src={lightboxKind === 'banner' ? bannerSrc : avatarSrc}
+        label={
+          lightboxKind === 'banner'
+            ? `Banner · @${user?.username ?? ''}`
+            : `Foto de perfil · @${user?.username ?? ''}`
+        }
+        onClose={() => setLightboxKind(null)}
+      />
 
       <Snackbar
         open={Boolean(notice)}

@@ -23,6 +23,11 @@ import { createContext, useContext } from 'react';
  * @property {(email: string) => Promise<object>} resendVerificationCode
  * @property {() => void} logout
  * @property {(data: { name: string, username: string, semester: number|null }) => Promise<object>} updateProfile
+ * @property {(file: File) => Promise<object>} uploadAvatar
+ * @property {() => Promise<object>} deleteAvatar
+ * @property {(file: File) => Promise<object>} uploadBanner
+ * @property {() => Promise<object>} deleteBanner
+ * @property {() => Promise<object|null>} refreshUser
  * @property {(data: { currentPassword: string, newPassword: string }) => Promise<void>} changePassword
  */
 

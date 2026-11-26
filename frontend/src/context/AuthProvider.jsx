@@ -11,6 +11,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { AuthContext } from './authContext.js';
 import {
   changePassword as changePasswordService,
+  deleteProfileAvatar as deleteProfileAvatarService,
+  deleteProfileBanner as deleteProfileBannerService,
   logout as logoutService,
   login as loginService,
   getCurrentSession,
@@ -18,6 +20,8 @@ import {
   register as registerService,
   resendVerificationCode as resendVerificationCodeService,
   updateProfile as updateProfileService,
+  uploadProfileAvatar as uploadProfileAvatarService,
+  uploadProfileBanner as uploadProfileBannerService,
   verifyEmail as verifyEmailService,
 } from '../services/authService.js';
 
@@ -65,6 +69,30 @@ export default function AuthProvider({ children }) {
     return updatedUser;
   }, []);
 
+  const uploadAvatar = useCallback(async (file) => {
+    const updatedUser = await uploadProfileAvatarService(file);
+    setSession((current) => (current ? { ...current, user: updatedUser } : current));
+    return updatedUser;
+  }, []);
+
+  const deleteAvatar = useCallback(async () => {
+    const updatedUser = await deleteProfileAvatarService();
+    setSession((current) => (current ? { ...current, user: updatedUser } : current));
+    return updatedUser;
+  }, []);
+
+  const uploadBanner = useCallback(async (file) => {
+    const updatedUser = await uploadProfileBannerService(file);
+    setSession((current) => (current ? { ...current, user: updatedUser } : current));
+    return updatedUser;
+  }, []);
+
+  const deleteBanner = useCallback(async () => {
+    const updatedUser = await deleteProfileBannerService();
+    setSession((current) => (current ? { ...current, user: updatedUser } : current));
+    return updatedUser;
+  }, []);
+
   const refreshUser = useCallback(async () => {
     const freshUser = await refreshCurrentUserService();
     if (freshUser) {
@@ -87,6 +115,10 @@ export default function AuthProvider({ children }) {
       resendVerificationCode,
       logout,
       updateProfile,
+      uploadAvatar,
+      deleteAvatar,
+      uploadBanner,
+      deleteBanner,
       refreshUser,
       changePassword,
     }),
@@ -98,6 +130,10 @@ export default function AuthProvider({ children }) {
       resendVerificationCode,
       logout,
       updateProfile,
+      uploadAvatar,
+      deleteAvatar,
+      uploadBanner,
+      deleteBanner,
       refreshUser,
       changePassword,
     ],

@@ -3,6 +3,7 @@ package com.backend.domain.identity;
 import jakarta.persistence.*;
 import org.hibernate.type.NumericBooleanConverter;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -51,6 +52,12 @@ public class User {
 
     @Column(name = "descripcion", length = 500)
     private String bio;
+
+    @Column(name = "avatar_actualizado_en")
+    private LocalDateTime avatarUpdatedAt;
+
+    @Column(name = "banner_actualizado_en")
+    private LocalDateTime bannerUpdatedAt;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "rol_id")
@@ -117,6 +124,28 @@ public class User {
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+
+    public LocalDateTime getAvatarUpdatedAt() { return avatarUpdatedAt; }
+    public void setAvatarUpdatedAt(LocalDateTime avatarUpdatedAt) { this.avatarUpdatedAt = avatarUpdatedAt; }
+
+    public LocalDateTime getBannerUpdatedAt() { return bannerUpdatedAt; }
+    public void setBannerUpdatedAt(LocalDateTime bannerUpdatedAt) { this.bannerUpdatedAt = bannerUpdatedAt; }
+
+    @Transient
+    public String getAvatarUrl() {
+        if (id == null || avatarUpdatedAt == null) {
+            return null;
+        }
+        return "/api/users/" + id + "/avatar?v=" + avatarUpdatedAt.toInstant(ZoneOffset.UTC).toEpochMilli();
+    }
+
+    @Transient
+    public String getBannerUrl() {
+        if (id == null || bannerUpdatedAt == null) {
+            return null;
+        }
+        return "/api/users/" + id + "/banner?v=" + bannerUpdatedAt.toInstant(ZoneOffset.UTC).toEpochMilli();
+    }
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
