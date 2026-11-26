@@ -7,6 +7,7 @@ export const AI_CONTENT_TYPES = [
   {
     value: 'quiz',
     label: 'Cuestionario',
+    pluralLabel: 'Cuestionarios',
     shortLabel: 'Cuestionario',
     colorKey: 'primary',
     description: 'Preguntas tipo examen con respuestas justificadas y puntaje.',
@@ -19,6 +20,7 @@ export const AI_CONTENT_TYPES = [
   {
     value: 'summary',
     label: 'Resumen',
+    pluralLabel: 'Resúmenes',
     shortLabel: 'Resumen',
     colorKey: 'info',
     description: 'Síntesis estructurada por secciones, ideas clave y glosario.',
@@ -31,6 +33,7 @@ export const AI_CONTENT_TYPES = [
   {
     value: 'guide',
     label: 'Guía de estudio',
+    pluralLabel: 'Guías de estudio',
     shortLabel: 'Guía',
     colorKey: 'success',
     description: 'Ruta paso a paso con objetivos, ejercicios guía y checklist.',
@@ -43,6 +46,7 @@ export const AI_CONTENT_TYPES = [
   {
     value: 'slides',
     label: 'Diapositivas',
+    pluralLabel: 'Diapositivas',
     shortLabel: 'Diapositivas',
     colorKey: 'warning',
     description: 'Presentación visual por láminas lista para exponer o repasar.',
