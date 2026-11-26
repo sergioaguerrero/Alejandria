@@ -39,5 +39,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """, nativeQuery = true)
     List<Object[]> findViewerFollowMetricsByIdIn(@Param("userIds") Collection<Long> userIds, @Param("viewerId") Long viewerId);
 
+    @Query(value = """
+            SELECT (SELECT COUNT(*) FROM SEGUIMIENTO_USUARIO WHERE seguido_id = :userId),
+                   (SELECT COUNT(*) FROM SEGUIMIENTO_USUARIO WHERE seguidor_id = :userId)
+            FROM USUARIO
+            WHERE id = :userId
+            """, nativeQuery = true)
+    List<Object[]> findFollowCountsByUserId(@Param("userId") Long userId);
+
     Optional<User> findByInstitutionalEmail(String institutionalEmail);
 }

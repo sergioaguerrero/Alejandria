@@ -14,6 +14,7 @@ import { nextId, recordMockSearchTerm, store } from '../mocks/store.js';
 import { withoutPassword } from '../utils/users.js';
 import { currentUser } from './authService.js';
 import { emitMockNotification, notifyFollowersOfNewContent } from './notificationService.js';
+import { getCachedOrFetch, invalidateCache } from '../utils/queryCache.js';
 
 /**
  * @typedef {object} RepositoryFilters
@@ -132,13 +133,22 @@ export async function getRepositories(filters = {}) {
     order = 'recent',
     page = 1,
     size = 9,
+    signal,
   } = filters;
 
   if (!USE_MOCK) {
-    const { data } = await http.get('/repositories', {
-      params: { subjectId, semester, q: search, order, page, size },
-    });
-    return normalizePage(data, page, size);
+    const cacheKey = `repos:list:${JSON.stringify({ subjectId, semester, search, order, page, size })}`;
+    return getCachedOrFetch(
+      cacheKey,
+      async () => {
+        const { data } = await http.get('/repositories', {
+          params: { subjectId, semester, q: search, order, page, size },
+          signal,
+        });
+        return normalizePage(data, page, size);
+      },
+      { ttlMs: 25000, signal },
+    );
   }
 
   await waitForMock();
@@ -191,8 +201,14 @@ export async function getRepositories(filters = {}) {
  */
 export async function getRepository(id) {
   if (!USE_MOCK) {
-    const { data } = await http.get(`/repositories/${id}`);
-    return data;
+    return getCachedOrFetch(
+      `repos:detail:${id}`,
+      async () => {
+        const { data } = await http.get(`/repositories/${id}`);
+        return data;
+      },
+      { ttlMs: 25000 },
+    );
   }
 
   await waitForMock();
@@ -212,8 +228,14 @@ export async function getRepository(id) {
  */
 export async function getRepositoriesByUser(username) {
   if (!USE_MOCK) {
-    const { data } = await http.get(`/users/${username}/repositories`);
-    return normalizePage(data, 1, data?.total ?? 10).items;
+    return getCachedOrFetch(
+      `repos:user:${username}`,
+      async () => {
+        const { data } = await http.get(`/users/${username}/repositories`);
+        return normalizePage(data, 1, data?.total ?? 10).items;
+      },
+      { ttlMs: 25000 },
+    );
   }
 
   await waitForMock();
@@ -241,6 +263,7 @@ export async function getRepositoriesByUser(username) {
 export async function createRepository(data) {
   if (!USE_MOCK) {
     const { data: created } = await http.post('/repositories', data);
+    invalidateCache('repos:');
     return created;
   }
 
@@ -297,6 +320,7 @@ export async function createRepository(data) {
 export async function updateRepository(id, data) {
   if (!USE_MOCK) {
     const { data: updated } = await http.put(`/repositories/${id}`, data);
+    invalidateCache('repos:');
     return updated;
   }
 
@@ -328,6 +352,7 @@ export async function updateRepository(id, data) {
 export async function deleteRepository(id) {
   if (!USE_MOCK) {
     await http.delete(`/repositories/${id}`);
+    invalidateCache('repos:', 'docs:');
     return;
   }
 
@@ -355,6 +380,7 @@ export async function deleteRepository(id) {
 export async function toggleRepositoryLike(id) {
   if (!USE_MOCK) {
     const { data } = await http.post(`/repositories/${id}/like`);
+    invalidateCache('repos:');
     return data;
   }
 
@@ -402,6 +428,7 @@ export async function toggleRepositoryLike(id) {
 export async function toggleFollowRepository(id) {
   if (!USE_MOCK) {
     const { data } = await http.post(`/repositories/${encodeURIComponent(id)}/follow`);
+    invalidateCache('repos:');
     return data;
   }
 

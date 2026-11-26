@@ -98,6 +98,26 @@ function termLabel(term) {
   return TERMS.find((t) => t.value === term)?.label ?? `Corte ${term}`;
 }
 
+function toTimestamp(value) {
+  const ms = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function sortRepositoriesByLikes(list) {
+  return [...(list ?? [])].sort(
+    (a, b) => (b.likes || 0) - (a.likes || 0) || toTimestamp(b.createdAt) - toTimestamp(a.createdAt),
+  );
+}
+
+function sortDocumentsByViews(list) {
+  return [...(list ?? [])].sort(
+    (a, b) =>
+      (b.views || 0) - (a.views || 0) ||
+      (b.downloads || 0) - (a.downloads || 0) ||
+      toTimestamp(b.createdAt) - toTimestamp(a.createdAt),
+  );
+}
+
 export default function ProfilePage() {
   const {
     user,
@@ -151,6 +171,8 @@ export default function ProfilePage() {
   const [notice, setNotice] = useState(null);
 
   const currentUsername = user?.username ?? '';
+  const hasServerFollowCounts =
+    typeof user?.followersCount === 'number' && typeof user?.followingCount === 'number';
   const isLoading = !user || loadedKey !== `${currentUsername}:${reloadKey}`;
 
   useEffect(() => {
@@ -164,16 +186,20 @@ export default function ProfilePage() {
     Promise.all([
       getRepositoriesByUser(currentUsername),
       getDocumentsByUser(currentUsername),
-      getPublicProfile(currentUsername).catch(() => null),
+      hasServerFollowCounts
+        ? Promise.resolve(null)
+        : getPublicProfile(currentUsername).catch(() => null),
     ])
       .then(([userRepos, userDocs, publicProfile]) => {
         if (!active) return;
-        setRepositories(userRepos);
-        setDocuments(userDocs);
-        setSocialStats({
-          followers: publicProfile?.followersCount ?? 0,
-          following: publicProfile?.followingCount ?? 0,
-        });
+        setRepositories(sortRepositoriesByLikes(userRepos));
+        setDocuments(sortDocumentsByViews(userDocs));
+        if (publicProfile) {
+          setSocialStats({
+            followers: publicProfile.followersCount ?? 0,
+            following: publicProfile.followingCount ?? 0,
+          });
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -183,7 +209,7 @@ export default function ProfilePage() {
     return () => {
       active = false;
     };
-  }, [currentUsername, reloadKey]);
+  }, [currentUsername, reloadKey, hasServerFollowCounts]);
 
   const handleOpenEditModal = (initialTab = 'profile') => {
     setProfileValues({
@@ -578,8 +604,8 @@ export default function ProfilePage() {
 
         {/* Counters Row */}
         <ProfileCounters
-          followers={socialStats.followers}
-          following={socialStats.following}
+          followers={user?.followersCount ?? socialStats.followers}
+          following={user?.followingCount ?? socialStats.following}
           likes={totalLikes}
           linkSocial
         />

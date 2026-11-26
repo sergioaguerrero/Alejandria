@@ -21,6 +21,7 @@ import {
   getTopicValidationError,
   resolveCanonicalTopic,
 } from '../utils/topics.js';
+import { getCachedOrFetch, invalidateCache } from '../utils/queryCache.js';
 
 /**
  * Adds the repository, the author and the calculated data to the document.
@@ -124,10 +125,16 @@ export async function listSubjectTopics(subjectId) {
  */
 export async function listByRepository(repositoryId, { term = null } = {}) {
   if (!USE_MOCK) {
-    const { data } = await http.get(`/repositories/${repositoryId}/documents`, {
-      params: { term },
-    });
-    return asList(data);
+    return getCachedOrFetch(
+      `docs:repo:${repositoryId}:${term ?? 'all'}`,
+      async () => {
+        const { data } = await http.get(`/repositories/${repositoryId}/documents`, {
+          params: { term },
+        });
+        return asList(data);
+      },
+      { ttlMs: 25000 },
+    );
   }
 
   await waitForMock();
@@ -172,23 +179,42 @@ export async function getDocuments(filters = {}) {
     order = 'recent',
     page = 1,
     size = 8,
+    signal,
   } = filters;
 
   if (!USE_MOCK) {
-    const { data } = await http.get('/documents', {
-      params: {
-        q: search,
-        subjectId,
-        semester,
-        term,
-        type,
-        topic,
-        order,
-        page,
-        size,
+    const cacheKey = `docs:search:${JSON.stringify({
+      search,
+      subjectId,
+      semester,
+      term,
+      type,
+      topic,
+      order,
+      page,
+      size,
+    })}`;
+    return getCachedOrFetch(
+      cacheKey,
+      async () => {
+        const { data } = await http.get('/documents', {
+          params: {
+            q: search,
+            subjectId,
+            semester,
+            term,
+            type,
+            topic,
+            order,
+            page,
+            size,
+          },
+          signal,
+        });
+        return normalizePage(data, page, size);
       },
-    });
-    return normalizePage(data, page, size);
+      { ttlMs: 20000, signal },
+    );
   }
 
   await waitForMock();
@@ -258,8 +284,14 @@ export async function getDocuments(filters = {}) {
  */
 export async function getDocumentsByUser(username) {
   if (!USE_MOCK) {
-    const { data } = await http.get(`/users/${username}/documents`);
-    return asList(data);
+    return getCachedOrFetch(
+      `docs:user:${username}`,
+      async () => {
+        const { data } = await http.get(`/users/${username}/documents`);
+        return asList(data);
+      },
+      { ttlMs: 25000 },
+    );
   }
 
   await waitForMock();
@@ -416,6 +448,7 @@ export async function uploadDocument(data, onProgress) {
       },
     });
 
+    invalidateCache('docs:', 'repos:');
     return created;
   }
 
@@ -502,6 +535,7 @@ export async function updateDocument(id, data, onProgress) {
       },
     });
 
+    invalidateCache('docs:', 'repos:');
     return updated;
   }
 
@@ -546,6 +580,7 @@ export async function updateDocument(id, data, onProgress) {
 export async function deleteDocument(id) {
   if (!USE_MOCK) {
     await http.delete(`/documents/${id}`);
+    invalidateCache('docs:', 'repos:');
     return;
   }
 

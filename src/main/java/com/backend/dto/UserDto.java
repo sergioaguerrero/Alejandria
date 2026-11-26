@@ -23,6 +23,8 @@ public class UserDto {
     private List<UserContactDto> contacts = Collections.emptyList();
     private boolean verified;
     private boolean suspended;
+    private Long followersCount;
+    private Long followingCount;
 
     public UserDto() {}
 
@@ -102,4 +104,10 @@ public class UserDto {
 
     public boolean isSuspended() { return suspended; }
     public void setSuspended(boolean suspended) { this.suspended = suspended; }
+
+    public Long getFollowersCount() { return followersCount; }
+    public void setFollowersCount(Long followersCount) { this.followersCount = followersCount; }
+
+    public Long getFollowingCount() { return followingCount; }
+    public void setFollowingCount(Long followingCount) { this.followingCount = followingCount; }
 }

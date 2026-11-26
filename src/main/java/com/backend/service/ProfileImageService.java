@@ -7,8 +7,10 @@ import com.backend.dto.UserDto;
 import com.backend.exception.AuthException;
 import com.backend.repository.UserContactRepository;
 import com.backend.repository.UserRepository;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import java.io.OutputStream;
 import java.sql.Blob;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -188,6 +191,113 @@ public class ProfileImageService {
         jwtTokenService.evictUser(saved.getId());
 
         return UserDto.fromEntity(saved, loadUserContacts(saved.getId()));
+    }
+
+    /**
+     * Sirve metadatos y bytes del BLOB en una única consulta JDBC a Oracle (en lugar de dos viajes),
+     * con soporte de validación condicional ETag / If-None-Match (HTTP 304 Not Modified).
+     */
+    @Transactional(readOnly = true)
+    public void writeImageResponse(
+            Long userId,
+            ProfileImageType type,
+            String version,
+            String ifNoneMatch,
+            boolean isHead,
+            HttpServletResponse response
+    ) {
+        if (userId == null) {
+            throw imageNotFound(type);
+        }
+
+        String sql = isHead
+                ? "SELECT tipo_mime, tamano_bytes, fecha_actualizacion FROM IMAGEN_PERFIL_USUARIO WHERE usuario_id = ? AND tipo = ?"
+                : "SELECT tipo_mime, tamano_bytes, fecha_actualizacion, archivo_bytes FROM IMAGEN_PERFIL_USUARIO WHERE usuario_id = ? AND tipo = ?";
+
+        Boolean found = jdbcTemplate.query(
+                sql,
+                ps -> {
+                    ps.setLong(1, userId);
+                    ps.setString(2, type.name());
+                },
+                rs -> {
+                    if (!rs.next()) {
+                        return false;
+                    }
+
+                    String mimeType = rs.getString(1);
+                    long sizeBytes = rs.getLong(2);
+                    Timestamp ts = rs.getTimestamp(3);
+                    long versionToken = ts != null
+                            ? ts.toLocalDateTime().toInstant(ZoneOffset.UTC).toEpochMilli()
+                            : sizeBytes;
+                    String etag = "\"" + userId + "-" + type.name().toLowerCase() + "-" + versionToken + "\"";
+                    String cacheControl = (version != null && !version.isBlank())
+                            ? "public, max-age=31536000, immutable"
+                            : "public, max-age=300";
+
+                    response.setHeader(HttpHeaders.ETAG, etag);
+                    response.setHeader(HttpHeaders.CACHE_CONTROL, cacheControl);
+                    response.setHeader("X-Content-Type-Options", "nosniff");
+                    response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+                    if (matchesEtag(ifNoneMatch, etag)) {
+                        response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+                        return true;
+                    }
+
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    response.setContentType(mimeType);
+                    if (sizeBytes > 0) {
+                        response.setContentLengthLong(sizeBytes);
+                    }
+
+                    if (!isHead && sizeBytes > 0) {
+                        Blob blob = rs.getBlob(4);
+                        if (blob != null) {
+                            try (InputStream in = blob.getBinaryStream()) {
+                                OutputStream out = response.getOutputStream();
+                                byte[] buffer = new byte[STREAM_BUFFER_SIZE];
+                                int read;
+                                while ((read = in.read(buffer)) != -1) {
+                                    out.write(buffer, 0, read);
+                                }
+                                out.flush();
+                            } catch (IOException ex) {
+                                log.debug("Stream cerrado por el cliente durante transferencia de {} del usuario {}: {}",
+                                        type, userId, ex.getMessage());
+                            } finally {
+                                try {
+                                    blob.free();
+                                } catch (Exception ignored) {
+                                }
+                            }
+                        }
+                    }
+                    return true;
+                }
+        );
+
+        if (!Boolean.TRUE.equals(found)) {
+            throw imageNotFound(type);
+        }
+    }
+
+    private boolean matchesEtag(String ifNoneMatch, String currentEtag) {
+        if (ifNoneMatch == null || ifNoneMatch.isBlank()) {
+            return false;
+        }
+        String cleanHeader = ifNoneMatch.trim();
+        if ("*".equals(cleanHeader)) {
+            return true;
+        }
+        for (String candidate : cleanHeader.split(",")) {
+            String trimmed = candidate.trim();
+            if (trimmed.equals(currentEtag) || trimmed.equals("W/" + currentEtag)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Transactional(readOnly = true)

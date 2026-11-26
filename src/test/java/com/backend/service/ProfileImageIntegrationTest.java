@@ -148,14 +148,22 @@ class ProfileImageIntegrationTest {
         String firstAvatarUrl = objectMapper.readTree(avatarRes.getResponse().getContentAsString())
                 .get("avatarUrl").asText();
 
-        // 4. GET público del avatar devuelve exactamente los bytes PNG
-        mockMvc.perform(get(firstAvatarUrl))
+        // 4. GET público del avatar devuelve exactamente los bytes PNG y ETag válido
+        MvcResult publicAvatarGet = mockMvc.perform(get(firstAvatarUrl))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("image/png"))
+                .andExpect(header().exists(HttpHeaders.ETAG))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().string("Cross-Origin-Resource-Policy", "cross-origin"))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("immutable")))
-                .andExpect(content().bytes(samplePng));
+                .andExpect(content().bytes(samplePng))
+                .andReturn();
+
+        // 4b. Revalidación condicional con If-None-Match -> 304 Not Modified sin reenviar bytes
+        String avatarEtag = publicAvatarGet.getResponse().getHeader(HttpHeaders.ETAG);
+        mockMvc.perform(get(firstAvatarUrl).header(HttpHeaders.IF_NONE_MATCH, avatarEtag))
+                .andExpect(status().isNotModified())
+                .andExpect(content().bytes(new byte[0]));
 
         // 5. Subir banner WebP -> 200 y URL versionada
         MockMultipartFile webpBanner = new MockMultipartFile("file", "banner.webp", "image/webp", sampleWebp);
@@ -192,12 +200,19 @@ class ProfileImageIntegrationTest {
                 .andExpect(content().contentType("image/jpeg"))
                 .andExpect(content().bytes(sampleJpeg));
 
-        // 7. GET /api/users/me devuelve ambas URLs actualizadas
+        // 7. GET /api/users/me devuelve ambas URLs actualizadas y contadores sociales
         mockMvc.perform(get("/api/users/me")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.avatarUrl").value(secondAvatarUrl))
-                .andExpect(jsonPath("$.bannerUrl").value(bannerUrl));
+                .andExpect(jsonPath("$.bannerUrl").value(bannerUrl))
+                .andExpect(jsonPath("$.followersCount").value(0))
+                .andExpect(jsonPath("$.followingCount").value(0));
+
+        // 7b. GET /api/health público responde 200 UP
+        mockMvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
 
         // 8. Eliminar avatar y banner
         mockMvc.perform(delete("/api/users/me/avatar")

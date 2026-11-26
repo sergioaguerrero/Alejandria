@@ -67,8 +67,16 @@ export function normalizeError(error) {
     return error;
   }
 
-  const response = /** @type {{ response?: any, request?: any, message?: string }} */ (error)
-    ?.response;
+  const raw = /** @type {{ code?: string, name?: string, response?: any, request?: any, message?: string }} */ (error);
+  if (raw?.code === 'ERR_CANCELED' || raw?.name === 'CanceledError' || raw?.name === 'AbortError') {
+    return new ApiError('Solicitud cancelada.', {
+      status: 0,
+      code: 'REQUEST_CANCELED',
+      cause: error,
+    });
+  }
+
+  const response = raw?.response;
 
   if (response) {
     const data = response.data ?? {};
