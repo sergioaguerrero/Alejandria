@@ -17,10 +17,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
@@ -28,12 +31,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -70,6 +79,7 @@ class UserProfileIntegrationTest {
     @BeforeEach
     void setUp() {
         SeedData seed = transactionTemplate.execute(status -> {
+            entityManager.createNativeQuery("DELETE FROM IMAGEN_PERFIL_USUARIO").executeUpdate();
             entityManager.createQuery("DELETE FROM UserSubjectInterest").executeUpdate();
             entityManager.createQuery("DELETE FROM UserContact").executeUpdate();
             entityManager.createQuery("DELETE FROM UserFollow").executeUpdate();
@@ -418,6 +428,102 @@ class UserProfileIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bio").doesNotExist())
                 .andExpect(jsonPath("$.contacts", hasSize(0)));
+    }
+
+    @Test
+    void avatarAndBannerUploadServeReplaceAndDeleteFlow() throws Exception {
+        byte[] samplePng = new byte[]{
+                (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52
+        };
+        byte[] sampleJpeg = new byte[]{
+                (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0,
+                0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01
+        };
+        byte[] fakeText = "not-an-image-payload".getBytes();
+
+        // 1. Subir sin token -> 401
+        MockMultipartFile pngFile = new MockMultipartFile("file", "avatar.png", "image/png", samplePng);
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/users/me/avatar").file(pngFile))
+                .andExpect(status().isUnauthorized());
+
+        // 2. Subir archivo que no es imagen genuina (magic bytes inválidos) -> 400
+        MockMultipartFile disguisedFile = new MockMultipartFile("file", "fake.png", "image/png", fakeText);
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/users/me/avatar")
+                        .file(disguisedFile)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.file").exists());
+
+        // 3. Subir avatar PNG válido -> 200 con avatarUrl versionada
+        MvcResult avatarResult = mockMvc.perform(multipart(HttpMethod.PUT, "/api/users/me/avatar")
+                        .file(pngFile)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl", containsString("/avatar?v=")))
+                .andExpect(jsonPath("$.bannerUrl").doesNotExist())
+                .andReturn();
+
+        String firstAvatarUrl = objectMapper.readTree(avatarResult.getResponse().getContentAsString())
+                .get("avatarUrl").asText();
+
+        // 4. GET público del avatar sin autenticación -> 200 con bytes exactos y headers seguros
+        mockMvc.perform(get(firstAvatarUrl))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/png"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("immutable")))
+                .andExpect(content().bytes(samplePng));
+
+        // 5. Subir banner JPEG válido -> 200 con bannerUrl versionada y visible en perfil público
+        MockMultipartFile jpegBanner = new MockMultipartFile("file", "banner.jpg", "image/jpeg", sampleJpeg);
+        MvcResult bannerResult = mockMvc.perform(multipart(HttpMethod.PUT, "/api/users/me/banner")
+                        .file(jpegBanner)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl").value(firstAvatarUrl))
+                .andExpect(jsonPath("$.bannerUrl", containsString("/banner?v=")))
+                .andReturn();
+
+        String bannerUrl = objectMapper.readTree(bannerResult.getResponse().getContentAsString())
+                .get("bannerUrl").asText();
+
+        mockMvc.perform(get(bannerUrl))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/jpeg"))
+                .andExpect(content().bytes(sampleJpeg));
+
+        // 6. Perfil público expone avatarUrl y bannerUrl
+        mockMvc.perform(get("/api/users/{username}", "sergioprofile"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl").value(firstAvatarUrl))
+                .andExpect(jsonPath("$.bannerUrl").value(bannerUrl));
+
+        // 7. Reemplazar avatar con JPEG actualiza la versión (cache-busting) y el contenido
+        MockMultipartFile jpegAvatar = new MockMultipartFile("file", "avatar2.jpg", "image/jpeg", sampleJpeg);
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/users/me/avatar")
+                        .file(jpegAvatar)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl", not(firstAvatarUrl)));
+
+        // 8. Eliminar avatar y banner limpia las URLs y devuelve 404 al consultar la imagen
+        mockMvc.perform(delete("/api/users/me/avatar")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl").doesNotExist())
+                .andExpect(jsonPath("$.bannerUrl").value(bannerUrl));
+
+        mockMvc.perform(get(firstAvatarUrl))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/users/me/banner")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sergioToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bannerUrl").doesNotExist());
+
+        mockMvc.perform(get(bannerUrl))
+                .andExpect(status().isNotFound());
     }
 
     private record SeedData(User sergio, User laura, Long subject1Id, Long subject2Id) {}

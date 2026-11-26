@@ -20,6 +20,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 
+import { resolveMediaUrl } from '../../utils/profileMedia.js';
+
 const ACTION_BUTTON_SX = {
   py: 0.875,
   fontSize: '0.875rem',
@@ -47,6 +49,8 @@ export default function UserCard({ profile, isBusy = false, onToggleFollow }) {
           <Avatar
             component={RouterLink}
             to={`/users/${profile.username}`}
+            src={resolveMediaUrl(profile.avatarUrl)}
+            alt={`@${profile.username}`}
             sx={{
               width: 48,
               height: 48,

@@ -59,6 +59,7 @@ import { useAuth } from '../../context/authContext.js';
 import { useThemeMode } from '../../context/themeContext.js';
 import LighthouseMark from '../brand/LighthouseMark.jsx';
 import NotificationBell from '../common/NotificationBell.jsx';
+import { resolveMediaUrl } from '../../utils/profileMedia.js';
 import { initials, usernameLabel } from '../../utils/users.js';
 
 const MENU_WIDTH = 248;
@@ -342,7 +343,13 @@ export default function AppLayout() {
               onClick={openUserMenu}
               aria-label="Abrir menú de usuario"
             >
-              <Avatar sx={{ width: 36, height: 36 }}>{initials(user)}</Avatar>
+              <Avatar
+                src={resolveMediaUrl(user?.avatarUrl)}
+                alt={user?.name || user?.username}
+                sx={{ width: 36, height: 36 }}
+              >
+                {initials(user)}
+              </Avatar>
             </IconButton>
           </Tooltip>
         </Toolbar>

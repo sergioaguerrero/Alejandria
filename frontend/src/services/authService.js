@@ -26,6 +26,8 @@ import {
   isValidUsername,
 } from '../utils/validations.js';
 import { validateBioAndContacts } from '../utils/contactMethods.js';
+import { blobToDataUrl, validateProfileImageFile } from '../utils/profileMedia.js';
+import { clearAllCache, invalidateCache } from '../utils/queryCache.js';
 
 const MOCK_OTP_EXPIRATION_MS = 15 * 60 * 1000;
 const MOCK_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -116,6 +118,7 @@ export function currentUser() {
 
 /** Deletes the saved session. */
 export function logout() {
+  clearAllCache();
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }
@@ -142,6 +145,7 @@ export async function login({ identifier, password }) {
       identifier: cleanIdentifier,
       password,
     });
+    clearAllCache();
     saveSession(data);
     return data;
   }
@@ -552,6 +556,7 @@ export async function updateProfile(data) {
       ...(hasContacts ? { contacts } : {}),
     };
     const { data: updatedUser } = await http.put('/users/me', payload);
+    invalidateCache('users:', 'repos:', 'docs:');
     const session = getCurrentSession();
     if (session) saveSession({ ...session, user: updatedUser });
     return updatedUser;
@@ -637,6 +642,112 @@ export async function updateProfile(data) {
   const updatedUser = /** @type {any} */ (withoutPassword(storedUser));
   saveSession({ ...session, user: updatedUser });
   return updatedUser;
+}
+
+/**
+ * Uploads or replaces the current user's profile avatar or banner image.
+ *
+ * @param {'avatar'|'banner'} kind
+ * @param {File} file
+ * @returns {Promise<object>} Updated user object with new `avatarUrl` / `bannerUrl`.
+ */
+async function uploadProfileImage(kind, file) {
+  const validationError = validateProfileImageFile(file, kind);
+  if (validationError) {
+    throw new ApiError(validationError, {
+      status: 400,
+      fields: { file: validationError },
+    });
+  }
+
+  if (!USE_MOCK) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data: updatedUser } = await http.put(`/users/me/${kind}`, formData, {
+      timeout: 30000,
+    });
+    invalidateCache('users:');
+    const session = getCurrentSession();
+    if (session) saveSession({ ...session, user: updatedUser });
+    return updatedUser;
+  }
+
+  await waitForMock(350);
+
+  const session = getCurrentSession();
+  if (!session) {
+    throw new ApiError('Debes iniciar sesión para actualizar tu imagen.', { status: 401 });
+  }
+
+  const storedUser = store.users.find((u) => u.id === session.user.id);
+  if (!storedUser) {
+    throw new ApiError('No se encontró tu cuenta.', { status: 404 });
+  }
+
+  const dataUrl = await blobToDataUrl(file);
+  if (kind === 'avatar') {
+    storedUser.avatarUrl = dataUrl;
+  } else {
+    storedUser.bannerUrl = dataUrl;
+  }
+
+  const updatedUser = /** @type {any} */ (withoutPassword(storedUser));
+  saveSession({ ...session, user: updatedUser });
+  return updatedUser;
+}
+
+/**
+ * Removes the current user's profile avatar or banner image.
+ *
+ * @param {'avatar'|'banner'} kind
+ * @returns {Promise<object>} Updated user object.
+ */
+async function deleteProfileImage(kind) {
+  if (!USE_MOCK) {
+    const { data: updatedUser } = await http.delete(`/users/me/${kind}`);
+    invalidateCache('users:');
+    const session = getCurrentSession();
+    if (session) saveSession({ ...session, user: updatedUser });
+    return updatedUser;
+  }
+
+  await waitForMock(250);
+
+  const session = getCurrentSession();
+  if (!session) {
+    throw new ApiError('Debes iniciar sesión para eliminar tu imagen.', { status: 401 });
+  }
+
+  const storedUser = store.users.find((u) => u.id === session.user.id);
+  if (!storedUser) {
+    throw new ApiError('No se encontró tu cuenta.', { status: 404 });
+  }
+
+  if (kind === 'avatar') {
+    storedUser.avatarUrl = null;
+  } else {
+    storedUser.bannerUrl = null;
+  }
+
+  const updatedUser = /** @type {any} */ (withoutPassword(storedUser));
+  saveSession({ ...session, user: updatedUser });
+  return updatedUser;
+}
+
+export function uploadProfileAvatar(file) {
+  return uploadProfileImage('avatar', file);
+}
+
+export function deleteProfileAvatar() {
+  return deleteProfileImage('avatar');
+}
+
+export function uploadProfileBanner(file) {
+  return uploadProfileImage('banner', file);
+}
+
+export function deleteProfileBanner() {
+  return deleteProfileImage('banner');
 }
 
 /**

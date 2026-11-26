@@ -86,6 +86,7 @@ public class SecurityConfig {
                                 ))
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/subjects/**", "/api/catalog/subjects/**").permitAll()
                         .requestMatchers("/api/repositories/followed").authenticated()
@@ -108,7 +109,16 @@ public class SecurityConfig {
                                 "/api/documents/*/download"
                         ).permitAll()
                         .requestMatchers("/api/users/me", "/api/users/me/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/users", "/api/users/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/users",
+                                "/api/users/*",
+                                "/api/users/*/avatar",
+                                "/api/users/*/banner"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.HEAD,
+                                "/api/users/*/avatar",
+                                "/api/users/*/banner"
+                        ).permitAll()
                         .requestMatchers("/api/admin/**", "/api/analytics/top-subjects", "/api/analytics/export")
                         .hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()

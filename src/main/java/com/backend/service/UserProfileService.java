@@ -62,6 +62,7 @@ public class UserProfileService {
     private final NotificationService notificationService;
     private final OraclePackageService oraclePackageService;
     private final com.backend.repository.AuthUsuariosRepository authUsuariosRepository;
+    private final JwtTokenService jwtTokenService;
 
     public UserProfileService(
             UserRepository userRepository,
@@ -71,7 +72,8 @@ public class UserProfileService {
             PasswordEncoder passwordEncoder,
             NotificationService notificationService,
             OraclePackageService oraclePackageService,
-            com.backend.repository.AuthUsuariosRepository authUsuariosRepository
+            com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
+            JwtTokenService jwtTokenService
     ) {
         this.userRepository = userRepository;
         this.userContactRepository = userContactRepository;
@@ -81,13 +83,29 @@ public class UserProfileService {
         this.notificationService = notificationService;
         this.oraclePackageService = oraclePackageService;
         this.authUsuariosRepository = authUsuariosRepository;
+        this.jwtTokenService = jwtTokenService;
     }
 
     @Transactional(readOnly = true)
     public UserDto getMyProfile(User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tu perfil.");
         List<UserContact> contacts = loadUserContacts(user.getId());
-        return UserDto.fromEntity(user, contacts);
+        UserDto dto = UserDto.fromEntity(user, contacts);
+        long[] counts = loadFollowCounts(user.getId());
+        dto.setFollowersCount(counts[0]);
+        dto.setFollowingCount(counts[1]);
+        return dto;
+    }
+
+    private long[] loadFollowCounts(Long userId) {
+        List<Object[]> rows = userRepository.findFollowCountsByUserId(userId);
+        if (!rows.isEmpty() && rows.get(0) != null && rows.get(0).length >= 2) {
+            Object[] row = rows.get(0);
+            long followers = row[0] instanceof Number n0 ? n0.longValue() : 0L;
+            long following = row[1] instanceof Number n1 ? n1.longValue() : 0L;
+            return new long[]{followers, following};
+        }
+        return new long[]{0L, 0L};
     }
 
     @Transactional
@@ -148,6 +166,7 @@ public class UserProfileService {
         }
 
         User saved = userRepository.save(user);
+        jwtTokenService.evictUser(saved.getId());
 
         List<UserContact> savedContacts;
         if (validatedContacts != null) {
@@ -196,6 +215,7 @@ public class UserProfileService {
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        jwtTokenService.evictUser(user.getId());
     }
 
     @Transactional(readOnly = true)

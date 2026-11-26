@@ -79,6 +79,7 @@
                 <excludes>
                     <exclude>application-local.properties</exclude>
                     <exclude>application-local.properties.example</exclude>
+                    <exclude>db/alter_perfil_imagenes_oracle.sql</exclude>
                 </excludes>
             </resource>
         </resources>

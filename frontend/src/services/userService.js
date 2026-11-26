@@ -12,6 +12,7 @@ import http from './http.js';
 import { store } from '../mocks/store.js';
 import { currentUser } from './authService.js';
 import { emitMockNotification } from './notificationService.js';
+import { getCachedOrFetch, invalidateCache } from '../utils/queryCache.js';
 
 const followKey = (followerUsername, targetUsername) => `${followerUsername}::${targetUsername}`;
 
@@ -52,6 +53,8 @@ function buildPublicUserProfile(targetUser, viewerUsername) {
     semester: targetUser.semester ?? null,
     role: targetUser.role,
     bio: targetUser.bio ?? null,
+    avatarUrl: targetUser.avatarUrl ?? null,
+    bannerUrl: targetUser.bannerUrl ?? null,
     contacts: Array.isArray(targetUser.contacts) ? targetUser.contacts : [],
     isSelf,
     followersCount,
@@ -81,8 +84,14 @@ export async function getPublicProfile(username) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get(`/users/${cleanUsername}`);
-    return data;
+    return getCachedOrFetch(
+      `users:profile:${cleanUsername}`,
+      async () => {
+        const { data } = await http.get(`/users/${cleanUsername}`);
+        return data;
+      },
+      { ttlMs: 25000 },
+    );
   }
 
   await waitForMock();
@@ -228,6 +237,7 @@ export async function toggleFollowUser(username) {
 
   if (!USE_MOCK) {
     const { data } = await http.post(`/users/${encodeURIComponent(cleanUsername)}/follow`);
+    invalidateCache('users:');
     return data;
   }
 
@@ -280,8 +290,14 @@ async function listUserConnections(relation, endpoint) {
   }
 
   if (!USE_MOCK) {
-    const { data } = await http.get(endpoint);
-    return Array.isArray(data) ? data : (data?.items ?? data?.content ?? []);
+    return getCachedOrFetch(
+      `users:connections:${relation}`,
+      async () => {
+        const { data } = await http.get(endpoint);
+        return Array.isArray(data) ? data : (data?.items ?? data?.content ?? []);
+      },
+      { ttlMs: 20000 },
+    );
   }
 
   await waitForMock(180);
@@ -328,12 +344,18 @@ export function getFollowerUsers() {
  * @param {string} [query]
  * @returns {Promise<object[]>}
  */
-export async function searchUsers(query = '') {
+export async function searchUsers(query = '', { signal } = {}) {
   const cleanQuery = String(query ?? '').trim().toLowerCase();
 
   if (!USE_MOCK) {
-    const { data } = await http.get('/users', { params: { q: cleanQuery } });
-    return Array.isArray(data) ? data : (data?.items ?? data?.content ?? []);
+    return getCachedOrFetch(
+      `users:search:${cleanQuery}`,
+      async () => {
+        const { data } = await http.get('/users', { params: { q: cleanQuery }, signal });
+        return Array.isArray(data) ? data : (data?.items ?? data?.content ?? []);
+      },
+      { ttlMs: 20000, signal },
+    );
   }
 
   await waitForMock(180);

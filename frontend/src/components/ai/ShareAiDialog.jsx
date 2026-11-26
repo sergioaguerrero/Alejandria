@@ -36,6 +36,7 @@ import {
   getSharedFriendsForMaterial,
   shareAiContentWithFriends,
 } from '../../services/index.js';
+import { resolveMediaUrl } from '../../utils/profileMedia.js';
 
 /**
  * @param {object} props
@@ -187,6 +188,8 @@ export default function ShareAiDialog({ open, material, onClose, onShared }) {
                         <Checkbox edge="start" checked={checked} tabIndex={-1} disableRipple />
                       </ListItemIcon>
                       <Avatar
+                        src={resolveMediaUrl(friend.avatarUrl)}
+                        alt={`@${friend.username}`}
                         sx={{
                           width: 32,
                           height: 32,
