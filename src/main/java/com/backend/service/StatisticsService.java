@@ -11,6 +11,7 @@ import com.backend.repository.AiShareRepository;
 import com.backend.repository.InteractionRepository;
 import com.backend.repository.StudyRepositoryRepository;
 import com.backend.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Calcula estadísticas personales del estudiante y analíticas globales/avanzadas del administrador
@@ -37,6 +39,9 @@ public class StatisticsService {
     private static final List<String> WEEK_LABELS = List.of("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom");
     private static final List<String> MONTH_LABELS = List.of("Sem 1", "Sem 2", "Sem 3", "Sem 4");
     private static final List<String> DAY_HOUR_LABELS = List.of("00:00", "04:00", "08:00", "12:00", "16:00", "20:00");
+    private static final int MAX_PERSONAL_CACHE_ENTRIES = 100;
+
+    private record CachedStats(Map<String, Object> payload, long expiresAtNanos) {}
 
     private final StudyRepositoryRepository studyRepositoryRepository;
     private final OraclePackageService oraclePackageService;
@@ -44,6 +49,10 @@ public class StatisticsService {
     private final com.backend.repository.RepositoriosRepository repositoriosRepository;
     private final com.backend.repository.AnaliticasRepository analiticasRepository;
     private final com.backend.repository.IaEstudioRepository iaEstudioRepository;
+    private final long globalCacheTtlNanos;
+    private final long personalCacheTtlNanos;
+    private final Map<String, CachedStats> globalStatsCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedStats> personalStatsCache = new ConcurrentHashMap<>();
 
     public StatisticsService(
             StudyRepositoryRepository studyRepositoryRepository,
@@ -51,7 +60,9 @@ public class StatisticsService {
             com.backend.repository.AuthUsuariosRepository authUsuariosRepository,
             com.backend.repository.RepositoriosRepository repositoriosRepository,
             com.backend.repository.AnaliticasRepository analiticasRepository,
-            com.backend.repository.IaEstudioRepository iaEstudioRepository
+            com.backend.repository.IaEstudioRepository iaEstudioRepository,
+            @Value("${app.stats.global-cache-ttl-seconds:60}") long globalCacheTtlSeconds,
+            @Value("${app.stats.personal-cache-ttl-seconds:30}") long personalCacheTtlSeconds
     ) {
         this.studyRepositoryRepository = studyRepositoryRepository;
         this.oraclePackageService = oraclePackageService;
@@ -59,12 +70,19 @@ public class StatisticsService {
         this.repositoriosRepository = repositoriosRepository;
         this.analiticasRepository = analiticasRepository;
         this.iaEstudioRepository = iaEstudioRepository;
+        this.globalCacheTtlNanos = Math.max(0L, globalCacheTtlSeconds) * 1_000_000_000L;
+        this.personalCacheTtlNanos = Math.max(0L, personalCacheTtlSeconds) * 1_000_000_000L;
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getMyStatistics(String rawPeriod, User currentUser) {
         User user = AuthGuards.requireAuthenticated(currentUser, "Debes iniciar sesión para consultar tus estadísticas.");
         String period = "month".equalsIgnoreCase(rawPeriod) ? "month" : "week";
+        String cacheKey = user.getId() + ":" + period;
+        Map<String, Object> cached = readFromCache(personalStatsCache, cacheKey, personalCacheTtlNanos);
+        if (cached != null) {
+            return cached;
+        }
 
         List<Object[]> myResourceRows = oraclePackageService.fnEstadisticasRecursosAutor(user.getId());
         List<Long> userRepoIds = oraclePackageService.fnRepositoriosPorAutorIds(user.getUsername());
@@ -150,12 +168,17 @@ public class StatisticsService {
         response.put("topSubjects", topSubjects);
         response.put("recentHistory", recentHistory);
         response.put("myDocuments", myDocuments);
+        writeToCache(personalStatsCache, cacheKey, response, personalCacheTtlNanos, MAX_PERSONAL_CACHE_ENTRIES);
         return response;
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getGlobalStatistics(User currentUser) {
         AuthGuards.requireAdmin(currentUser, "Solo los administradores pueden consultar las estadísticas globales.");
+        Map<String, Object> cached = readFromCache(globalStatsCache, "global", globalCacheTtlNanos);
+        if (cached != null) {
+            return cached;
+        }
 
         long activeStudentsCount = authUsuariosRepository.contarEstudiantesActivos();
         long totalRepositories = repositoriosRepository.contarTotalRepositorios();
@@ -261,6 +284,7 @@ public class StatisticsService {
         response.put("documentsBySubject", documentsBySubject);
         response.put("topDocuments", topDocuments);
         response.put("reasonsSummary", reportStats.reasonsSummary);
+        writeToCache(globalStatsCache, "global", response, globalCacheTtlNanos, 10);
         return response;
     }
 
@@ -272,6 +296,11 @@ public class StatisticsService {
             case "month" -> "month";
             default -> "week";
         };
+        String cacheKey = "advanced:" + period;
+        Map<String, Object> cached = readFromCache(globalStatsCache, cacheKey, globalCacheTtlNanos);
+        if (cached != null) {
+            return cached;
+        }
 
         long totalStudents = authUsuariosRepository.contarEstudiantesActivos();
 
@@ -315,7 +344,42 @@ public class StatisticsService {
         response.put("activeUsers", activeUsers);
         response.put("topSearchTerms", topSearchTerms);
         response.put("aiUsage", aiUsage);
+        writeToCache(globalStatsCache, cacheKey, response, globalCacheTtlNanos, 10);
         return response;
+    }
+
+    private Map<String, Object> readFromCache(Map<String, CachedStats> cache, String key, long ttlNanos) {
+        if (ttlNanos <= 0L) {
+            return null;
+        }
+        CachedStats entry = cache.get(key);
+        if (entry != null && System.nanoTime() < entry.expiresAtNanos()) {
+            return entry.payload();
+        }
+        if (entry != null) {
+            cache.remove(key, entry);
+        }
+        return null;
+    }
+
+    private void writeToCache(
+            Map<String, CachedStats> cache,
+            String key,
+            Map<String, Object> payload,
+            long ttlNanos,
+            int maxEntries
+    ) {
+        if (ttlNanos <= 0L) {
+            return;
+        }
+        if (cache.size() >= maxEntries) {
+            long now = System.nanoTime();
+            cache.entrySet().removeIf(e -> now >= e.getValue().expiresAtNanos());
+            if (cache.size() >= maxEntries) {
+                cache.clear();
+            }
+        }
+        cache.put(key, new CachedStats(payload, System.nanoTime() + ttlNanos));
     }
 
     private List<Map<String, Object>> buildPersonalActivityTimeline(

@@ -50,15 +50,16 @@ import { SELECT_MENU_PROPS } from '../../utils/selectMenuProps.js';
 
 function startTabFetch({ tab, key, fetcher, onSuccess, setLoadedKeys, setTabErrors }) {
   let active = true;
+  const controller = new AbortController();
 
-  fetcher()
+  fetcher(controller.signal)
     .then((result) => {
       if (!active) return;
       onSuccess(result);
       setTabErrors((prev) => (prev[tab] ? { ...prev, [tab]: '' } : prev));
     })
     .catch((serviceError) => {
-      if (!active) return;
+      if (!active || serviceError?.code === 'REQUEST_CANCELED') return;
       const message = serviceError?.message ?? 'No se pudo buscar el contenido.';
       setTabErrors((prev) => ({ ...prev, [tab]: message }));
     })
@@ -70,7 +71,19 @@ function startTabFetch({ tab, key, fetcher, onSuccess, setLoadedKeys, setTabErro
 
   return () => {
     active = false;
+    controller.abort();
   };
+}
+
+function useDebouncedValue(value, delayMs = 300) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+
+  return debounced;
 }
 
 export default function SearchPage() {
@@ -139,52 +152,56 @@ export default function SearchPage() {
     setSearchParams(updated, { replace: true });
   };
 
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const debouncedTopic = useDebouncedValue(topic, 300);
+
   const docPage = pages.documents;
   const repoPage = pages.repositories;
   const repoOrder = order === 'liked' ? 'popular' : order;
 
   const docKey = [
-    search,
+    debouncedSearch,
     subjectId,
     semester,
     term,
     materialType,
-    topic,
+    debouncedTopic,
     order,
     docPage,
   ].join('|');
-  const repoKey = [search, subjectId, semester, repoOrder, repoPage].join('|');
-  const usersKey = search;
+  const repoKey = [debouncedSearch, subjectId, semester, repoOrder, repoPage].join('|');
+  const usersKey = debouncedSearch;
 
   const currentKey =
     activeTab === 'documents' ? docKey : activeTab === 'repositories' ? repoKey : usersKey;
   const isLoading = loadedKeys[activeTab] !== currentKey;
   const error = tabErrors[activeTab];
 
-  // Fetch matching documents, repositories and users in parallel so every tab
-  // counter reflects real results immediately on entry and filter updates.
+  // Fetch matching documents, repositories and users in parallel (debounced & abortable)
+  // so every tab counter reflects real results without flooding the backend per keystroke.
   useEffect(
     () =>
       startTabFetch({
         tab: 'documents',
         key: docKey,
-        fetcher: () =>
+        fetcher: (signal) =>
           getDocuments({
-            search,
+            search: debouncedSearch,
             subjectId,
             semester,
             term,
             type: materialType,
-            topic,
+            topic: debouncedTopic,
             order,
             page: docPage,
             size: 8,
+            signal,
           }),
         onSuccess: setDocResults,
         setLoadedKeys,
         setTabErrors,
       }),
-    [docKey, search, subjectId, semester, term, materialType, topic, order, docPage],
+    [docKey, debouncedSearch, subjectId, semester, term, materialType, debouncedTopic, order, docPage],
   );
 
   useEffect(
@@ -192,20 +209,21 @@ export default function SearchPage() {
       startTabFetch({
         tab: 'repositories',
         key: repoKey,
-        fetcher: () =>
+        fetcher: (signal) =>
           getRepositories({
-            search,
+            search: debouncedSearch,
             subjectId,
             semester,
             order: repoOrder,
             page: repoPage,
             size: 9,
+            signal,
           }),
         onSuccess: setRepoResults,
         setLoadedKeys,
         setTabErrors,
       }),
-    [repoKey, search, subjectId, semester, repoOrder, repoPage],
+    [repoKey, debouncedSearch, subjectId, semester, repoOrder, repoPage],
   );
 
   useEffect(
@@ -213,12 +231,12 @@ export default function SearchPage() {
       startTabFetch({
         tab: 'users',
         key: usersKey,
-        fetcher: () => searchUsers(search),
+        fetcher: (signal) => searchUsers(debouncedSearch, { signal }),
         onSuccess: setUserResults,
         setLoadedKeys,
         setTabErrors,
       }),
-    [usersKey, search],
+    [usersKey, debouncedSearch],
   );
 
   const handleToggleFollow = async (targetProfile) => {

@@ -61,6 +61,26 @@ function termLabel(term) {
   return TERMS.find((t) => t.value === term)?.label ?? `Corte ${term}`;
 }
 
+function toTimestamp(value) {
+  const ms = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function sortRepositoriesByLikes(list) {
+  return [...(list ?? [])].sort(
+    (a, b) => (b.likes || 0) - (a.likes || 0) || toTimestamp(b.createdAt) - toTimestamp(a.createdAt),
+  );
+}
+
+function sortDocumentsByViews(list) {
+  return [...(list ?? [])].sort(
+    (a, b) =>
+      (b.views || 0) - (a.views || 0) ||
+      (b.downloads || 0) - (a.downloads || 0) ||
+      toTimestamp(b.createdAt) - toTimestamp(a.createdAt),
+  );
+}
+
 export default function PublicProfilePage() {
   const { username } = useParams();
   const { user } = useAuth();
@@ -91,8 +111,8 @@ export default function PublicProfilePage() {
         setLoaded({
           key: username,
           profile,
-          repositories,
-          documents,
+          repositories: sortRepositoriesByLikes(repositories),
+          documents: sortDocumentsByViews(documents),
           error: '',
         });
       })

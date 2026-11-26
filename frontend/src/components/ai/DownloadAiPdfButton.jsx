@@ -4,11 +4,12 @@
  * guides, or slides directly as a formatted PDF file.
  */
 
-import { Button, Tooltip } from '@mui/material';
+import { useState } from 'react';
+
+import { Button, CircularProgress, Tooltip } from '@mui/material';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 
 import { getAiContentMeta } from '../../utils/aiContentMeta.js';
-import { exportAiMaterialToPdf } from '../../utils/aiPdfExport.js';
 
 /**
  * @param {object} props
@@ -18,16 +19,22 @@ import { exportAiMaterialToPdf } from '../../utils/aiPdfExport.js';
  * @param {(error: Error) => void} [props.onError]
  */
 export default function DownloadAiPdfButton({ material, fullWidth = false, onDownloaded, onError }) {
+  const [isExporting, setIsExporting] = useState(false);
   const meta = getAiContentMeta(material?.contentType || 'quiz');
   const tooltipLabel =
     meta.downloadPdfLabel || `Descargar ${meta.shortLabel.toLowerCase()} en formato PDF`;
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
+    if (!material || isExporting) return;
+    setIsExporting(true);
     try {
+      const { exportAiMaterialToPdf } = await import('../../utils/aiPdfExport.js');
       const filename = exportAiMaterialToPdf(material);
       onDownloaded?.(filename);
     } catch (error) {
       onError?.(error);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -39,13 +46,15 @@ export default function DownloadAiPdfButton({ material, fullWidth = false, onDow
           color="primary"
           size="small"
           fullWidth={fullWidth}
-          startIcon={<PictureAsPdfOutlinedIcon />}
+          startIcon={
+            isExporting ? <CircularProgress size={14} color="inherit" /> : <PictureAsPdfOutlinedIcon />
+          }
           onClick={handleDownload}
-          disabled={!material}
+          disabled={!material || isExporting}
           aria-label={tooltipLabel}
           sx={{ whiteSpace: 'nowrap' }}
         >
-          Descargar
+          {isExporting ? 'Generando...' : 'Descargar'}
         </Button>
       </span>
     </Tooltip>

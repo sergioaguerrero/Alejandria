@@ -120,8 +120,15 @@ public class UserController {
             @RequestParam(value = "v", required = false) String version,
             HttpServletRequest request,
             HttpServletResponse response
-    ) throws IOException {
-        streamProfileImage(id, ProfileImageType.AVATAR, version, "HEAD".equalsIgnoreCase(request.getMethod()), response);
+    ) {
+        profileImageService.writeImageResponse(
+                id,
+                ProfileImageType.AVATAR,
+                version,
+                request.getHeader(HttpHeaders.IF_NONE_MATCH),
+                "HEAD".equalsIgnoreCase(request.getMethod()),
+                response
+        );
     }
 
     @RequestMapping(value = "/{id}/banner", method = {RequestMethod.GET, RequestMethod.HEAD})
@@ -130,8 +137,15 @@ public class UserController {
             @RequestParam(value = "v", required = false) String version,
             HttpServletRequest request,
             HttpServletResponse response
-    ) throws IOException {
-        streamProfileImage(id, ProfileImageType.BANNER, version, "HEAD".equalsIgnoreCase(request.getMethod()), response);
+    ) {
+        profileImageService.writeImageResponse(
+                id,
+                ProfileImageType.BANNER,
+                version,
+                request.getHeader(HttpHeaders.IF_NONE_MATCH),
+                "HEAD".equalsIgnoreCase(request.getMethod()),
+                response
+        );
     }
 
     @GetMapping("/me/friends")
@@ -209,31 +223,5 @@ public class UserController {
             @AuthenticationPrincipal User currentUser
     ) {
         return ResponseEntity.ok(userProfileService.toggleFollow(username, currentUser));
-    }
-
-    private void streamProfileImage(
-            Long userId,
-            ProfileImageType type,
-            String version,
-            boolean isHead,
-            HttpServletResponse response
-    ) throws IOException {
-        ProfileImageService.ImageMetadata meta = profileImageService.getImageMetadata(userId, type);
-        response.setStatus(HttpServletResponse.SC_OK);
-        response.setContentType(meta.mimeType());
-        if (meta.sizeBytes() > 0) {
-            response.setContentLengthLong(meta.sizeBytes());
-        }
-        response.setHeader("X-Content-Type-Options", "nosniff");
-        response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-        response.setHeader(
-                HttpHeaders.CACHE_CONTROL,
-                (version != null && !version.isBlank())
-                        ? "public, max-age=31536000, immutable"
-                        : "public, max-age=300"
-        );
-        if (!isHead && meta.sizeBytes() > 0) {
-            profileImageService.streamImageBytes(userId, type, response.getOutputStream());
-        }
     }
 }

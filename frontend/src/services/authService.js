@@ -27,6 +27,7 @@ import {
 } from '../utils/validations.js';
 import { validateBioAndContacts } from '../utils/contactMethods.js';
 import { blobToDataUrl, validateProfileImageFile } from '../utils/profileMedia.js';
+import { clearAllCache, invalidateCache } from '../utils/queryCache.js';
 
 const MOCK_OTP_EXPIRATION_MS = 15 * 60 * 1000;
 const MOCK_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -117,6 +118,7 @@ export function currentUser() {
 
 /** Deletes the saved session. */
 export function logout() {
+  clearAllCache();
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }
@@ -143,6 +145,7 @@ export async function login({ identifier, password }) {
       identifier: cleanIdentifier,
       password,
     });
+    clearAllCache();
     saveSession(data);
     return data;
   }
@@ -553,6 +556,7 @@ export async function updateProfile(data) {
       ...(hasContacts ? { contacts } : {}),
     };
     const { data: updatedUser } = await http.put('/users/me', payload);
+    invalidateCache('users:', 'repos:', 'docs:');
     const session = getCurrentSession();
     if (session) saveSession({ ...session, user: updatedUser });
     return updatedUser;
@@ -662,6 +666,7 @@ async function uploadProfileImage(kind, file) {
     const { data: updatedUser } = await http.put(`/users/me/${kind}`, formData, {
       timeout: 30000,
     });
+    invalidateCache('users:');
     const session = getCurrentSession();
     if (session) saveSession({ ...session, user: updatedUser });
     return updatedUser;
@@ -700,6 +705,7 @@ async function uploadProfileImage(kind, file) {
 async function deleteProfileImage(kind) {
   if (!USE_MOCK) {
     const { data: updatedUser } = await http.delete(`/users/me/${kind}`);
+    invalidateCache('users:');
     const session = getCurrentSession();
     if (session) saveSession({ ...session, user: updatedUser });
     return updatedUser;

@@ -86,6 +86,7 @@ public class SecurityConfig {
                                 ))
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/subjects/**", "/api/catalog/subjects/**").permitAll()
                         .requestMatchers("/api/repositories/followed").authenticated()
