@@ -88,12 +88,16 @@ export default function AiStudyPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedRepoId = searchParams.get('repositoryId');
+  const preselectedTypeParam = searchParams.get('type');
+  const initialContentType = AI_CONTENT_TYPES.some((item) => item.value === preselectedTypeParam)
+    ? preselectedTypeParam
+    : 'quiz';
   const { user } = useAuth();
 
   // Repository states
   const [followedRepos, setFollowedRepos] = useState([]);
   const [selectedRepo, setSelectedRepo] = useState(null);
-  const [contentType, setContentType] = useState('quiz');
+  const [contentType, setContentType] = useState(initialContentType);
   const [quota, setQuota] = useState({ total: 5, used: 0, remaining: 5 });
 
   // Scope state
