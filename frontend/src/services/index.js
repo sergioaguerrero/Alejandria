@@ -22,6 +22,10 @@ export {
   saveSession,
   getCurrentSession,
   currentUser,
+  uploadProfileAvatar,
+  deleteProfileAvatar,
+  uploadProfileBanner,
+  deleteProfileBanner,
   requestPasswordReset,
   resetPassword,
 } from './authService.js';

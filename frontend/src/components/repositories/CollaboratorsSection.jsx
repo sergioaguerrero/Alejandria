@@ -41,6 +41,7 @@ import {
   respondCollaboratorInvitation,
   searchUsers,
 } from '../../services/index.js';
+import { resolveMediaUrl } from '../../utils/profileMedia.js';
 import { initials } from '../../utils/users.js';
 
 export default function CollaboratorsSection({
@@ -285,7 +286,7 @@ export default function CollaboratorsSection({
                     sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}
                   >
                     <Avatar
-                      src={option.avatarUrl || option.photoUrl || undefined}
+                      src={resolveMediaUrl(option.avatarUrl || option.photoUrl)}
                       sx={{
                         width: 28,
                         height: 28,
@@ -319,7 +320,7 @@ export default function CollaboratorsSection({
                             typeof inviteValue === 'object' &&
                             inviteInput === `@${inviteValue.username}` && (
                               <Avatar
-                                src={inviteValue.avatarUrl || inviteValue.photoUrl || undefined}
+                                src={resolveMediaUrl(inviteValue.avatarUrl || inviteValue.photoUrl)}
                                 sx={{
                                   width: 24,
                                   height: 24,
@@ -385,6 +386,8 @@ export default function CollaboratorsSection({
                 >
                   <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
                     <Avatar
+                      src={resolveMediaUrl(collab.avatarUrl || collab.user?.avatarUrl)}
+                      alt={`@${collab.username}`}
                       sx={{
                         width: 34,
                         height: 34,

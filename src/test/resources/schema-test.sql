@@ -29,9 +29,11 @@ CREATE TABLE USUARIO (
     verificado           INTEGER      DEFAULT 0            NOT NULL,
     suspendido           INTEGER      DEFAULT 0            NOT NULL,
     fecha_registro       TIMESTAMP(6) DEFAULT LOCALTIMESTAMP NOT NULL,
-    semestre             INTEGER,
-    descripcion          VARCHAR(500),
-    rol_id               BIGINT,
+    semestre              INTEGER,
+    descripcion           VARCHAR(500),
+    avatar_actualizado_en TIMESTAMP(6),
+    banner_actualizado_en TIMESTAMP(6),
+    rol_id                BIGINT,
     CONSTRAINT pk_usuario             PRIMARY KEY (id),
     CONSTRAINT uq_usuario_nombre      UNIQUE (nombre_usuario),
     CONSTRAINT uq_usuario_correo      UNIQUE (correo_institucional),
@@ -437,6 +439,20 @@ CREATE TABLE CONTACTO_USUARIO (
         'EMAIL', 'WHATSAPP', 'INSTAGRAM', 'LINKEDIN', 'GITHUB', 'TELEGRAM', 'DISCORD', 'WEBSITE', 'OTHER'
     )),
     CONSTRAINT fk_contacto_usuario FOREIGN KEY (usuario_id) REFERENCES USUARIO (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IMAGEN_PERFIL_USUARIO (
+    usuario_id          BIGINT                            NOT NULL,
+    tipo                VARCHAR(10)                       NOT NULL,
+    archivo_bytes       BLOB                              NOT NULL,
+    tipo_mime           VARCHAR(50)                       NOT NULL,
+    tamano_bytes        BIGINT                            NOT NULL,
+    fecha_actualizacion TIMESTAMP(6) DEFAULT LOCALTIMESTAMP NOT NULL,
+    CONSTRAINT pk_imagen_perfil_usuario PRIMARY KEY (usuario_id, tipo),
+    CONSTRAINT chk_ipu_tipo             CHECK (tipo IN ('AVATAR', 'BANNER')),
+    CONSTRAINT chk_ipu_mime             CHECK (tipo_mime IN ('image/jpeg', 'image/png', 'image/webp')),
+    CONSTRAINT chk_ipu_tamano           CHECK (tamano_bytes > 0),
+    CONSTRAINT fk_ipu_usuario           FOREIGN KEY (usuario_id) REFERENCES USUARIO (id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_contacto_usuario ON CONTACTO_USUARIO (usuario_id, orden);

@@ -18,6 +18,8 @@ public class UserDto {
     private String role;
     private Integer semester;
     private String bio;
+    private String avatarUrl;
+    private String bannerUrl;
     private List<UserContactDto> contacts = Collections.emptyList();
     private boolean verified;
     private boolean suspended;
@@ -40,6 +42,8 @@ public class UserDto {
         dto.setSecond_lastname(user.getSecond_lastname());
         dto.setSemester(user.getSemester());
         dto.setBio(user.getBio());
+        dto.setAvatarUrl(user.getAvatarUrl());
+        dto.setBannerUrl(user.getBannerUrl());
         dto.setContacts(contacts == null
                 ? Collections.emptyList()
                 : contacts.stream().map(UserContactDto::fromEntity).toList());
@@ -83,6 +87,12 @@ public class UserDto {
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
+    public String getBannerUrl() { return bannerUrl; }
+    public void setBannerUrl(String bannerUrl) { this.bannerUrl = bannerUrl; }
 
     public List<UserContactDto> getContacts() { return contacts; }
     public void setContacts(List<UserContactDto> contacts) { this.contacts = contacts; }

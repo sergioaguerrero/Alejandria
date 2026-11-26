@@ -42,6 +42,7 @@ BEGIN
             'PROGRAMA',
             'FACULTAD',
             -- Identidad y perfil de usuario
+            'IMAGEN_PERFIL_USUARIO',
             'CONTACTO_USUARIO',
             'SEGUIMIENTO_USUARIO',
             'TOKEN_RECUPERACION_CONTRASENA',
@@ -87,9 +88,11 @@ CREATE TABLE USUARIO (
     verificado           NUMBER(1, 0)      DEFAULT 0            NOT NULL,
     suspendido           NUMBER(1, 0)      DEFAULT 0            NOT NULL,
     fecha_registro       TIMESTAMP(6)      DEFAULT LOCALTIMESTAMP NOT NULL,
-    semestre             NUMBER(10, 0),
-    descripcion          VARCHAR2(500 CHAR),
-    rol_id               NUMBER(19, 0),
+    semestre              NUMBER(10, 0),
+    descripcion           VARCHAR2(500 CHAR),
+    avatar_actualizado_en TIMESTAMP(6),
+    banner_actualizado_en TIMESTAMP(6),
+    rol_id                NUMBER(19, 0),
     CONSTRAINT pk_usuario             PRIMARY KEY (id),
     CONSTRAINT uq_usuario_nombre      UNIQUE (nombre_usuario),
     CONSTRAINT uq_usuario_correo      UNIQUE (correo_institucional),
@@ -159,6 +162,20 @@ CREATE TABLE CONTACTO_USUARIO (
 );
 
 CREATE INDEX idx_contacto_usuario ON CONTACTO_USUARIO (usuario_id, orden);
+
+CREATE TABLE IMAGEN_PERFIL_USUARIO (
+    usuario_id          NUMBER(19, 0)                      NOT NULL,
+    tipo                VARCHAR2(10 CHAR)                  NOT NULL,
+    archivo_bytes       BLOB                               NOT NULL,
+    tipo_mime           VARCHAR2(50 CHAR)                  NOT NULL,
+    tamano_bytes        NUMBER(19, 0)                      NOT NULL,
+    fecha_actualizacion TIMESTAMP(6) DEFAULT LOCALTIMESTAMP NOT NULL,
+    CONSTRAINT pk_imagen_perfil_usuario PRIMARY KEY (usuario_id, tipo),
+    CONSTRAINT chk_ipu_tipo             CHECK (tipo IN ('AVATAR', 'BANNER')),
+    CONSTRAINT chk_ipu_mime             CHECK (tipo_mime IN ('image/jpeg', 'image/png', 'image/webp')),
+    CONSTRAINT chk_ipu_tamano           CHECK (tamano_bytes > 0),
+    CONSTRAINT fk_ipu_usuario           FOREIGN KEY (usuario_id) REFERENCES USUARIO (id) ON DELETE CASCADE
+);
 
 -- ============================================================================
 -- 2. CATÁLOGO ACADÉMICO Y PREFERENCIAS

@@ -52,6 +52,8 @@ function buildPublicUserProfile(targetUser, viewerUsername) {
     semester: targetUser.semester ?? null,
     role: targetUser.role,
     bio: targetUser.bio ?? null,
+    avatarUrl: targetUser.avatarUrl ?? null,
+    bannerUrl: targetUser.bannerUrl ?? null,
     contacts: Array.isArray(targetUser.contacts) ? targetUser.contacts : [],
     isSelf,
     followersCount,

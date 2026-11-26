@@ -27,6 +27,9 @@ application-local.properties
 Wallet_*/
 wallet/
 
+# Local DB migration scripts
+src/main/resources/db/alter_perfil_imagenes_oracle.sql
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

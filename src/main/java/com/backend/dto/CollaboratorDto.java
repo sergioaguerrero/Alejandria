@@ -15,6 +15,7 @@ public class CollaboratorDto {
     private String id;
     private String repositoryId;
     private String username;
+    private String avatarUrl;
     private String status;
     private String invitedBy;
     private LocalDateTime createdAt;
@@ -28,6 +29,7 @@ public class CollaboratorDto {
         dto.setRepositoryId(entity.getStudyRepository() != null ? String.valueOf(entity.getStudyRepository().getId()) : null);
         User collabUser = entity.getUser();
         dto.setUsername(collabUser != null ? collabUser.getUsername() : null);
+        dto.setAvatarUrl(collabUser != null ? collabUser.getAvatarUrl() : null);
         dto.setStatus(toFrontendStatus(entity.getStatus()));
         dto.setInvitedBy(entity.getInvitedBy() != null ? entity.getInvitedBy().getUsername() : null);
         dto.setCreatedAt(entity.getInvitedAt());
@@ -38,7 +40,8 @@ public class CollaboratorDto {
                     collabUser.getId(),
                     collabUser.getUsername(),
                     collabUser.getSemester(),
-                    roleName.contains("admin") ? "admin" : "estudiante"
+                    roleName.contains("admin") ? "admin" : "estudiante",
+                    collabUser.getAvatarUrl()
             ));
         }
         dto.setRepository(repositoryDto);
@@ -58,6 +61,9 @@ public class CollaboratorDto {
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
@@ -76,5 +82,5 @@ public class CollaboratorDto {
     public RepositoryResponseDto getRepository() { return repository; }
     public void setRepository(RepositoryResponseDto repository) { this.repository = repository; }
 
-    public record CollaboratorUserDto(Long id, String username, Integer semester, String role) {}
+    public record CollaboratorUserDto(Long id, String username, Integer semester, String role, String avatarUrl) {}
 }

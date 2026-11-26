@@ -42,6 +42,7 @@ import ReportDialog from '../../components/common/ReportDialog.jsx';
 import RepositoryCard from '../../components/repositories/RepositoryCard.jsx';
 import ProfileBioAndContacts from '../../components/users/ProfileBioAndContacts.jsx';
 import ProfileCounters from '../../components/users/ProfileCounters.jsx';
+import ProfileImageLightbox from '../../components/users/ProfileImageLightbox.jsx';
 import { useAuth } from '../../context/authContext.js';
 import { MATERIAL_TYPES, TERMS } from '../../mocks/catalogs.js';
 import {
@@ -50,6 +51,7 @@ import {
   getRepositoriesByUser,
   toggleFollowUser,
 } from '../../services/index.js';
+import { DEFAULT_BANNER_GRADIENT, resolveMediaUrl } from '../../utils/profileMedia.js';
 
 function materialTypeLabel(type) {
   return MATERIAL_TYPES.find((m) => m.value === type)?.label ?? type;
@@ -72,6 +74,7 @@ export default function PublicProfilePage() {
   });
   const [activeTab, setActiveTab] = useState('repositories'); // 'repositories' | 'documents'
   const [reportOpen, setReportOpen] = useState(false);
+  const [lightboxKind, setLightboxKind] = useState(null); // null | 'avatar' | 'banner'
   const [isFollowingBusy, setIsFollowingBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -123,6 +126,9 @@ export default function PublicProfilePage() {
   const totalLikes =
     loaded.repositories.reduce((acc, repo) => acc + (repo.likes || 0), 0) +
     loaded.documents.reduce((acc, doc) => acc + (doc.likes || 0), 0);
+
+  const profileAvatarSrc = resolveMediaUrl(loaded.profile?.avatarUrl);
+  const profileBannerSrc = resolveMediaUrl(loaded.profile?.bannerUrl);
 
   const handleToggleFollow = async () => {
     if (!loaded.profile) return;
@@ -185,18 +191,51 @@ export default function PublicProfilePage() {
       {/* Content */}
       {!isLoading && !loaded.error && loaded.profile && (
         <>
-          {/* Banner with project palette gradient */}
+          {/* Banner with custom photo or institutional palette gradient — hover highlights, click enlarges */}
           <Box
+            role={profileBannerSrc ? 'button' : undefined}
+            tabIndex={profileBannerSrc ? 0 : undefined}
+            aria-label={profileBannerSrc ? 'Ver banner en grande' : undefined}
+            onClick={() => {
+              if (profileBannerSrc) setLightboxKind('banner');
+            }}
+            onKeyDown={(e) => {
+              if (profileBannerSrc && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                setLightboxKind('banner');
+              }
+            }}
             sx={{
               width: '100%',
               height: { xs: 150, sm: 200, md: 230 },
               borderRadius: 3,
-              background: 'linear-gradient(135deg, #0B1220 0%, #152944 35%, #1D3557 70%, #2563EB 100%)',
+              backgroundImage: profileBannerSrc
+                ? `url("${profileBannerSrc}")`
+                : DEFAULT_BANNER_GRADIENT,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               position: 'relative',
               overflow: 'hidden',
-              boxShadow: 'inset 0 0 50px rgba(0,0,0,0.6)',
-              border: '1px solid',
+              boxShadow: profileBannerSrc
+                ? 'inset 0 -36px 60px rgba(0,0,0,0.35)'
+                : 'inset 0 0 50px rgba(0,0,0,0.6)',
+              border: '2px solid',
               borderColor: 'divider',
+              cursor: profileBannerSrc ? 'zoom-in' : 'default',
+              transition: 'border-color 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease',
+              '&:hover': {
+                borderColor: 'primary.main',
+                boxShadow: (theme) =>
+                  `0 0 0 2px ${theme.palette.primary.main}44, ${
+                    profileBannerSrc ? 'inset 0 -36px 60px rgba(0,0,0,0.35)' : 'inset 0 0 50px rgba(0,0,0,0.6)'
+                  }`,
+                filter: 'brightness(1.04)',
+              },
+              '&:focus-visible': {
+                outline: '2px solid',
+                outlineColor: 'primary.main',
+                outlineOffset: 2,
+              },
             }}
           />
 
@@ -220,23 +259,55 @@ export default function PublicProfilePage() {
                   gap: { xs: 1.5, sm: 2.5 },
                 }}
               >
-                <Avatar
+                <Box
+                  role={profileAvatarSrc ? 'button' : undefined}
+                  tabIndex={profileAvatarSrc ? 0 : undefined}
+                  aria-label={profileAvatarSrc ? 'Ver foto de perfil en grande' : undefined}
+                  onClick={() => {
+                    if (profileAvatarSrc) setLightboxKind('avatar');
+                  }}
+                  onKeyDown={(e) => {
+                    if (profileAvatarSrc && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      setLightboxKind('avatar');
+                    }
+                  }}
                   sx={{
-                    width: { xs: 90, sm: 110, md: 120 },
-                    height: { xs: 90, sm: 110, md: 120 },
-                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                    fontWeight: 700,
-                    bgcolor: '#F59E0B',
-                    color: '#0B1220',
-                    border: '4px solid',
-                    borderColor: 'background.paper',
-                    boxShadow: 3,
                     mt: { xs: -5.5, sm: -7, md: -7.5 },
                     flexShrink: 0,
+                    borderRadius: '50%',
+                    display: 'inline-flex',
+                    cursor: profileAvatarSrc ? 'zoom-in' : 'default',
+                    transition: 'transform 0.18s ease, box-shadow 0.2s ease',
+                    '&:hover': {
+                      transform: 'scale(1.02)',
+                      boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}`,
+                    },
+                    '&:focus-visible': {
+                      outline: '2px solid',
+                      outlineColor: 'primary.main',
+                      outlineOffset: 3,
+                    },
                   }}
                 >
-                  {loaded.profile.username.slice(0, 2).toUpperCase()}
-                </Avatar>
+                  <Avatar
+                    src={profileAvatarSrc}
+                    alt={`@${loaded.profile.username}`}
+                    sx={{
+                      width: { xs: 90, sm: 110, md: 120 },
+                      height: { xs: 90, sm: 110, md: 120 },
+                      fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                      fontWeight: 700,
+                      bgcolor: '#F59E0B',
+                      color: '#0B1220',
+                      border: '4px solid',
+                      borderColor: 'background.paper',
+                      boxShadow: 3,
+                    }}
+                  >
+                    {loaded.profile.username.slice(0, 2).toUpperCase()}
+                  </Avatar>
+                </Box>
 
                 <Box sx={{ pt: { xs: 0, sm: 1.5 } }}>
                   <Typography variant="h4" component="h1" fontWeight={700} sx={{ lineHeight: 1.2 }}>
@@ -495,6 +566,18 @@ export default function PublicProfilePage() {
             targetLabel={`@${loaded.profile.username}`}
             onClose={() => setReportOpen(false)}
             onReported={handleReported}
+          />
+
+          <ProfileImageLightbox
+            open={Boolean(lightboxKind)}
+            kind={lightboxKind ?? 'avatar'}
+            src={lightboxKind === 'banner' ? profileBannerSrc : profileAvatarSrc}
+            label={
+              lightboxKind === 'banner'
+                ? `Banner · @${loaded.profile.username}`
+                : `Foto de perfil · @${loaded.profile.username}`
+            }
+            onClose={() => setLightboxKind(null)}
           />
         </>
       )}

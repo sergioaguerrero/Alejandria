@@ -108,7 +108,16 @@ public class SecurityConfig {
                                 "/api/documents/*/download"
                         ).permitAll()
                         .requestMatchers("/api/users/me", "/api/users/me/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/users", "/api/users/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/users",
+                                "/api/users/*",
+                                "/api/users/*/avatar",
+                                "/api/users/*/banner"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.HEAD,
+                                "/api/users/*/avatar",
+                                "/api/users/*/banner"
+                        ).permitAll()
                         .requestMatchers("/api/admin/**", "/api/analytics/top-subjects", "/api/analytics/export")
                         .hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
